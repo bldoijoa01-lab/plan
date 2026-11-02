@@ -2017,7 +2017,7 @@ h += `<span class="chip${checked.has(id) ? ' on' : ''}${x.late ? ' lateItem' : '
 }
 h += `</div></div>`;
 }
-h += `<div class="row" style="margin-top:14px"><button class="act primary" id="save">완료 저장</button><button class="act" id="mkpaste">텍스트로 보기</button></div>`;
+h += `<div class="row" style="margin-top:14px"><button class="act primary" id="save">완료 저장</button>${lateCnt ? `<button class="act" id="yesterdaydone">😴 어제 체크 못 했어요</button>` : ''}<button class="act" id="mkpaste">텍스트로 보기</button></div>`;
 h += `<div class="muted" style="margin-top:8px" id="savemsg">칩을 눌러 완료 표시 → 저장하면 시트에 바로 반영돼요</div>`;
 if (todayDoneList.length) {
 h += `<div class="muted" style="margin-top:14px;font-size:12px">오늘 완료한 항목 (눌러서 취소)</div>`;
@@ -2245,6 +2245,7 @@ document.querySelectorAll('.chip').forEach(el => {
   });
 document.getElementById('mkpaste').onclick = makePaste;
 document.getElementById('save').onclick = saveDone;
+const ydBtn = document.getElementById('yesterdaydone'); if (ydBtn) ydBtn.onclick = saveYesterdayDone;
 
   const wpopen = document.getElementById('wpopen');
   if (wpopen) wpopen.onclick = () => { WEEKPLAN_OPEN = true; render(); };
@@ -2428,6 +2429,29 @@ document.getElementById('save').onclick = saveDone;
   });
   const chatlog = document.getElementById('chatlog');
   if (chatlog) chatlog.scrollTop = chatlog.scrollHeight;
+}
+
+/** 어제 체크를 못 하고 잔 경우: 지금 "밀림"으로 떠 있는 오늘 칸 항목 전부를 어제 완료한 것으로 저장(진도로그 실제완료일 = 어제) */
+async function saveYesterdayDone() {
+  const late = (STATE.res.assign[STATE.todayIdx] || []).filter(x => x.late);
+  if (!late.length) return;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const pad = (n) => String(n).padStart(2, '0');
+  const ydate = y.getFullYear() + '-' + pad(y.getMonth() + 1) + '-' + pad(y.getDate());
+  const names = late.slice(0, 8).map(x => labelItem(x.series, x.item)).join(', ') + (late.length > 8 ? ' 외 ' + (late.length - 8) + '개' : '');
+  if (!confirm('밀림으로 떠 있는 ' + late.length + '개를 어제(' + ydate + ') 한 걸로 저장할까요?\n\n' + names + '\n\n안 한 게 있으면 취소하고 칩에서 직접 골라 저장하세요.')) return;
+  const btn = document.getElementById('yesterdaydone'), msg = document.getElementById('savemsg');
+  if (btn) btn.disabled = true;
+  if (msg) msg.textContent = '저장 중…';
+  try {
+    const out = await gsrun('saveAndReload', 'markDoneToday', [late.map(x => x.series + '|' + x.item), ydate], {});
+    if (out.dashboard) applyFresh(out.dashboard, false); else await load();
+    const m2 = document.getElementById('savemsg');
+    if (m2) m2.innerHTML = `<b style="color:#257a44">저장됨</b> · ${out.result.count}개 · 어제 한 걸로 기록했어요`;
+  } catch (e) {
+    if (msg) msg.innerHTML = `<b style="color:#c0392b">저장 실패</b> — ${esc(e.message || e)}`;
+    if (btn) btn.disabled = false;
+  }
 }
 
 /** 체크한 항목을 시트의 오늘 칸에 [완]으로 직접 반영 */
