@@ -636,7 +636,7 @@ return buckets;
 /* ===== Apps Script 서버 호출 헬퍼 (google.script.run은 콜백 방식이라 Promise로 감쌈) ===== */
 /* 같은 화면이 두 곳에서 열린다: ① 구글 앱스스크립트 안(google.script.run) ② GitHub Pages 같은 외부 주소(fetch로 doPost의 ui_call 통로 호출,
  * 기기마다 한 번 입력해 localStorage에 저장하는 "웹앱 접속 토큰" 필요). 어느 쪽인지는 google.script.run 유무로 판단한다. */
-const EXEC_URL = 'https://script.google.com/macros/s/AKfycbxPRwlJnMwMgSBsNXZhqWzu97E6Lj45KLcOT1nSbvD594M4WxEGf803XrnaIDefhLc2/exec';
+const EXEC_URL = 'https://study-plan.bldoijoa01.workers.dev';
 const IN_APPS_SCRIPT = typeof google !== 'undefined' && !!(google.script && google.script.run);
 const UI_TOKEN_KEY = 'uiToken_v1';
 function getUiToken() { try { return localStorage.getItem(UI_TOKEN_KEY) || ''; } catch (e) { return ''; } }
