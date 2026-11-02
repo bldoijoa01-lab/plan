@@ -1,0 +1,2616 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta name="robots" content="noindex,nofollow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오늘의 학습 계획</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #fff8f0; --card: #ffffff;
+  --ink: #4a3728; --ink-soft: #7a6252; --muted: #a98e76;
+  --border: #f3e4d3; --divider: #f7ece0;
+  --accent: #f0ab8e; --accent-strong: #d97757; --accent-tint: #fbece4; --accent-ink: #b5643f;
+  --mint-tint: #dff6ec; --mint-ink: #3c9c77;
+  --butter-tint: #fff3d9; --butter-ink: #b4872a;
+  --lav-tint: #eee3fb; --lav-ink: #8a5fc9;
+  --shadow-sm: 0 3px 10px rgba(201,150,110,.10);
+  --shadow-md: 0 8px 24px rgba(201,150,110,.14);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+margin: 0; padding: max(16px, env(safe-area-inset-top)) 16px calc(60px + env(safe-area-inset-bottom));
+background: var(--bg); color: var(--ink);
+font-family: 'Gowun Dodum', -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+font-size: 15px; line-height: 1.6; font-weight: 400;
+}
+#app { max-width: 640px; margin-left: auto; margin-right: auto; }
+@media (min-width: 860px) {
+  #app { max-width: 1180px; -webkit-column-count: 2; column-count: 2; -webkit-column-gap: 20px; column-gap: 20px; }
+  #app > .card { break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; display: inline-block; width: 100%; vertical-align: top; }
+}
+@media (min-width: 1280px) {
+  #app { max-width: 1440px; -webkit-column-count: 3; column-count: 3; }
+}
+h1 { font-family: 'Jua', sans-serif; font-size: 24px; font-weight: 700; margin: 0 0 2px; letter-spacing: -.2px; }
+h2 { font-family: 'Jua', sans-serif; font-size: 14px; margin: 0 0 12px; letter-spacing: .1px; color: var(--ink); font-weight: 700; }
+.sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; font-weight: 600; }
+.card { background: var(--card); border: none; box-shadow: var(--shadow-sm); border-radius: 22px; padding: 18px 18px 16px; margin-bottom: 16px; }
+.card.warn { background: var(--butter-tint); box-shadow: none; }
+.card.err  { background: var(--accent-tint); box-shadow: none; }
+.card.brief { background: #5b4636; box-shadow: var(--shadow-md); color: #fff8f0; }
+.card:has(> .draghandle) { outline: 2px dashed #e3cbb2; outline-offset: 2px; }
+.card.dragging { opacity: .35; }
+.card.drop-before { box-shadow: 0 -3px 0 0 var(--lav-ink) inset; }
+.card.drop-after { box-shadow: 0 3px 0 0 var(--lav-ink) inset; }
+.draghandle { display: flex; align-items: center; justify-content: center; height: 26px; margin: -4px -4px 8px; border-radius: 10px; background: var(--accent-tint); color: var(--accent-ink); font-size: 15px; letter-spacing: 2px; cursor: grab; touch-action: none; user-select: none; }
+.card.brief .draghandle { background: rgba(255,255,255,.14); color: #fff8f0; }
+.card.brief .briefmsg { font-size: 14.5px; line-height: 1.6; }
+.card.brief b { color: #ffd9be; }
+.card.brief .briefnotes { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.18); font-size: 13px; line-height: 1.6; color: #ecd9cb; }
+.card.brief .briefnotes div { margin-bottom: 6px; }
+.card.brief .briefnotes div:last-child { margin-bottom: 0; }
+.pill { display: inline-block; font-family: 'Jua', sans-serif; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; vertical-align: 2px; margin-left: 6px; }
+.pill.buffer { background: var(--lav-tint); color: var(--lav-ink); }
+.pill.late   { background: var(--accent-tint); color: var(--accent-ink); }
+.pill.ok     { background: var(--mint-tint); color: var(--mint-ink); }
+
+.evlist { display: flex; flex-direction: column; gap: 7px; }
+.evrow { display: flex; gap: 10px; align-items: baseline; font-size: 13.5px; }
+.evtime { color: var(--muted); font-size: 11.5px; min-width: 78px; white-space: nowrap; font-weight: 600; }
+.evtitle { flex: 1; }
+.evloc { color: var(--muted); font-size: 11.5px; }
+.evcal { display: inline-block; font-size: 10px; color: var(--ink-soft); background: var(--divider); border-radius: 6px; padding: 1px 6px; margin-right: 3px; vertical-align: middle; font-weight: 600; }
+.evweek { display: flex; flex-direction: column; gap: 4px; }
+.evday { padding: 6px 0; border-top: 1px dashed var(--divider); }
+.evday:first-child { border-top: 0; padding-top: 0; }
+.evday .evrow { padding: 2px 0; }
+.evday.today { background: var(--butter-tint); margin: 0 -8px; padding: 6px 8px; border-radius: 12px; }
+.evdaylabel { font-family: 'Jua', sans-serif; font-weight: 700; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.evday.today .evdaylabel { color: var(--butter-ink); }
+.evdate { font-weight: 500; }
+.subjrow { display: flex; gap: 10px; padding: 10px 0; border-top: 1px dashed var(--divider); }
+.subjrow:first-of-type { border-top: 0; }
+.subjtag { flex: 0 0 42px; font-family: 'Jua', sans-serif; font-weight: 700; font-size: 13px; color: var(--ink-soft); padding-top: 7px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
+.chip { border: none; background: var(--divider); color: var(--ink-soft); border-radius: 14px; padding: 9px 13px; font-size: 14px; font-weight: 600; cursor: pointer; user-select: none; transition: .12s; -webkit-user-select: none; touch-action: manipulation; }
+.chip:hover { transform: translateY(-1px); }
+.chip:active { transform: scale(.97); }
+.chip.on { background: var(--accent-strong); color: #fff; }
+.chip.lateItem { background: var(--accent-tint); color: var(--accent-ink); }
+.chip.chip-info { cursor: default; border: 1.5px dashed var(--border); background: transparent; }
+.chip.chip-info:hover, .chip.chip-info:active { transform: none; }
+.chip.chip-info.lateItem { border-color: #f5c9b6; }
+.chip.chip-info.on { background: var(--accent-strong); color: #fff; border: none; }
+.upto { display: inline-flex; align-items: center; gap: 4px; border: 1.5px dashed var(--border); border-radius: 12px; padding: 4px 6px; }
+.upto .uptoinput.uptotext { width: 150px; -moz-appearance: auto; }
+.uptoerr { font-size: 11.5px; margin-left: 6px; }
+.uptoline { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.uptoline .uptoname { font-weight: 700; font-size: 14px; color: var(--ink); }
+.uptoline .uptotag { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: var(--divider); color: var(--ink-soft); }
+.uptoline .uptotag.late { background: var(--accent-tint); color: var(--accent-ink); }
+.upto .uptorange { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; }
+.upto .uptoinput { width: 46px; font: inherit; font-size: 12.5px; border: 1.5px solid var(--border); border-radius: 8px; padding: 4px 5px; background: #fffdfb; -moz-appearance: textfield; }
+.upto .uptoinput::-webkit-outer-spin-button, .upto .uptoinput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.upto .uptobtn, .upto .wkuptobtn { padding: 5px 10px; font-size: 12px; }
+.chip.lateItem.on { background: var(--accent-strong); color: #fff; }
+.chip .dot { opacity: .7; font-size: 11px; margin-left: 4px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--divider); vertical-align: top; }
+th { color: var(--muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+td.day { white-space: nowrap; font-weight: 700; color: var(--ink); }
+tr.today td { background: var(--butter-tint); }
+tr.bufferday td.day { color: var(--lav-ink); }
+
+.bar { height: 8px; background: var(--divider); border-radius: 8px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--mint-ink); border-radius: 8px; }
+.bar > i.behind { background: var(--butter-ink); }
+.bar > i.bad { background: var(--accent-strong); }
+.pgrow { display: grid; grid-template-columns: 78px 1fr 62px; gap: 10px; align-items: center; padding: 7px 0; }
+.pgrow .nm { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.pgrow .vl { font-size: 11.5px; color: var(--muted); text-align: right; font-weight: 600; }
+
+.act { font: inherit; font-family: 'Jua', sans-serif; font-size: 14px; font-weight: 600; border: 1.5px solid var(--border); background: #fffdfb; padding: 10px 18px; border-radius: 14px; cursor: pointer; touch-action: manipulation; display: inline-block; text-decoration: none; color: var(--ink-soft); }
+.act:hover { transform: translateY(-1px); }
+.act:active { transform: scale(.98); }
+.act.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+.act:disabled { opacity: .5; }
+pre.paste { background: var(--divider); border: none; border-radius: 12px; padding: 10px 12px; font-size: 13px; white-space: pre-wrap; margin: 10px 0 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.stalebar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--butter-tint); border: none; color: var(--butter-ink); border-radius: 14px; padding: 10px 14px; font-size: 13px; font-weight: 700; margin: 8px 0 2px; }
+.stalebar .act { padding: 6px 12px; font-size: 13px; }
+.cachebar { background: var(--lav-tint); color: var(--lav-ink); border-radius: 14px; padding: 8px 14px; font-size: 12.5px; font-weight: 700; margin: 8px 0 2px; }
+#app.stale-old [data-card-id="today"] { opacity: .5; pointer-events: none; }
+.muted { color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.statrow { display: flex; gap: 22px; flex-wrap: wrap; margin: 4px 0 10px; }
+.stat { min-width: 110px; }
+.stat-num { font-family: 'Jua', sans-serif; font-size: 28px; font-weight: 700; line-height: 1.15; color: var(--ink); }
+.stat-num.zero { color: var(--mint-ink); }
+.stat-num.warn { color: var(--accent-strong); }
+.stat-lbl { font-size: 11.5px; color: var(--muted); margin-top: 2px; font-weight: 600; }
+.daybadges { display: flex; gap: 6px; margin-top: 10px; }
+.daybadge { flex: 1; text-align: center; padding: 7px 3px; border-radius: 12px; background: var(--divider); border: none; }
+.daybadge.has { background: var(--accent-tint); }
+.daybadge .dlab { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+.daybadge .dnum { font-family: 'Jua', sans-serif; font-size: 15px; font-weight: 700; color: #d8c4b3; }
+.daybadge.has .dnum { color: var(--accent-ink); }
+
+.sglist { display: flex; flex-direction: column; gap: 6px; }
+.sgitem { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+.sgtext { white-space: pre-wrap; line-height: 1.6; font-size: 13.5px; background: var(--divider); border: none; border-radius: 12px; padding: 12px 14px; }
+
+.rmwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 8px; }
+.rmtable { display: flex; flex-direction: column; gap: 4px; min-width: 620px; font-size: 12.5px; }
+.rmrow { display: grid; grid-template-columns: 76px repeat(6, 1fr); gap: 4px; align-items: stretch; }
+.rmrow.rmhead { font-weight: 700; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; }
+.rmlabel { padding: 6px 4px; font-weight: 700; color: var(--ink-soft); align-self: center; }
+.rmrow.due .rmlabel { color: var(--accent-ink); }
+.rmcell { background: #fffdfb; border: 1.5px solid var(--border); border-radius: 10px; padding: 6px 7px; min-height: 30px; white-space: pre-wrap; line-height: 1.4; }
+.rmcell.rmheadcell { background: transparent; border: none; padding: 4px; }
+.rmcell.done { background: var(--mint-tint); border-color: #bfe9d7; }
+.rmcell.partial { background: var(--butter-tint); border-color: #f5dfab; }
+.rmcell.behind { background: var(--accent-tint); border-color: #f5c9b6; }
+.rmcell.unknown { background: var(--divider); color: var(--muted); border-color: var(--divider); }
+.rmcell.future { background: #fffdfb; color: var(--muted); }
+.rmcell.edit { padding: 3px; }
+.rmcell.edit textarea { width: 100%; height: 100%; min-height: 46px; border: none; resize: vertical; font: inherit; font-size: 12px; background: transparent; }
+.rmcell.edit textarea:focus { outline: 2px solid var(--accent); border-radius: 6px; }
+.rmnote { margin-top: 4px; font-size: 11px; color: var(--muted); font-weight: 700; }
+
+.wkwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.wktable { width: 100%; min-width: 780px; border-collapse: collapse; font-size: 12.5px; }
+.wktable th, .wktable td { border: 1px solid var(--divider); padding: 8px; vertical-align: top; text-align: left; }
+.wktable th.wkhead { background: var(--divider); font-size: 10.5px; color: var(--ink-soft); font-weight: 700; white-space: nowrap; }
+.wktable th.wkhead.buffer { color: var(--lav-ink); }
+.wksubj { background: var(--divider); font-weight: 700; color: var(--ink-soft); white-space: nowrap; font-size: 12.5px; }
+.wkcell { min-width: 118px; }
+.wkcell .wkdone { color: #cbb8a8; text-decoration: line-through; margin-bottom: 2px; }
+.wkcell .wklate { color: var(--accent-strong); font-weight: 700; cursor: pointer; }
+.wkcell .wklate:hover { text-decoration: underline; }
+.wkcell .wklatedetail { font-size: 11px; color: var(--accent-ink); background: var(--accent-tint); border: none; border-radius: 8px; padding: 4px 6px; margin: 3px 0 5px; line-height: 1.5; }
+.wkcell .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.wkcell .chip { padding: 6px 10px; font-size: 12.5px; }
+.wkcell .addrow { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.wkcell .addrow select, .wkcell .addrow input[type=text] { font: inherit; font-size: 11.5px; border: 1.5px solid var(--border); border-radius: 8px; padding: 3px 5px; max-width: 76px; background: #fffdfb; }
+.wkcell .addrow .donechk { font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 2px; white-space: nowrap; }
+.wkcell .addrow .addbtn { padding: 4px 10px; font-size: 12px; }
+.wkcell .chip.editable { cursor: grab; touch-action: none; }
+.wkcell .chip.editable.drag-source-hidden { opacity: .3; }
+.wkcell.drop-target { background: var(--lav-tint); outline: 2px dashed var(--lav-ink); outline-offset: -2px; }
+.chip-ghost { position: fixed; pointer-events: none; z-index: 500; opacity: .92; box-shadow: 0 6px 18px rgba(201,150,110,.3); cursor: grabbing; }
+#srname, #srsubj, #srkind, #srtotal, .srtotaledit { font: inherit; font-size: 13px; border: 1.5px solid var(--border); border-radius: 10px; padding: 6px 8px; background: #fffdfb; }
+@media (min-width: 900px) { .wktable { min-width: 0; } }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(74,55,40,.5); z-index: 200; display: flex; justify-content: center; padding: 16px 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.modal-box { background: var(--bg); border-radius: 24px; width: 100%; max-width: 1320px; height: fit-content; margin: auto 0; padding: 20px 20px 24px; box-shadow: 0 24px 64px rgba(74,55,40,.28); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.modal-close { flex: none; border: none; background: var(--divider); color: var(--ink-soft); width: 34px; height: 34px; border-radius: 50%; font-size: 15px; cursor: pointer; }
+.modal-box .rmtable { min-width: 720px; }
+@media (min-width: 900px) { .modal-box .rmrow { grid-template-columns: 90px repeat(6, 1fr); } .modal-box .rmtable { min-width: 0; } }
+/* 이번주 계획 화면 — 요일별 카드/과목 색 구분/하루 분량 막대. .wp 안에서만 쓰는 자체 팔레트(다크모드는 모달에서만) */
+.wp { --wp-bg:#f6f4ef; --wp-card:#fff; --wp-ink:#23211d; --wp-mute:#7a756b; --wp-line:#e6e1d6;
+  --wp-kor:#d9534f; --wp-kor-bg:#fbeceb; --wp-mat:#2f7bd8; --wp-mat-bg:#e9f1fc; --wp-sci:#2e9e6b; --wp-sci-bg:#e6f5ee;
+  --wp-eng:#8a5fc9; --wp-eng-bg:#eee3fb; --wp-soc:#c98a1f; --wp-soc-bg:#fbf1dc; --wp-today:#f2b63d; --wp-done:#a9a49a; --wp-carry:#e07a1f; }
+@media (prefers-color-scheme: dark) {
+  .modal-box.wp { --wp-bg:#17161a; --wp-card:#212026; --wp-ink:#efece6; --wp-mute:#9a958a; --wp-line:#33313a;
+    --wp-kor:#ef7f7a; --wp-kor-bg:#3a2523; --wp-mat:#6aa6f0; --wp-mat-bg:#1f2d42; --wp-sci:#5fc896; --wp-sci-bg:#1d3329;
+    --wp-eng:#b794ec; --wp-eng-bg:#2c2440; --wp-soc:#e3b055; --wp-soc-bg:#3a2f1c; --wp-done:#6f6b64; --wp-carry:#f0a04b; }
+}
+.modal-box.wp { background: var(--wp-bg); color: var(--wp-ink); }
+.modal-box.wp .modal-close { background: var(--wp-line); color: var(--wp-mute); }
+.modal-box.wp h2 { color: var(--wp-ink); }
+.wp-sub { color: var(--wp-mute); font-size: 14px; margin: 0 0 12px; }
+.wp-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.wp-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--wp-mute); margin-bottom: 16px; }
+.wp-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.wp-load { background: var(--wp-card); border: 1px solid var(--wp-line); border-radius: 16px; padding: 14px 16px; margin-bottom: 18px; }
+.wp-load h3 { font-size: 14px; margin: 0 0 10px; color: var(--wp-mute); font-weight: 600; }
+.wp-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; height: 130px; }
+.wp-bcol { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; gap: 4px; }
+.wp-bnum { font-size: 12px; font-weight: 700; color: var(--wp-ink); }
+.wp-bstack { width: 100%; max-width: 46px; display: flex; flex-direction: column-reverse; border-radius: 6px; overflow: hidden; background: var(--wp-line); }
+.wp-bstack div { width: 100%; }
+.wp-blab { font-size: 12px; color: var(--wp-mute); }
+.wp-bcol.today .wp-blab { color: var(--wp-ink); font-weight: 700; }
+.wp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.wp-day { background: var(--wp-card); border: 1px solid var(--wp-line); border-radius: 18px; padding: 14px; position: relative; }
+.wp-day.today { border: 2px solid var(--wp-today); box-shadow: 0 4px 18px rgba(242,182,61,.22); }
+.wp-day.past { opacity: .72; }
+.wp-dh { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.wp-d { font-size: 18px; font-weight: 700; color: var(--wp-ink); }
+.wp-d small { font-size: 13px; color: var(--wp-mute); font-weight: 500; margin-left: 4px; }
+.wp-tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: var(--wp-line); color: var(--wp-mute); white-space: nowrap; }
+.wp-tag.t { background: var(--wp-today); color: #3a2a00; }
+.wp-total { font-size: 13px; color: var(--wp-mute); margin: -4px 0 10px; }
+.wp-total b { color: var(--wp-ink); }
+.wp-sec { border-left: 4px solid; border-radius: 6px; padding: 8px 10px; margin-top: 8px; }
+.wp-sec.kor { border-color: var(--wp-kor); background: var(--wp-kor-bg); }
+.wp-sec.mat { border-color: var(--wp-mat); background: var(--wp-mat-bg); }
+.wp-sec.sci { border-color: var(--wp-sci); background: var(--wp-sci-bg); }
+.wp-sec.eng { border-color: var(--wp-eng); background: var(--wp-eng-bg); }
+.wp-sec.soc { border-color: var(--wp-soc); background: var(--wp-soc-bg); }
+.wp-sh { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; margin-bottom: 3px; }
+.wp-sec.kor .wp-sh { color: var(--wp-kor); } .wp-sec.mat .wp-sh { color: var(--wp-mat); } .wp-sec.sci .wp-sh { color: var(--wp-sci); }
+.wp-sec.eng .wp-sh { color: var(--wp-eng); } .wp-sec.soc .wp-sh { color: var(--wp-soc); }
+.wp-it { font-size: 14px; display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; color: var(--wp-ink); }
+.wp-it .wp-n { color: var(--wp-mute); font-size: 12px; white-space: nowrap; }
+.wp-it.done { color: var(--wp-done); text-decoration: line-through; }
+.wp-carry { font-size: 10px; font-weight: 700; color: var(--wp-carry); margin-left: 6px; text-decoration: none; display: inline-block; }
+.wp-sec.wkcell { min-width: 0; }
+.wkcell .chip.runchip { cursor: grab; touch-action: none; }
+.wkcell .chip { -webkit-touch-callout: none; }
+.wkcell .chip.runchip.drag-source-hidden { opacity: .3; }
+.wkcell .chip.runchip.splitsel { outline: 2px solid var(--wp-mat); outline-offset: 1px; }
+.splitpanel { background: var(--wp-card); border: 1.5px solid var(--wp-mat); border-radius: 12px; padding: 8px; margin: 6px 0; }
+.splithead { font-size: 12px; font-weight: 700; color: var(--wp-ink); margin-bottom: 6px; }
+.splitinput { width: 100%; font: inherit; font-size: 14px; border: 1.5px solid var(--wp-line); border-radius: 8px; padding: 6px 8px; background: #fffdfb; color: #23211d; margin-bottom: 6px; }
+.splitdays { display: flex; flex-wrap: wrap; gap: 5px; }
+.splitdays .act { padding: 5px 9px; font-size: 12px; }
+.spliterr { font-size: 11.5px; margin-top: 4px; }
+.wkctx { position: fixed; z-index: 400; min-width: 190px; background: #fff; color: #23211d; border: 1px solid #e6e1d6; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.25); padding: 6px; }
+.wkctxhead { font-size: 11.5px; color: #7a756b; padding: 4px 8px 6px; border-bottom: 1px solid #e6e1d6; margin-bottom: 4px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wkctxbtn { display: block; width: 100%; text-align: left; border: none; background: none; font: inherit; font-size: 14px; color: #23211d; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.wkctxbtn:hover { background: #f6f4ef; }
+.wp-sec.wkcell.drop-target { outline: 2px dashed var(--wp-mat); outline-offset: -2px; }
+.wp-empty { color: var(--wp-mute); font-size: 14px; padding: 14px 0 4px; text-align: center; }
+
+.chatbox { display: flex; flex-direction: column; height: min(72vh, 580px); }
+.chatlog { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 2px 8px; display: flex; flex-direction: column; gap: 10px; }
+.chatmsg { max-width: 82%; padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; }
+.chatmsg.user { align-self: flex-end; background: var(--accent-strong); color: #fff; border-bottom-right-radius: 4px; }
+.chatmsg.assistant { align-self: flex-start; background: var(--divider); color: var(--ink); border-bottom-left-radius: 4px; }
+.chatmsg.err { align-self: flex-start; background: var(--accent-tint); color: var(--accent-ink); }
+.proposal { align-self: flex-start; max-width: 92%; background: var(--butter-tint); border: none; border-radius: 14px; padding: 10px 12px; font-size: 12.5px; white-space: pre-wrap; }
+.proposal .ptitle { font-family: 'Jua', sans-serif; font-weight: 700; margin-bottom: 4px; font-size: 12.5px; }
+.proposal .pbtns { margin-top: 8px; display: flex; gap: 8px; }
+.chatinputrow { display: flex; gap: 8px; margin-top: 10px; align-items: flex-end; }
+.chatinputrow textarea { flex: 1; font: inherit; font-size: 13.5px; border: 1.5px solid var(--border); border-radius: 14px; padding: 8px 10px; resize: none; background: #fffdfb; }
+</style>
+</head>
+<body>
+<div id="app"><div class="card"><span class="muted">시트를 읽는 중…</span></div></div>
+
+<script>
+/* ===== 코어 로직 (대시보드와 동일) ===== */
+const SERIES = [
+{ name: '수1 프메', pat: '수1\\s*프메', kind: 'num',   subj: '수학' },
+{ name: '미적I',    pat: '미적\\s*I',   kind: 'num',   subj: '수학' },
+{ name: '기하',      pat: '기하',         kind: 'num',   subj: '수학' },
+{ name: '화언',      pat: '화언',         kind: 'num',   subj: '국어' },
+{ name: 'WOW',      pat: 'WOW',         kind: 'hash',  subj: '국어' },
+{ name: '된',        pat: '된(?=\\s*#)', kind: 'chap',  subj: '국어' },
+{ name: '수특',      pat: '수특',         kind: 'num',   subj: '영어' },
+{ name: '림마인드',  pat: '림마인드',     kind: 'round', subj: '과탐' },
+{ name: '자이',      pat: '자이',         kind: 'hash',  subj: '영어' },
+];
+const SUBJ_ORDER = ['국어', '수학', '영어', '과탐', '사탐'];
+const BY_NAME = Object.fromEntries(SERIES.map(s => [s.name, s]));
+
+function labelItem(name, item) {
+if (!/^[\d-]+$/.test(item)) return name + ' ' + item;
+const k = BY_NAME[name].kind;
+if (k === 'chap' || k === 'hash') return name + ' #' + item;
+if (k === 'round') return name + ' ' + item + '회';
+return name + ' ' + item + '강';
+}
+function labelRange(name, lo, hi) {
+  if (lo === hi) return labelItem(name, lo);
+  const k = BY_NAME[name].kind;
+  if (k === 'chap' || k === 'hash') return name + ' #' + lo + '~' + hi;
+  if (k === 'round') return name + ' ' + lo + '~' + hi + '회';
+  return name + ' ' + lo + '~' + hi + '강';
+}
+function compactRanges(items) {
+  const nums = items.map(x => parseInt(x, 10)).sort((a, b) => a - b);
+  const out = [];
+  let i = 0;
+  while (i < nums.length) {
+    let j = i;
+    while (j + 1 < nums.length && nums[j + 1] === nums[j] + 1) j++;
+    out.push(j > i ? `${nums[i]}~${nums[j]}` : String(nums[i]));
+    i = j + 1;
+  }
+  return out;
+}
+/** 코드형 항목("C4·7" 같은 "코드·로컬번호")들을 코드별로 묶어 압축한다 — Code.js의
+ * compactCodeGroups_와 동일 로직(등록된 개수를 전부 채운 코드는 "C1(전체)"로, 아니면
+ * "C4·3~7" 범위로, 등록 순서대로). 서버가 최종 저장 시 다시 한번 정확히 압축하므로, 여기는
+ * 화면(오늘 할 일/주간표) 표시용 — 등록 안 된 코드가 섞여 있어도 발견 순서로 뒤에 붙여 표시만 한다. */
+function compactCodeGroups(name, items) {
+  const s = BY_NAME[name] || {};
+  const codes = s.codes || [];
+  const order = {};
+  codes.forEach((c, i) => { order[c.code] = i; });
+  const byCode = {}, codeOrderSeen = [];
+  for (const it of items) {
+    const [cd, numStr] = String(it).split('·');
+    const num = parseInt(numStr, 10);
+    if (isNaN(num)) continue;
+    if (!byCode[cd]) { byCode[cd] = new Set(); codeOrderSeen.push(cd); }
+    byCode[cd].add(num);
+  }
+  codeOrderSeen.sort((a, b) => (order[a] ?? 999999) - (order[b] ?? 999999));
+  const out = [];
+  for (const cd of codeOrderSeen) {
+    const nums = Array.from(byCode[cd]).sort((a, b) => a - b);
+    const total = order[cd] != null ? codes[order[cd]].count : null;
+    if (total && nums.length === total && nums[0] === 1 && nums[nums.length - 1] === total) {
+      out.push(cd + '(전체)');
+      continue;
+    }
+    for (const rg of compactRanges(nums.map(String))) out.push(cd + '·' + rg);
+  }
+  return out;
+}
+/** "오늘 할 일" 범위 입력칸에 미리 채울 텍스트 — 서버 parseCell 문법 그대로("67~122, 157~185",
+ * "T03·6~7, T04·1~3"). 숫자형은 연속 번호를 N~M으로 압축, 코드형은 코드별 압축. */
+function rangeText(name, items) {
+  const k = BY_NAME[name].kind;
+  if (k === 'code') return compactCodeGroups(name, items).join(', ');
+  const d = compactRanges(items);
+  return k === 'round' ? d.join('회, ') + '회' : d.join(', ');
+}
+/** 오늘 이외 날짜(이번 주 다른 요일 + 다음 주 표)에 아직 안 끝난 채로 배정된 같은 시리즈의
+ * 항목들("series|item" id 집합). "까지 완료" 범위가 오늘 배정을 넘겼을 때 이 안에서만
+ * 다음 배정분을 앞당겨 완료 처리할 수 있다 — 서버 markDoneToday가 같은 순서(이번 주 오늘 이후
+ * → 이전 → 다음 주)로 찾아서 [완] 처리한다. */
+function pullablePool(sname) {
+  const out = new Set();
+  const add = (en) => {
+    if (!en || en.done || en.series !== sname) return;
+    for (const it of en.items) out.add(sname + '|' + it);
+  };
+  const { week, todayIdx, nextWeek } = STATE;
+  Object.keys((week && week.plan) || {}).forEach(k => {
+    if (Number(k) === todayIdx) return;
+    (week.plan[k] || []).forEach(add);
+  });
+  Object.keys((nextWeek && nextWeek.plan) || {}).forEach(k => (nextWeek.plan[k] || []).forEach(add));
+  return out;
+}
+function joinItems(name, items) {
+const k = BY_NAME[name].kind;
+if (k === 'code') return name + ' ' + compactCodeGroups(name, items).join(', ');
+if (items.some(i => !/^[\d-]+$/.test(i))) return items.map(i => labelItem(name, i)).join(', ');
+const display = k === 'chap' ? items : compactRanges(items);
+if (k === 'chap' || k === 'hash') return name + ' ' + display.map(i => '#' + i).join(', ');
+if (k === 'round') return name + ' ' + display.join('회, ') + '회';
+return name + ' ' + display.join(', ') + '강';
+}
+
+function baselineWeekKeyClient(days) {
+  const mm = n => (n < 10 ? '0' : '') + n;
+  const first = days[0], last = days[6];
+  return `${mm(first.month)}/${mm(first.day)}~${mm(last.month)}/${mm(last.day)}`;
+}
+
+/** 확정된 원본계획이 있으면 "이번주 진행률" 계산을 원본계획 기준(총량)으로 바꿔치기한다 —
+ * 재조정/이월로 계속 바뀌는 현재 표 대신, 애초에 하기로 확정한 양 대비 진행률을 보여주기 위함.
+ * 완료 여부는 확정 시점이 아니라 지금 현재 표 기준(요일 무관하게 series+item으로 매칭)으로 판단한다. */
+function applyBaselineProgress(res, week, baseline) {
+  if (!baseline) return res;
+  const doneSet = new Set();
+  for (const dayPlan of Object.values(week.plan)) {
+    for (const en of dayPlan) {
+      if (!en.done) continue;
+      for (const it of en.items) doneSet.add(en.series + '|' + it);
+    }
+  }
+  const acc = {};
+  for (const dayObj of baseline.byDay) {
+    for (const subj of SUBJ_ORDER) {
+      for (const x of (dayObj[subj] || [])) {
+        if (!acc[x.series]) acc[x.series] = { series: x.series, subj, total: 0, done: 0 };
+        acc[x.series].total++;
+        if (doneSet.has(x.series + '|' + x.item)) acc[x.series].done++;
+      }
+    }
+  }
+  const overdueBySeries = {};
+  for (const r of res.report) overdueBySeries[r.series] = r.overdue;
+  const report = Object.values(acc).map(r => ({ ...r, overdue: overdueBySeries[r.series] || 0 }));
+  report.sort((a, b) => SUBJ_ORDER.indexOf(a.subj) - SUBJ_ORDER.indexOf(b.subj) || a.series.localeCompare(b.series));
+  return { ...res, report };
+}
+
+/** 항목 문자열에서 숫자를 전부 뽑아 비교 가능한 배열로 — "17"→[17], "6-4"(장-절)→[6,4] */
+function itemSortKey(item) {
+  return (String(item).match(/\d+/g) || []).map(s => parseInt(s, 10));
+}
+/** 같은 시리즈 안에서 항목을 번호순으로 비교 (장-절처럼 여러 숫자면 앞자리부터) */
+function compareItems(a, b) {
+  const ka = itemSortKey(a), kb = itemSortKey(b);
+  const len = Math.max(ka.length, kb.length);
+  for (let i = 0; i < len; i++) {
+    const va = ka[i] === undefined ? -1 : ka[i];
+    const vb = kb[i] === undefined ? -1 : kb[i];
+    if (va !== vb) return va - vb;
+  }
+  return 0;
+}
+
+const DOW_ABBR = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
+function dayOfWeekFromLabel(label) {
+  const m = String(label).match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/);
+  return m ? DOW_ABBR[m[1]] : null;
+}
+
+function replan(week, todayIdx, dowWeights) {
+if (!dowWeights) dowWeights = [1, 1, 1, 1, 1, 1, 1];
+// 밀린 걸 놓을 수 있는 날은 오늘부터 이번 주 끝까지 전부 — 평범한 날은 남는 자리만 받는다
+// (아래 caps 계산 참고). 오늘·버퍼데이만 후보였을 땐 오늘 캐파가 작으면 바로 다음날이
+// 비어있어도 건너뛰고 며칠 뒤 버퍼데이로 확 튀어버리는 문제가 있었다.
+const catchupDays = [];
+for (let cd = todayIdx; cd < week.days.length; cd++) catchupDays.push(cd);
+const sm = {};
+week.days.forEach((d, i) => {
+for (const e of (week.plan[i] || [])) {
+const s = sm[e.series] || (sm[e.series] = { subj: e.subj, planned: [], done: new Set() });
+for (const it of e.items) { s.planned.push({ item: it, dayIdx: i, slate: !!e.late }); if (e.done) s.done.add(it); }
+}
+});
+const assign = week.days.map(() => []); const carry = []; const report = [];
+for (const [name, s] of Object.entries(sm)) {
+const remaining = s.planned.filter(p => !s.done.has(p.item));
+// dayIdx만 보면 안 됨: 자동 재조정이 밀린 걸 오늘 칸으로 이미 옮겨버려서 위치만으론 밀렸는지 알 수 없음.
+// 시트에 남는 "↩" 표시(slate)를 같이 봐야 실제로 밀린 게 맞음.
+const overdue = remaining.filter(p => p.dayIdx < todayIdx || p.slate).length;
+// 오늘 이후 요일에 이미 놓여있는 항목은 그대로 둔다 — 사람이 직접 넣었든 예전 재조정
+// 결과든, 재조정이 임의로 다른 요일로 옮기지 않는다. 재배정 대상은 "이미 지난 요일에
+// 남아서 진짜로 밀린 것"뿐이다.
+const stuck = remaining.filter(p => p.dayIdx >= todayIdx);
+const mustPlace = remaining.filter(p => p.dayIdx < todayIdx);
+// 하루에 이 시리즈 항목이 여러 개 몰리면(원래 있던 것 + 새로 밀려들어온 것) 번호순으로
+// 보이게, 요일별로 일단 모아뒀다가 마지막에 한 번에 정렬해서 push한다.
+const perDay = {};
+const queueAssign = (dayIdx, item, origDay, late) => {
+  (perDay[dayIdx] || (perDay[dayIdx] = [])).push({ series: name, subj: s.subj, item, origDay, late });
+};
+const stuckNumsByDay = {};
+for (const st of stuck) {
+  queueAssign(st.dayIdx, st.item, st.dayIdx, !!st.slate);
+  (stuckNumsByDay[st.dayIdx] || (stuckNumsByDay[st.dayIdx] = [])).push(st.item);
+}
+if (mustPlace.length) {
+  // "평범한 하루" 분량(버퍼데이 제외, 내용 있는 날들의 평균, 올림) = 오늘/버퍼데이가 밀린 걸
+  // 추가로 얼마나 더 받아낼 수 있는지의 기준 — 역대 최다 몰림 하루를 쓰면 실제 자습 가능
+  // 시간과 무관하게 수용량이 비현실적으로 커짐
+  const normalCounts = week.days.map((d, i) => d.buffer ? 0 : s.planned.filter(p => p.dayIdx === i).length).filter(n => n > 0);
+  const maxDay = normalCounts.length ? Math.ceil(normalCounts.reduce((a, b) => a + b, 0) / normalCounts.length) : 1;
+  // 날짜별 수용량: 오늘·버퍼데이는 "평범한 하루" 분량 × 그 요일 완료 통계 가중치(최소 1개
+  // 보장, 이 날들은 원래 밀린 걸 받는 용도라 꽉 채운다). 그 외 평범한 날은 그날 이미
+  // 배정된 만큼을 뺀 "남는 자리"만 받는다.
+  const caps = catchupDays.map(d => {
+    const dow = dayOfWeekFromLabel(week.days[d].label);
+    const w = dow != null ? dowWeights[dow] : 1;
+    if (d === todayIdx || week.days[d].buffer) return Math.max(1, Math.round(maxDay * w));
+    const already = s.planned.filter(p => p.dayIdx === d).length;
+    return Math.max(0, maxDay - already);
+  });
+  // 오늘부터 무조건 다 채우고 남는 것만 버퍼로 넘기지 않고, 오늘·버퍼데이에 순서대로
+  // 한 개씩 돌아가며 나눠 담는다 — 그래야 버퍼데이가 실제로 쓰인다.
+  let q = mustPlace.slice().sort((x1, x2) => compareItems(x1.item, x2.item));
+  const remainingCap = caps.slice();
+  while (q.length) {
+    let placedAny = false;
+    for (let ci = 0; ci < catchupDays.length && q.length; ci++) {
+      const d1 = catchupDays[ci];
+      // 이 요일에 이미 놓인(stuck) 항목보다 작은 번호는, 뒤 요일로 밀려나면 순서가
+      // 거꾸로 보이니(예: 20강 다음날 19강) 캐파를 넘더라도 여기서 먼저 받는다.
+      const stuckHere = stuckNumsByDay[d1];
+      if (stuckHere) {
+        const minStuckHere = stuckHere.reduce((a, b) => compareItems(b, a) < 0 ? b : a);
+        while (q.length && compareItems(q[0].item, minStuckHere) < 0) {
+          const fp = q.shift();
+          queueAssign(d1, fp.item, fp.dayIdx, true);
+          remainingCap[ci] = Math.max(0, remainingCap[ci] - 1);
+          placedAny = true;
+        }
+        if (!q.length) break;
+      }
+      if (remainingCap[ci] <= 0) continue;
+      const p = q.shift();
+      queueAssign(d1, p.item, p.dayIdx, true);
+      remainingCap[ci]--;
+      placedAny = true;
+    }
+    if (!placedAny) break;
+  }
+  while (q.length) { const p = q.shift(); carry.push({ series: name, subj: s.subj, item: p.item, origDay: p.dayIdx }); }
+}
+for (const pd in perDay) {
+  perDay[pd].sort((a, b) => compareItems(a.item, b.item));
+  for (const it of perDay[pd]) assign[pd].push(it);
+}
+report.push({ series: name, subj: s.subj, total: s.planned.length, done: s.planned.length - remaining.length, overdue });
+}
+report.sort((a, b) => SUBJ_ORDER.indexOf(a.subj) - SUBJ_ORDER.indexOf(b.subj) || a.series.localeCompare(b.series));
+return { assign, carry, report };
+}
+
+function groupBySubj(list) {
+const g = {};
+for (const x of list) (g[x.subj] || (g[x.subj] = [])).push(x);
+return SUBJ_ORDER.filter(s => g[s]).map(s => ({ subj: s, items: g[s] }));
+}
+/** 다음 주 표에 이미 ↩(이월)로 옮겨진 항목들을 낱개로 펼쳐서 반환 — 이번 주 데이터만으론 안 보이는 "이미 넘어간 밀림" */
+function carriedInItems(nextWeek) {
+  if (!nextWeek || !nextWeek.plan) return [];
+  const out = [];
+  Object.keys(nextWeek.plan).forEach(k => {
+    (nextWeek.plan[k] || []).forEach(e => {
+      if (!e.late) return;
+      e.items.forEach(it => out.push({ series: e.series, subj: e.subj, item: it }));
+    });
+  });
+  return out;
+}
+function nextWeekItemCount(nextWeek) {
+  if (!nextWeek || !nextWeek.plan) return 0;
+  return Object.values(nextWeek.plan).reduce((a, list) => a + (list || []).reduce((b, e) => b + (e.items ? e.items.length : 0), 0), 0);
+}
+function renderNextWeekCTA(nextWeek) {
+  if (nextWeekItemCount(nextWeek) >= 10) return '';
+  return `<div class="card warn"><h2>다음 주 계획이 비어있어요</h2>
+<div class="muted">로드맵을 참고해서 다음 주 계획을 직접 채워주세요. (Claude API 과금을 피하려고 자동 채우기 버튼은 꺼뒀어요)</div>
+</div>`;
+}
+function renderGapWarning(gaps) {
+  if (!gaps || !gaps.length) return '';
+  const fmt = g => g.gaps.length > 6 ? `${g.gaps[0]}~${g.gaps[g.gaps.length - 1]} (${g.gaps.length}개)` : g.gaps.join(', ');
+  const row = (label, key) => `<div class="row" style="justify-content:space-between;gap:8px;padding:2px 0">
+<span>${esc(label)}</span>
+<button class="act gapdismiss" data-key="${esc(key || '')}" style="font-size:11px;padding:3px 8px;white-space:nowrap;flex:none">✕ 의도한 거예요</button>
+</div>`;
+  const weekGaps = gaps.filter(g => g.source !== 'roadmap');
+  const roadmapGaps = gaps.filter(g => g.source === 'roadmap');
+  let body = '';
+  if (weekGaps.length) body += `<div style="margin-bottom:6px"><b>이번주·다음주 계획</b>${weekGaps.map(g => row(`${g.series}: ${fmt(g)} 빠짐`, g.key)).join('')}</div>`;
+  if (roadmapGaps.length) body += `<div><b>로드맵 체크포인트 사이</b>${roadmapGaps.map(g => row(`${g.series}: ${fmt(g)} 빠짐 (로드맵 ${g.afterLabel} → ${g.beforeLabel} 체크포인트 사이)`, g.key)).join('')}</div>`;
+  return `<div class="card err"><h2>⚠ 진도 번호가 순서대로 안 이어져요</h2>
+<div class="muted">${body}</div>
+<div class="muted" style="margin-top:6px">직접 확인해서 빠진 부분을 채워주세요. 의도한 공백이면 "의도한 거예요"를 눌러서 꺼둘 수 있어요. (Claude API 과금을 피하려고 확인 요청 버튼은 꺼뒀어요)</div>
+</div>`;
+}
+
+/** 공백 경고 한 줄을 "의도한 거예요"로 확인 처리 — 서버에 기억시키고 목록을 다시 불러온다 */
+async function dismissGap(key) {
+  if (!key) return;
+  try {
+    await gsrun('dismissSequenceGap', key);
+    STATE.gaps = await gsrun('findSequenceGaps');
+    render();
+  } catch (e) { /* 실패해도 다음 새로고침 때 다시 시도할 수 있으니 조용히 무시 */ }
+}
+
+/** 로드맵 목표(체크포인트)랑 실제 주간계획에 잡힌 범위가 어긋난 시리즈 경고 —
+ * 로드맵을 고친 뒤 주간계획을 깜빡하고 안 맞춘 경우를 잡아준다 */
+function renderRoadmapMismatch(list, nextWeekEmpty) {
+  if (!list || !list.length) return '';
+  // 다음 주가 통째로 비어있으면 "다음 주 계획이 비어있어요" 카드가 이미 같은 얘기를 하고 있으니,
+  // 거기서 나온 next쪽 항목은 걸러서 중복으로 안 뜨게 한다
+  const filtered = nextWeekEmpty ? list.filter(m => m.which !== 'next') : list;
+  if (!filtered.length) return '';
+  const fmtRange = (a, b) => a === b ? `${a}` : `${a}~${b}`;
+  const line = m => {
+    const wname = m.which === 'next' ? '다음 주' : '이번 주';
+    const tgt = fmtRange(m.targetMin, m.targetMax);
+    // google.script.run은 null을 undefined로 바꿔서 넘길 때가 있어서 == null(느슨한 비교)로 둘 다 잡음
+    if (m.weekMax == null) return `${m.series}: 로드맵은 ${tgt}강까지인데 ${wname} 계획엔 아예 없음`;
+    return `${m.series}: 로드맵은 ${tgt}강까지인데 ${wname} 계획은 ${m.weekMax > m.targetMax ? `${m.weekMax}강까지 (초과)` : `${m.weekMax}강까지 (부족)`}`;
+  };
+  return `<div class="card warn"><h2>⚠ 로드맵이랑 주간계획이 어긋나 있어요</h2>
+<div class="muted">${filtered.map(m => esc(line(m))).join('<br>')}</div>
+<div class="muted" style="margin-top:6px">로드맵을 최근에 고쳤으면 "주간 계획 보기·수정"에서 이 시리즈들을 맞춰주세요.</div>
+</div>`;
+}
+
+function groupSeriesFlat(list) {
+const order = [], map = {};
+for (const x of list) {
+if (!map[x.series]) { map[x.series] = { series: x.series, subj: x.subj, items: [] }; order.push(map[x.series]); }
+map[x.series].items.push(x.item);
+}
+return order;
+}
+function distributeCarryPreview(carryList) {
+const buckets = [[], [], [], [], [], [], []];
+let cursor = 0;
+for (const g of groupSeriesFlat(carryList)) {
+const per = Math.max(1, Math.ceil(g.items.length / 7));
+for (let k = 0; k < g.items.length; k += per) {
+const slot = cursor % 7;
+buckets[slot].push({ series: g.series, subj: g.subj, items: g.items.slice(k, k + per) });
+cursor++;
+}
+}
+return buckets;
+}
+
+/* ===== Apps Script 서버 호출 헬퍼 (google.script.run은 콜백 방식이라 Promise로 감쌈) ===== */
+/* 같은 화면이 두 곳에서 열린다: ① 구글 앱스스크립트 안(google.script.run) ② GitHub Pages 같은 외부 주소(fetch로 doPost의 ui_call 통로 호출,
+ * 기기마다 한 번 입력해 localStorage에 저장하는 "웹앱 접속 토큰" 필요). 어느 쪽인지는 google.script.run 유무로 판단한다. */
+const EXEC_URL = 'https://script.google.com/macros/s/AKfycbxPRwlJnMwMgSBsNXZhqWzu97E6Lj45KLcOT1nSbvD594M4WxEGf803XrnaIDefhLc2/exec';
+const IN_APPS_SCRIPT = typeof google !== 'undefined' && !!(google.script && google.script.run);
+const UI_TOKEN_KEY = 'uiToken_v1';
+function getUiToken() { try { return localStorage.getItem(UI_TOKEN_KEY) || ''; } catch (e) { return ''; } }
+function setUiToken(v) { try { if (v) localStorage.setItem(UI_TOKEN_KEY, v); else localStorage.removeItem(UI_TOKEN_KEY); } catch (e) { /* 저장 불가 환경이면 매번 입력 */ } }
+// 조회 전용(다시 보내도 시트가 안 바뀌는) 호출만 구글의 일시적 오류 페이지에 자동 재시도한다
+const RETRY_SAFE = { getDashboardData: 1, getWeekEvents: 1, getSyncStatus: 1, getEditableWeeks: 1, getSeriesList: 1, getBaselineWeek: 1, listBaselineWeeks: 1, getSaengibu: 1, findSequenceGaps: 1, resolveRangeForUi: 1 };
+async function remoteCall(fn, args) {
+  const token = getUiToken();
+  if (!token) { const e = new Error('접속 토큰이 필요해요'); e.code = 'auth'; throw e; }
+  const attempts = RETRY_SAFE[fn] ? 3 : 1;
+  let lastErr = null;
+  for (let a = 0; a < attempts; a++) {
+    if (a) await new Promise(r => setTimeout(r, 1500 * a));
+    let txt;
+    try {
+      // text/plain이면 브라우저가 사전 확인(CORS preflight)을 안 보내서 구글 웹앱 응답을 읽을 수 있다(application/json은 막힘)
+      const r = await fetch(EXEC_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'ui_call', token, fn, args }), redirect: 'follow' });
+      txt = await r.text();
+    } catch (e) { lastErr = new Error('서버에 연결하지 못했어요 (' + (e.message || e) + ')'); continue; }
+    let j = null;
+    try { j = JSON.parse(txt); } catch (e) { lastErr = new Error('서버가 일시적으로 응답하지 않아요 (구글 오류 페이지) — 잠시 후 다시 시도해 주세요'); continue; }
+    if (j && j.success) return j.result;
+    const err = new Error((j && j.message) || '알 수 없는 오류'); err.code = j && j.code;
+    throw err;
+  }
+  throw lastErr || new Error('요청에 실패했어요');
+}
+function gsrun(fn) {
+const args = Array.prototype.slice.call(arguments, 1);
+if (!IN_APPS_SCRIPT) return remoteCall(fn, args);
+return new Promise((resolve, reject) => {
+google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn].apply(null, args);
+});
+}
+/** 외부 주소에서 열렸는데 토큰이 없거나 틀렸을 때 입력 카드를 보여준다. */
+function showTokenPrompt(msg) {
+  document.getElementById('app').innerHTML = `<div class="card"><h2>접속 토큰 입력</h2><div class="muted" style="margin-bottom:10px">구글 시트 메뉴 「📋 계획 → 웹앱 접속 토큰 발급/재발급」에서 받은 토큰을 한 번만 입력하면 이 기기에 저장돼요.</div><input type="password" id="tokin" autocomplete="off" placeholder="접속 토큰" style="width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1.5px solid var(--border);border-radius:10px"><div class="row" style="margin-top:10px"><button class="act primary" id="toksave">저장하고 열기</button></div><div class="muted" id="tokmsg" style="margin-top:8px;color:#c0392b">${esc(msg || '')}</div></div>`;
+  const go = () => { const v = (document.getElementById('tokin').value || '').trim(); if (!v) return; setUiToken(v); boot(); };
+  document.getElementById('toksave').onclick = go;
+  document.getElementById('tokin').onkeydown = (ev) => { if (ev.key === 'Enter') go(); };
+}
+
+/* ===== 렌더 ===== */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let STATE = null;
+let SYNC_BASELINE = null; // 이 화면이 마지막으로 시트를 불러온 시점의 "마지막 수동 편집" 시각
+let SHEET_STALE = false;  // 그 사이에 다른 곳(폰 등)에서 시트를 직접 고쳤으면 true
+/** "오늘"의 경계를 자정이 아니라 새벽 4시로 본다 — 0~3시대는 아직 어제로 취급 (서버 appToday_와 동일한 기준) */
+function appToday() { const d = new Date(); if (d.getHours() < 4) d.setDate(d.getDate() - 1); return d; }
+const todayKey = () => { const d = appToday(); return `chk-${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+function getChecked() { try { return new Set(JSON.parse(localStorage.getItem(todayKey()) || '[]')); } catch (e) { return new Set(); } }
+function setChecked(s) { try { localStorage.setItem(todayKey(), JSON.stringify([...s])); } catch (e) {} }
+
+/* ===== 대시보드 박스 배치(순서) — 기기별로 localStorage에 저장 ===== */
+const CARD_ORDER_KEY = 'cardOrder';
+const DEFAULT_CARD_ORDER = ['brief', 'calendar', 'today', 'weekplan', 'carry', 'progress', 'roadmap', 'saengibu', 'series', 'nextweek', 'gapwarn', 'roadmapmismatch'];
+let LAYOUT_EDIT = false;
+let LAYOUT_DRAG = null;
+function getCardOrder() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(CARD_ORDER_KEY) || 'null'); } catch (e) {}
+  if (!Array.isArray(saved)) return DEFAULT_CARD_ORDER.slice();
+  const known = saved.filter(id => DEFAULT_CARD_ORDER.includes(id));
+  const missing = DEFAULT_CARD_ORDER.filter(id => !known.includes(id));
+  return known.concat(missing);
+}
+function setCardOrder(order) { try { localStorage.setItem(CARD_ORDER_KEY, JSON.stringify(order)); } catch (e) {} }
+
+/** 카드 블록 사이에 심어둔 <!--CARD:id--> 표시를 기준으로 렌더링된 h를 잘라서 order 순서대로 다시
+ * 이어붙인다. 편집 중이면 각 카드 맨 앞에 손잡이(⠿⠿)를 끼워넣는다 — 카드 자체는 그대로 #app의
+ * 직계 자식으로 남아야 다단(column) 레이아웃 CSS(#app > .card)가 안 깨지므로, 감싸는 wrapper
+ * div를 새로 만들지 않고 기존 <div class="card..."> 여는 태그에 속성/손잡이만 끼워넣는다. */
+function reorderCardsHtml(rawHtml, order, editing) {
+  const chunks = rawHtml.split('<!--CARD:');
+  const head = chunks[0];
+  const parts = {};
+  for (let i = 1; i < chunks.length; i++) {
+    const idx = chunks[i].indexOf('-->');
+    const id = chunks[i].slice(0, idx);
+    parts[id] = chunks[i].slice(idx + 3);
+  }
+  const body = order.filter(id => parts[id] !== undefined).map(id => {
+    let content = parts[id];
+    if (!content.trim()) return '';
+    content = content.replace(/^(<div class="card[^"]*")/, `$1 data-card-id="${id}"`);
+    if (editing) content = content.replace(/^(<div class="card[^"]*"[^>]*>)/, `$1<div class="draghandle" title="눌러서 끌면 순서가 바뀌어요">⠿⠿</div>`);
+    return content;
+  }).join('');
+  return head + body;
+}
+
+/** 배치 편집 모드에서 카드 손잡이를 눌러 끌면 다른 카드 자리로 옮길 수 있게 — 마우스·터치 공통.
+ * 중간에 pointermove가 한 번도 안 잡히는 환경(일부 자동화 도구 등)도 있어서, 최종 판단은
+ * pointerup 시점에 놓인 좌표로 다시 한번 계산한다 — move 이벤트는 시각 피드백용일 뿐. */
+function onCardHandlePointerDown(ev) {
+  const card = ev.currentTarget.closest('[data-card-id]');
+  if (!card) return;
+  LAYOUT_DRAG = { id: card.dataset.cardId, el: card };
+  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+  ev.currentTarget.addEventListener('pointermove', onCardHandlePointerMove);
+  ev.currentTarget.addEventListener('pointerup', onCardHandlePointerUp);
+  ev.currentTarget.addEventListener('pointercancel', onCardHandlePointerCancel);
+}
+function cardDropTargetAt(x, y, sourceEl) {
+  const under = document.elementFromPoint(x, y);
+  const target = under && under.closest ? under.closest('[data-card-id]') : null;
+  return (target && target !== sourceEl) ? target : null;
+}
+function onCardHandlePointerMove(ev) {
+  if (!LAYOUT_DRAG) return;
+  LAYOUT_DRAG.el.classList.add('dragging');
+  document.querySelectorAll('[data-card-id]').forEach(c => c.classList.remove('drop-before', 'drop-after'));
+  const target = cardDropTargetAt(ev.clientX, ev.clientY, LAYOUT_DRAG.el);
+  if (target) {
+    const r = target.getBoundingClientRect();
+    const before = (ev.clientY - r.top) < r.height / 2;
+    target.classList.toggle('drop-before', before);
+    target.classList.toggle('drop-after', !before);
+  }
+}
+function onCardHandlePointerUp(ev) {
+  if (!LAYOUT_DRAG) return;
+  const handle = ev.currentTarget;
+  handle.removeEventListener('pointermove', onCardHandlePointerMove);
+  handle.removeEventListener('pointerup', onCardHandlePointerUp);
+  handle.removeEventListener('pointercancel', onCardHandlePointerCancel);
+  document.querySelectorAll('[data-card-id]').forEach(c => c.classList.remove('dragging', 'drop-before', 'drop-after'));
+  const target = cardDropTargetAt(ev.clientX, ev.clientY, LAYOUT_DRAG.el);
+  if (target) {
+    const r = target.getBoundingClientRect();
+    const before = (ev.clientY - r.top) < r.height / 2;
+    const order = getCardOrder();
+    const fromIdx = order.indexOf(LAYOUT_DRAG.id);
+    if (fromIdx >= 0) order.splice(fromIdx, 1);
+    let toIdx = order.indexOf(target.dataset.cardId);
+    if (toIdx < 0) toIdx = order.length; else if (!before) toIdx += 1;
+    order.splice(toIdx, 0, LAYOUT_DRAG.id);
+    setCardOrder(order);
+    LAYOUT_DRAG = null;
+    render();
+    return;
+  }
+  LAYOUT_DRAG = null;
+}
+function onCardHandlePointerCancel() {
+  if (!LAYOUT_DRAG) return;
+  document.querySelectorAll('[data-card-id]').forEach(c => c.classList.remove('dragging', 'drop-before', 'drop-after'));
+  LAYOUT_DRAG = null;
+}
+
+/* ===== 주간 계획 (보기 + 수정, 모달) ===== */
+let WK_DATA = null;
+let WK_PRISTINE = null;
+let WK_EDIT = false;
+let WK_CTX = null; // 칩 우클릭 메뉴 {x, y, day, subj, idxs, ids}
+let WK_SPLIT = null; // 범위 칩을 눌러 "쪼개서 옮기기" 패널을 연 상태 {day, subj, idxs, ids}
+let ROADMAP_EDIT = false;
+let WK_DRAG = null;
+let WK_JUST_DRAGGED = false;
+
+/** 주간계획 수정모드에서 칩을 눌러 끌면 다른 요일로 옮길 수 있게 — 마우스·터치 공통(Pointer Events) */
+function onWkChipPointerDown(ev) {
+  if (ev.target.closest && ev.target.closest('.x')) return; // 삭제 버튼은 드래그 시작 안 함
+  const el = ev.currentTarget;
+  WK_DRAG = {
+    day: +el.dataset.day, subj: el.dataset.subj, idx: +el.dataset.idx,
+    idxs: el.dataset.idxs ? el.dataset.idxs.split(',').map(Number) : [+el.dataset.idx],
+    el, startX: ev.clientX, startY: ev.clientY, moved: false, pointerId: ev.pointerId
+  };
+  try { el.setPointerCapture(ev.pointerId); } catch (e) {}
+  if (ev.pointerType && ev.pointerType !== 'mouse') {
+    // 터치/펜: 0.5초 넘게 가만히 누르고 있으면 우클릭 메뉴와 같은 메뉴를 연다(끌기 시작하면 취소)
+    WK_DRAG.lpTimer = setTimeout(() => {
+      if (!WK_DRAG || WK_DRAG.el !== el || WK_DRAG.moved) return;
+      const x = WK_DRAG.startX, y = WK_DRAG.startY;
+      WK_DRAG.lpTimer = null;
+      wkEndDrag();
+      WK_DRAG = null;
+      WK_JUST_DRAGGED = true; // 손 떼면 따라오는 click이 칩 토글로 먹히지 않게
+      setTimeout(() => { WK_JUST_DRAGGED = false; }, 1500);
+      WK_CTX_GUARD = true;
+      setTimeout(() => { WK_CTX_GUARD = false; }, 1500);
+      wkOpenCtx(el, x, y + 18);
+    }, 500);
+  }
+  el.addEventListener('pointermove', onWkChipPointerMove);
+  el.addEventListener('pointerup', onWkChipPointerUp);
+  el.addEventListener('pointercancel', onWkChipPointerCancel);
+}
+function wkFindDropCell(x, y) {
+  if (WK_DRAG.ghost) WK_DRAG.ghost.style.display = 'none';
+  const under = document.elementFromPoint(x, y);
+  if (WK_DRAG.ghost) WK_DRAG.ghost.style.display = '';
+  return under && under.closest ? under.closest('.wkcell') : null;
+}
+function onWkChipPointerMove(ev) {
+  if (!WK_DRAG) return;
+  const dx = ev.clientX - WK_DRAG.startX, dy = ev.clientY - WK_DRAG.startY;
+  if (!WK_DRAG.moved && Math.hypot(dx, dy) < 6) return; // 살짝 흔들린 건 클릭으로 취급
+  if (!WK_DRAG.moved) {
+    WK_DRAG.moved = true;
+    if (WK_DRAG.lpTimer) { clearTimeout(WK_DRAG.lpTimer); WK_DRAG.lpTimer = null; }
+    const r = WK_DRAG.el.getBoundingClientRect();
+    WK_DRAG.ghost = WK_DRAG.el.cloneNode(true);
+    WK_DRAG.ghost.classList.add('chip-ghost');
+    WK_DRAG.ghost.style.width = r.width + 'px';
+    document.body.appendChild(WK_DRAG.ghost);
+    WK_DRAG.el.classList.add('drag-source-hidden');
+  }
+  WK_DRAG.ghost.style.left = (ev.clientX - WK_DRAG.ghost.offsetWidth / 2) + 'px';
+  WK_DRAG.ghost.style.top = (ev.clientY - WK_DRAG.ghost.offsetHeight / 2) + 'px';
+  document.querySelectorAll('.wkcell.drop-target').forEach(c => c.classList.remove('drop-target'));
+  const cell = wkFindDropCell(ev.clientX, ev.clientY);
+  if (cell && cell.dataset.subj === WK_DRAG.subj && +cell.dataset.day !== WK_DRAG.day) {
+    cell.classList.add('drop-target');
+  }
+}
+function wkEndDrag() {
+  const el = WK_DRAG.el;
+  if (WK_DRAG.lpTimer) { clearTimeout(WK_DRAG.lpTimer); WK_DRAG.lpTimer = null; }
+  el.removeEventListener('pointermove', onWkChipPointerMove);
+  el.removeEventListener('pointerup', onWkChipPointerUp);
+  el.removeEventListener('pointercancel', onWkChipPointerCancel);
+  if (WK_DRAG.ghost && WK_DRAG.ghost.parentNode) WK_DRAG.ghost.parentNode.removeChild(WK_DRAG.ghost);
+  document.querySelectorAll('.wkcell.drop-target').forEach(c => c.classList.remove('drop-target'));
+  el.classList.remove('drag-source-hidden');
+}
+function onWkChipPointerUp(ev) {
+  if (!WK_DRAG) return;
+  const moved = WK_DRAG.moved;
+  const cell = moved ? wkFindDropCell(ev.clientX, ev.clientY) : null;
+  wkEndDrag();
+  if (moved) {
+    if (cell && cell.dataset.subj === WK_DRAG.subj) {
+      const targetDay = +cell.dataset.day;
+      if (targetDay !== WK_DRAG.day) {
+        const srcList = WK_DATA[WEEKPLAN_WHICH].byDay[WK_DRAG.day][WK_DRAG.subj];
+        const moving = WK_DRAG.idxs.slice().sort((a, b) => a - b).map(i => srcList[i]);
+        WK_DRAG.idxs.slice().sort((a, b) => b - a).forEach(i => srcList.splice(i, 1));
+        moving.forEach(it => WK_DATA[WEEKPLAN_WHICH].byDay[targetDay][WK_DRAG.subj].push(it));
+      }
+    }
+    WK_JUST_DRAGGED = true;
+    setTimeout(() => { WK_JUST_DRAGGED = false; }, 300);
+    render();
+  }
+  WK_DRAG = null;
+}
+function onWkChipPointerCancel() {
+  if (!WK_DRAG) return;
+  wkEndDrag();
+  WK_DRAG = null;
+}
+let ROADMAP_OPEN = false;
+let SHOW_PAST_DONE = false;
+let CHAT_OPEN = false;
+// 생기부: 학년 → 과목 → 세특 순서로 눌러 들어가는 3단 구조. GRADE/SUBJECT가 null이면
+// 그 단계는 아직 목록 상태(선택 전)라는 뜻. 내용은 자주 안 바뀌니 모달을 처음 열 때만
+// 서버에서 불러오고(SAENGIBU_DATA), 이후엔 다시 안 불러온다.
+let SAENGIBU_OPEN = false;
+let SAENGIBU_DATA = null;
+let SAENGIBU_LOADING = false;
+let SAENGIBU_GRADE = null;
+let SAENGIBU_SUBJECT = null;
+let CHAT_LOG = [];
+let CHAT_HISTORY = null;
+let CHAT_BUSY = false;
+
+/* ===== 이번주 계획 화면 (요일별 카드 + 하루 분량 막대) ===== */
+let WEEKPLAN_OPEN = false;
+let WEEKPLAN_WHICH = 'cur'; // 'cur' = 이번 주, 'next' = 다음 주
+const WP_CLS = { '국어': 'kor', '수학': 'mat', '영어': 'eng', '과탐': 'sci', '사탐': 'soc' };
+const WP_DOW = { Sun: '일', Mon: '월', Tue: '화', Wed: '수', Thu: '목', Fri: '금', Sat: '토' };
+
+/** 시트를 파싱해서 서버가 이미 항목 단위로 펼쳐 준 plan(요일별 {series, subj, items, done, late})을 화면용으로 묶는다.
+ * 문항 수 = 항목 개수(#a~b면 b-a+1, #n이면 1, 코드형은 범위의 항목 수, "C1(전체)"는 그 코드의 등록 개수 —
+ * 서버 parseCell이 이미 그렇게 펼쳐 준다). [완]은 done, 줄 끝 ↩는 late. */
+function wpModel(which, wk) {
+  let src = which === 'next' ? STATE.nextWeek : STATE.week;
+  if (wk) src = { days: wk.days, plan: wpPlanFromEditable(wk) };
+  if (!src || !src.days) return null;
+  const todayIdx = which === 'cur' ? STATE.todayIdx : -1;
+  const days = src.days.map((d, i) => {
+    const entries = (src.plan && src.plan[i]) || [];
+    const bySubj = {};
+    let total = 0;
+    for (const en of entries) {
+      const n = en.items.length;
+      total += n;
+      const g = bySubj[en.subj] || (bySubj[en.subj] = { n: 0, rows: [] });
+      g.n += n;
+      let label;
+      try { label = joinItems(en.series, en.items); } catch (e) { label = en.series + ' ' + en.items.join(', '); }
+      g.rows.push({ label, n, done: !!en.done, late: !!en.late });
+    }
+    const m = String(d.label).match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/);
+    const allDone = entries.length > 0 && entries.every(e => e.done);
+    let state = '';
+    if (i === todayIdx) state = 'today';
+    else if (todayIdx >= 0 && i < todayIdx && allDone) state = 'done';
+    else if (d.buffer) state = 'buffer';
+    return { idx: i, dow: m ? WP_DOW[m[1]] : '', date: d.month ? `${d.month}/${d.day}` : '', state, past: todayIdx >= 0 && i < todayIdx, total, bySubj, empty: !entries.length };
+  });
+  return { days, todayIdx };
+}
+
+function wpBarsHtml(model) {
+  const max = Math.max(1, ...model.days.map(d => (d.state === 'done' ? 0 : d.total)));
+  let h = `<div class="wp-bars">`;
+  for (const d of model.days) {
+    h += `<div class="wp-bcol${d.state === 'today' ? ' today' : ''}">`;
+    if (d.state === 'done' || !d.total) {
+      h += `<div class="wp-bnum">${d.state === 'done' ? '완료' : '–'}</div><div class="wp-bstack" style="height:6px"></div>`;
+    } else {
+      const hh = Math.max(6, Math.round(d.total / max * 84));
+      let inner = '';
+      for (const subj of SUBJ_ORDER) {
+        const g = d.bySubj[subj];
+        if (!g || !g.n) continue;
+        inner += `<div style="height:${Math.max(2, Math.round(hh * g.n / d.total))}px;background:var(--wp-${WP_CLS[subj]})"></div>`;
+      }
+      h += `<div class="wp-bnum">${d.total}</div><div class="wp-bstack" style="height:${hh}px">${inner}</div>`;
+    }
+    h += `<div class="wp-blab">${esc(d.dow)}</div></div>`;
+  }
+  return h + `</div>`;
+}
+
+function renderWeekPlanCard() {
+  const m = wpModel('cur');
+  if (!m) return '';
+  let h = `<div class="card"><h2>이번주 계획</h2>`;
+  h += `<div class="muted" style="margin:-4px 0 8px;font-size:12.5px">하루 분량 (문항 수)</div>`;
+  h += `<div class="wp">${wpBarsHtml(m)}</div>`;
+  h += `<div class="row" style="margin-top:10px"><button class="act primary" id="wpopen">📅 이번주 계획 크게 보기</button><button class="act" id="blopen">📌 원본 계획</button></div>`;
+  h += `</div>`;
+  return h;
+}
+
+/** 수정 모드용: getEditableWeeks 형태(wk.byDay[di][subj] = 낱개 항목 배열)를 wpModel이 쓰는 plan 형태로 바꿔서
+ * 막대/합계가 수정하는 즉시 같이 바뀌게 한다. */
+function wpPlanFromEditable(wk) {
+  const plan = {};
+  wk.days.forEach((d, di) => {
+    const out = [];
+    for (const subj of SUBJ_ORDER) {
+      const groups = [];
+      for (const it of ((wk.byDay[di] && wk.byDay[di][subj]) || [])) {
+        let g = groups.find(q => q.series === it.series && q.done === !!it.done && q.late === !!it.late);
+        if (!g) { g = { series: it.series, subj, items: [], done: !!it.done, late: !!it.late }; groups.push(g); out.push(g); }
+        g.items.push(it.item);
+      }
+    }
+    plan[di] = out;
+  });
+  return plan;
+}
+
+/** 수정 모드 진입/해제 — 진입할 때마다 서버에서 최신 표를 다시 받고, 나갈 땐 저장 안 한 변경을 버린다. */
+async function wpToggleEdit() {
+  WK_SPLIT = null;
+  if (WK_EDIT) {
+    if (WK_PRISTINE) WK_DATA = JSON.parse(JSON.stringify(WK_PRISTINE));
+    WK_EDIT = false;
+    render();
+    return;
+  }
+  WK_EDIT = true;
+  WK_DATA = null;
+  render();
+  try {
+    WK_DATA = await gsrun('getEditableWeeks');
+    WK_PRISTINE = JSON.parse(JSON.stringify(WK_DATA));
+  } catch (e) {
+    WK_EDIT = false;
+    alert('표를 불러오지 못했어요: ' + (e.message || e));
+  }
+  render();
+}
+function wpCloseModal() { WEEKPLAN_OPEN = false; WK_EDIT = false; WK_DATA = null; WK_SPLIT = null; WK_CTX = null; render(); }
+
+function renderWeekPlanModal() {
+  if (!WEEKPLAN_OPEN) return '';
+  const which = (WEEKPLAN_WHICH === 'next' && STATE.nextWeek && STATE.nextWeek.days) ? 'next' : 'cur';
+  const editing = WK_EDIT;
+  const wk = (editing && WK_DATA) ? WK_DATA[which] : null;
+  const m = wk
+    ? wpModel(which, wk)
+    : wpModel(which);
+  if (!m) return '';
+  const first = m.days[0], last = m.days[m.days.length - 1];
+  const t = STATE.today;
+  const todayTxt = `${t.getMonth() + 1}/${t.getDate()}(${'일월화수목금토'[t.getDay()]})`;
+  let h = `<div class="modal-overlay" id="wpoverlay"><div class="modal-box wp">`;
+  h += `<div class="modal-head"><h2 style="margin:0">${which === 'next' ? '다음주 계획' : '이번주 계획'}${editing ? ' · 수정 중' : ''}</h2><span style="display:flex;gap:8px;align-items:center"><button class="act${editing ? ' primary' : ''}" id="wkedit">✏️ ${editing ? '수정 모드 닫기' : '수정 모드 열기'}</button><button class="modal-close" id="wpclose">✕</button></span></div>`;
+  h += `<div class="wp-sub">${esc(first.date)} ${esc(first.dow)} ~ ${esc(last.date)} ${esc(last.dow)} · ${which === 'next' ? '다음 주 예정 계획' : `${esc(todayTxt)} 기준 시트 내용`}</div>`;
+  h += `<div class="wp-tabs"><button class="act${which === 'cur' ? ' primary' : ''}" data-wpwhich="cur">이번주</button><button class="act${which === 'next' ? ' primary' : ''}" data-wpwhich="next">다음주</button></div>`;
+  h += `<div class="wp-legend">${SUBJ_ORDER.map(s => `<span><i style="background:var(--wp-${WP_CLS[s]})"></i>${s}</span>`).join('')}<span><span class="wp-carry" style="margin:0">↩</span> 어제 밀린 것</span></div>`;
+  if (editing && !WK_DATA) {
+    h += `<div class="wp-sub">표를 불러오는 중…</div></div></div>`;
+    return h;
+  }
+  if (editing && !wk) {
+    h += `<div class="wp-sub">표를 찾지 못했습니다.</div></div></div>`;
+    return h;
+  }
+  h += `<div class="wp-load"><h3>하루 분량 (문항 수)</h3>${wpBarsHtml(m)}</div>`;
+  h += `<div class="wp-grid">`;
+  for (const d of m.days) {
+    const tag = d.state === 'today' ? '<span class="wp-tag t">오늘</span>' : d.state === 'done' ? '<span class="wp-tag">완료</span>' : d.state === 'buffer' ? '<span class="wp-tag">Buffer</span>' : '';
+    h += `<div class="wp-day${d.state === 'today' ? ' today' : ''}${d.state === 'done' && !editing ? ' past' : ''}">`;
+    h += `<div class="wp-dh"><div class="wp-d">${esc(d.dow)}<small>${esc(d.date)}</small></div>${tag}</div>`;
+    if ((editing || d.state !== 'done') && d.total) h += `<div class="wp-total">하루 총 <b>${d.total}</b>문항</div>`;
+    if (editing) {
+      // 수정 모드: 과목마다 칸(.wkcell)을 열어 칩 토글/삭제/드래그 이동/추가를 쓴다(예전 주간 계획 편집 표와 같은 방식).
+      for (const subj of SUBJ_ORDER) {
+        const g = d.bySubj[subj];
+        h += `<div class="wp-sec ${WP_CLS[subj]} wkcell" data-day="${d.idx}" data-subj="${esc(subj)}"><div class="wp-sh"><span>${esc(subj)}</span><span>${g ? g.n : 0}문항</span></div>${renderWkEditCell((wk.byDay[d.idx] && wk.byDay[d.idx][subj]) || [], d.idx, subj)}</div>`;
+      }
+    } else {
+      for (const subj of SUBJ_ORDER) {
+        const g = d.bySubj[subj];
+        if (!g) continue;
+        h += `<div class="wp-sec ${WP_CLS[subj]}"><div class="wp-sh"><span>${esc(subj)}</span><span>${g.n}문항</span></div>`;
+        for (const r of g.rows) {
+          h += `<div class="wp-it${r.done ? ' done' : ''}"><span>${esc(r.label)}${r.late && !r.done ? '<span class="wp-carry">↩ 어제 밀린 것</span>' : ''}</span><span class="wp-n">${r.n}</span></div>`;
+        }
+        h += `</div>`;
+      }
+      if (d.empty) h += `<div class="wp-empty">배정 없음</div>`;
+    }
+    h += `</div>`;
+  }
+  h += `</div>`;
+  if (editing) {
+    h += `<div class="row" style="margin-top:14px"><button class="act primary" id="wksave">변경사항 저장</button></div>`;
+    h += `<div class="wp-sub" style="margin-top:8px" id="wkmsg">칩을 누르면 완료 표시가 바뀌고, ✕를 누르면 삭제돼요. 칩을 눌러서 끌면 같은 과목의 다른 요일로 옮길 수 있어요. 칩을 우클릭하면 옮기기·완료 표시/해제·삭제 메뉴가 떠요. 묶인 범위 칩은 눌러도 일부만 쪼개 옮길 수 있어요. 추가는 칸 아래 드롭다운으로.</div>`;
+  }
+  h += `</div></div>`;
+  return h;
+}
+
+/** 카드에는 요약만 — 로드맵 표는 좁아서 잘 안 보이니 "크게 보기"로 모달에서 전체 너비로 봄 */
+function renderRoadmapCard(roadmap) {
+  if (!roadmap || !roadmap.rows.length) {
+    return `<div class="card"><h2>학습 로드맵</h2><div class="muted">로드맵 표(K~P열)를 찾지 못했습니다.</div></div>`;
+  }
+  const behindCount = roadmap.rows.reduce((a, r) => a + r.cells.filter(c => c.status === 'behind').length, 0);
+  let h = `<div class="card"><h2>학습 로드맵</h2>`;
+  h += `<div class="statrow">`;
+  h += `<div class="stat"><div class="stat-num">${roadmap.rows.length}</div><div class="stat-lbl">전체 구간</div></div>`;
+  h += `<div class="stat"><div class="stat-num${behindCount ? ' warn' : ' zero'}">${behindCount}</div><div class="stat-lbl">밀린 구간</div></div>`;
+  h += `</div>`;
+  h += `<button class="act primary" id="rmopen" style="margin-top:4px">🗺️ 로드맵 크게 보기</button>`;
+  h += `</div>`;
+  return h;
+}
+
+/** 기본 화면에서 접어 숨길 지난 구간인지 — 기간이 좀 지났으면(r.old) 밀린 게 남아있어도 숨기고,
+ * 아직 얼마 안 지났으면 완전히 끝난(밀리거나 부분완료가 하나도 없는) 경우만 숨긴다 */
+function isRoadmapRowHidden(r) {
+  if (!r.due) return false;
+  if (r.old) return true;
+  return r.cells.every(c => c.status !== 'behind' && c.status !== 'partial');
+}
+
+function renderRoadmapTable(roadmap, rows) {
+  const subj = roadmap.subjects;
+  let h = `<div class="rmwrap"><div class="rmtable">`;
+  h += `<div class="rmrow rmhead"><div class="rmlabel"></div>` + subj.map(s => `<div class="rmcell rmheadcell">${esc(s)}</div>`).join('') + `</div>`;
+  rows.forEach(r => {
+    h += `<div class="rmrow${r.due ? ' due' : ''}"><div class="rmlabel">${esc(r.label)}</div>`;
+    r.cells.forEach((c, ci) => {
+      if (ROADMAP_EDIT) {
+        h += `<div class="rmcell edit"><textarea class="rmedit" data-row="${r.row}" data-col="${ci}">${esc(c.text)}</textarea></div>`;
+      } else {
+        const body = c.text ? esc(c.text).replace(/\n/g, '<br>') : '<span class="muted">—</span>';
+        const notes = (c.progress || [])
+          .filter(p => p.actual != null)
+          .map(p => `<div class="rmnote">→ ${esc(labelItem(p.series, String(p.actual)))}까지</div>`)
+          .join('');
+        h += `<div class="rmcell ${c.status}">${body}${notes}</div>`;
+      }
+    });
+    h += `</div>`;
+  });
+  h += `</div></div>`;
+  return h;
+}
+
+function renderRoadmapModal(roadmap) {
+  if (!ROADMAP_OPEN || !roadmap || !roadmap.rows.length) return '';
+  const resolved = roadmap.rows.filter(isRoadmapRowHidden);
+  const visibleRows = (ROADMAP_EDIT || SHOW_PAST_DONE) ? roadmap.rows : roadmap.rows.filter(r => !isRoadmapRowHidden(r));
+  let h = `<div class="modal-overlay" id="rmoverlay"><div class="modal-box">`;
+  h += `<div class="modal-head"><h2 style="margin:0">학습 로드맵 <span class="pill" style="background:#eef3ff;color:#3b62b8">전체 ${roadmap.rows.length}구간</span></h2><button class="modal-close" id="rmclose">✕</button></div>`;
+  h += `<div class="row" style="margin-bottom:10px">`;
+  h += `<button class="act" id="rmtoggle">✏️ ${ROADMAP_EDIT ? '수정 모드 닫기' : '수정 모드 열기'}</button>`;
+  h += `<span class="pill ok">완료</span><span class="pill" style="background:#fff3da;color:#a5690f">부분 완료</span><span class="pill late">밀림</span>`;
+  h += `<span class="pill" style="background:#f0ede8;color:#8a8f98">확인 안 됨</span>`;
+  h += `<span class="pill" style="background:#eef3ff;color:#3b62b8">예정</span>`;
+  h += `</div>`;
+  h += renderRoadmapTable(roadmap, visibleRows);
+  if (resolved.length && !ROADMAP_EDIT) {
+    h += `<div class="row" style="margin-top:8px"><button class="act" id="rmshowpast" style="font-size:12.5px;padding:6px 10px">${SHOW_PAST_DONE ? '지난 구간 숨기기' : `지난 구간 ${resolved.length}개 더 보기`}</button></div>`;
+  }
+  if (ROADMAP_EDIT) {
+    h += `<div class="row" style="margin-top:12px"><button class="act primary" id="rmsave">로드맵 저장</button></div>`;
+    h += `<div class="muted" style="margin-top:8px" id="rmmsg">칸 내용을 고치고 저장을 누르세요.</div>`;
+  } else {
+    h += `<div class="muted" style="margin-top:8px;font-size:11.5px">부분 완료는 목표 구간 중 일부만 끝난 상태(예: 화언 1~4강 목표 중 3강까지), 밀림은 시작 지점에도 못 미친 상태예요. 옆으로 스크롤하면 전체 과목이 보여요.</div>`;
+  }
+  h += `</div></div>`;
+  return h;
+}
+
+async function saveRoadmapEdits() {
+  const btn = document.getElementById('rmsave');
+  const msg = document.getElementById('rmmsg');
+  btn.disabled = true; msg.textContent = '저장 중…';
+  try {
+    const areas = [...document.querySelectorAll('.rmedit')];
+    await Promise.all(areas.map(a => gsrun('saveRoadmapCell', +a.dataset.row, +a.dataset.col, a.value)));
+    ROADMAP_EDIT = false;
+    await load();
+  } catch (e) {
+    msg.innerHTML = `<b style="color:#c0392b">저장 실패</b> — ${esc(e.message || e)}`;
+    btn.disabled = false;
+  }
+}
+
+function renderCalendarCard(weekEvents) {
+  let h = `<div class="card"><h2>이번 주 일정</h2>`;
+  if (weekEvents === null) {
+    h += `<div class="muted">불러오는 중…</div></div>`;
+    return h;
+  }
+  if (!weekEvents.ok) {
+    h += `<div class="muted">캘린더를 아직 못 불러왔어요.${weekEvents.error ? ` (${esc(weekEvents.error)})` : ''} Apps Script 편집기에서 한 번 권한 허용을 해줘야 할 수 있어요.</div>`;
+  } else {
+    h += `<div class="evweek">`;
+    for (const d of weekEvents.days) {
+      h += `<div class="evday${d.isToday ? ' today' : ''}">`;
+      h += `<div class="evdaylabel">${esc(d.dow)} <span class="evdate">${esc(d.date)}</span></div>`;
+      if (!d.events.length) {
+        h += `<div class="muted" style="font-size:12px">일정 없음</div>`;
+      } else {
+        for (const e of d.events) {
+          const timeLabel = e.allDay ? '하루 종일' : `${e.start}${e.end && e.end !== e.start ? '~' + e.end : ''}`;
+          h += `<div class="evrow"><div class="evtime">${esc(timeLabel)}</div><div class="evtitle">${e.calendar ? `<span class="evcal">${esc(e.calendar)}</span> ` : ''}${esc(e.title)}${e.location ? `<span class="evloc"> · ${esc(e.location)}</span>` : ''}</div></div>`;
+        }
+      }
+      h += `</div>`;
+    }
+    h += `</div>`;
+  }
+  h += `<div class="row" style="margin-top:12px"><a class="act" href="https://calendar.google.com/calendar/r/week" target="_blank" rel="noopener">+ 일정 더보기</a></div>`;
+  h += `</div>`;
+  return h;
+}
+
+function renderSaengibuCard() {
+  return `<div class="card"><h2>생기부</h2>
+<div class="muted" style="margin-bottom:10px">학년별로 과목 세특을 눌러서 볼 수 있어요.</div>
+<button class="act primary" id="saengibuopen">📖 생기부 보기</button>
+</div>`;
+}
+
+async function openSaengibu() {
+  SAENGIBU_OPEN = true;
+  SAENGIBU_GRADE = null;
+  SAENGIBU_SUBJECT = null;
+  render();
+  if (SAENGIBU_DATA == null && !SAENGIBU_LOADING) {
+    SAENGIBU_LOADING = true;
+    try { SAENGIBU_DATA = await gsrun('getSaengibu'); }
+    catch (e) { SAENGIBU_DATA = { ok: false, error: String(e.message || e) }; }
+    SAENGIBU_LOADING = false;
+    render();
+  }
+}
+
+function renderSaengibuModal() {
+  if (!SAENGIBU_OPEN) return '';
+  let title = '생기부', body = '';
+  if (SAENGIBU_LOADING || SAENGIBU_DATA == null) {
+    body = `<div class="muted">불러오는 중…</div>`;
+  } else if (!SAENGIBU_DATA.ok) {
+    body = `<div class="muted">생기부를 불러오지 못했어요.${SAENGIBU_DATA.error ? ` (${esc(SAENGIBU_DATA.error)})` : ''}</div>`;
+  } else if (!SAENGIBU_DATA.grades.length) {
+    body = `<div class="muted">생기부 탭에서 학년 정보를 찾지 못했어요.</div>`;
+  } else if (SAENGIBU_GRADE == null) {
+    body = `<div class="sglist">` + SAENGIBU_DATA.grades.map((g, gi) =>
+      `<button class="act sgitem" data-sggrade="${gi}">${esc(g.grade)}<span class="muted"> · 과목 ${g.subjects.length}개</span></button>`
+    ).join('') + `</div>`;
+  } else {
+    const grade = SAENGIBU_DATA.grades[SAENGIBU_GRADE];
+    title = grade.grade;
+    if (SAENGIBU_SUBJECT == null) {
+      body = `<div class="row" style="margin-bottom:10px"><button class="act" id="sgback">← 학년 목록</button></div>`;
+      if (!grade.subjects.length) {
+        body += `<div class="muted">이 학년엔 등록된 과목이 없어요.</div>`;
+      } else {
+        body += `<div class="sglist">` + grade.subjects.map((s, si) =>
+          `<button class="act sgitem" data-sgsubj="${si}">${esc(s.name)}</button>`
+        ).join('') + `</div>`;
+      }
+    } else {
+      const subj = grade.subjects[SAENGIBU_SUBJECT];
+      title = `${grade.grade} · ${subj.name}`;
+      body = `<div class="row" style="margin-bottom:10px"><button class="act" id="sgback">← ${esc(grade.grade)} 과목 목록</button></div>`;
+      body += subj.text ? `<div class="sgtext">${esc(subj.text)}</div>` : `<div class="muted">내용이 비어있어요.</div>`;
+    }
+  }
+  return `<div class="modal-overlay" id="sgoverlay"><div class="modal-box">
+<div class="modal-head"><h2 style="margin:0">${esc(title)}</h2><button class="modal-close" id="sgclose">✕</button></div>
+${body}
+</div></div>`;
+}
+
+function renderWeekGrid(wk, editable) {
+  const monthTargetMap = Object.fromEntries((STATE.monthTargets || []).map(t => [t.series, t]));
+  let h = `<div class="wkwrap"><table class="wktable"><tr><th class="wkhead"></th>`;
+  h += wk.days.map(d => `<th class="wkhead${d.buffer ? ' buffer' : ''}">${esc(d.label).replace(/\s*\(/, '<br>(')}${d.buffer ? '<br><span class="pill buffer">버퍼</span>' : ''}</th>`).join('');
+  h += `</tr>`;
+  for (const subj of SUBJ_ORDER) {
+    h += `<tr><td class="wksubj">${subj}</td>`;
+    wk.days.forEach((d, di) => {
+      const items = (wk.byDay[di] && wk.byDay[di][subj]) || [];
+      h += editable ? `<td class="wkcell" data-day="${di}" data-subj="${esc(subj)}">` : `<td class="wkcell">`;
+      if (editable) {
+        h += renderWkEditCell(items, di, subj);
+      } else if (!items.length) {
+        h += `<span class="muted">—</span>`;
+      } else {
+        const bySeries = {};
+        items.forEach(it => (bySeries[it.series] || (bySeries[it.series] = [])).push(it));
+        h += Object.entries(bySeries).map(([name, arr]) => {
+          const done = arr.filter(x => x.done).map(x => x.item);
+          const late = arr.filter(x => !x.done && x.late).map(x => x.item);
+          const todo = arr.filter(x => !x.done && !x.late).map(x => x.item);
+          let s = '';
+          if (done.length) s += `<div class="wkdone">✓ ${esc(joinItems(name, done))}</div>`;
+          if (late.length) {
+            const key = `${di}|${subj}|${name}`;
+            s += `<div class="wklate" data-latekey="${esc(key)}">↩ ${esc(joinItems(name, late))}</div>`;
+            if (WK_LATE_OPEN.has(key)) {
+              const tgt = monthTargetMap[name];
+              s += `<div class="wklatedetail">밀린 항목이에요.${tgt ? ` 로드맵 목표: ${esc(labelItem(name, String(tgt.min)))}~${esc(labelItem(name, String(tgt.max)))}` : ' 로드맵 목표 구간을 찾지 못했어요.'}</div>`;
+            }
+          }
+          if (todo.length) s += `<div>${esc(joinItems(name, todo))}</div>`;
+          return s;
+        }).join('');
+      }
+      h += `</td>`;
+    });
+    h += `</tr>`;
+  }
+  h += `</table></div>`;
+  return h;
+}
+
+/** 범위 칩을 눌러 연 "쪼개서 옮기기" 상태가 지금도 유효한지(그 칸의 그 항목들이 그대로 있는지) 확인한다 — 다른 수정으로 인덱스가
+ * 밀렸으면 자동으로 무효 처리. */
+function wkSplitState(di, subj) {
+  const s = WK_SPLIT;
+  if (!s || s.day !== di || s.subj !== subj || !WK_DATA || !WK_DATA[WEEKPLAN_WHICH]) return null;
+  const list = (WK_DATA[WEEKPLAN_WHICH].byDay[di] || {})[subj] || [];
+  if (!s.idxs.every((i, k) => list[i] && (list[i].series + '|' + list[i].item) === s.ids[k])) return null;
+  return s;
+}
+function wkSplitCls(di, subj, idxStr) {
+  const s = wkSplitState(di, subj);
+  return s && s.idxs.join(',') === idxStr ? ' splitsel' : '';
+}
+function wkSplitPanel(items, di, subj) {
+  const s = wkSplitState(di, subj);
+  if (!s) return '';
+  const first = items[s.idxs[0]];
+  const single = s.idxs.length === 1;
+  const mode = s.mode || 'move';
+  const wk = WK_DATA[WEEKPLAN_WHICH];
+  const titles = { move: single ? '옮길 날을 누르세요' : '옮길 범위만 적고 옮길 날을 누르세요', done: '어디까지 표시할지 범위를 적으세요', delete: '삭제할 범위를 적으세요' };
+  const icon = { move: '✂️', done: '✅', delete: '🗑' }[mode];
+  let h = `<div class="splitpanel" data-series="${esc(first.series)}"><div class="splithead">${icon} ${esc(first.series)}${single ? ' ' + esc(first.item) : ''} — ${titles[mode]}</div>`;
+  if (!single) h += `<input type="text" class="splitinput" value="${esc(rangeText(first.series, s.idxs.map(i => items[i].item)))}">`;
+  h += '<div class="splitdays">';
+  if (mode === 'move') {
+    h += wk.days.map((d, k) => {
+      if (k === di) return '';
+      const dw = WP_DOW[(String(d.label).match(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)/) || [])[1]] || '';
+      return `<button class="act splitgo" data-to="${k}">${dw}${d.month ? ' ' + d.month + '/' + d.day : ''}</button>`;
+    }).join('');
+  } else if (mode === 'done') {
+    h += '<button class="act splitact" data-act="done">✅ 완료로 표시</button><button class="act splitact" data-act="undone">↩ 완료 해제</button>';
+  } else {
+    h += '<button class="act splitact" data-act="del">🗑 삭제</button>';
+  }
+  h += '<button class="act splitcancel">닫기</button></div><div class="spliterr muted"></div></div>';
+  return h;
+}
+
+/** 우클릭 메뉴가 가리키는 항목들이 지금도 그 자리에 그대로 있는지(다른 수정으로 인덱스가 밀리지 않았는지). */
+let WK_CTX_GUARD = false; // 길게 눌러 메뉴를 연 직후 손을 뗄 때 따라오는 click이 메뉴를 바로 닫지 않게 한 번 무시
+function wkOpenCtx(el, x, y) {
+  if (!WK_EDIT || !WK_DATA) return false;
+  const day = +el.dataset.day, subj = el.dataset.subj;
+  const idxs = el.dataset.idxs ? el.dataset.idxs.split(',').map(Number) : [+el.dataset.idx];
+  const list = WK_DATA[WEEKPLAN_WHICH].byDay[day][subj];
+  WK_SPLIT = null;
+  WK_CTX = { x, y, day, subj, idxs, ids: idxs.map(i => list[i].series + '|' + list[i].item) };
+  render();
+  return true;
+}
+function wkCtxValid(c) {
+  if (!c || !WK_DATA || !WK_DATA[WEEKPLAN_WHICH]) return false;
+  const list = (WK_DATA[WEEKPLAN_WHICH].byDay[c.day] || {})[c.subj] || [];
+  return c.idxs.every((i, k) => list[i] && (list[i].series + '|' + list[i].item) === c.ids[k]);
+}
+function renderWkCtxMenu() {
+  const c = WK_CTX;
+  if (!WK_EDIT || !wkCtxValid(c)) return '';
+  const list = WK_DATA[WEEKPLAN_WHICH].byDay[c.day][c.subj];
+  const first = list[c.idxs[0]];
+  const single = c.idxs.length === 1;
+  const left = Math.max(4, Math.min(c.x, (window.innerWidth || 1000) - 210));
+  const top = Math.max(4, Math.min(c.y, (window.innerHeight || 800) - 160));
+  let title;
+  try { title = single ? labelItem(first.series, first.item) : first.series + ' · ' + c.idxs.length + '문항'; } catch (e) { title = first.series; }
+  const doneLabel = single ? (first.done ? '↩ 완료 해제' : '✅ 완료 표시') : '✅ 완료 표시 / 해제…';
+  return `<div class="wkctx" style="left:${left}px;top:${top}px"><div class="wkctxhead">${esc(title)}</div><button class="wkctxbtn" data-act="move">${single ? '↔ 다른 요일로 옮기기' : '✂️ 쪼개서 옮기기…'}</button><button class="wkctxbtn" data-act="done">${doneLabel}</button><button class="wkctxbtn" data-act="del">🗑 삭제${single ? '' : '…'}</button></div>`;
+}
+/** 우클릭 메뉴 항목 실행 — 한 항목짜리 칩은 바로, 묶음(범위) 칩은 "얼마나" 범위를 한 번 더 물어보는 패널로. */
+function wkCtxAct(act) {
+  const c = WK_CTX;
+  WK_CTX = null;
+  if (!c || !wkCtxValid(c)) { render(); return; }
+  const list = WK_DATA[WEEKPLAN_WHICH].byDay[c.day][c.subj];
+  const single = c.idxs.length === 1;
+  const mk = (mode) => ({ mode, day: c.day, subj: c.subj, idxs: c.idxs, ids: c.ids });
+  if (act === 'move') WK_SPLIT = mk('move');
+  else if (act === 'done') { if (single) list[c.idxs[0]].done = !list[c.idxs[0]].done; else WK_SPLIT = mk('done'); }
+  else if (act === 'del') { if (single) list.splice(c.idxs[0], 1); else WK_SPLIT = mk('delete'); }
+  render();
+}
+/** 패널의 버튼(옮기기 날짜 / 완료 표시·해제 / 삭제)을 적용 — 범위를 적었으면 서버로 풀어서 이 묶음의 부분집합인지 확인한다. */
+async function wkSplitApply(btn) {
+  const panel = btn.closest('.splitpanel'), s = WK_SPLIT;
+  if (!panel || !s) return;
+  const errEl = panel.querySelector('.spliterr');
+  const list = WK_DATA[WEEKPLAN_WHICH].byDay[s.day][s.subj];
+  let target = s.idxs.slice();
+  const inp = panel.querySelector('.splitinput');
+  if (inp) {
+    const text = inp.value.trim();
+    if (!text) return;
+    errEl.textContent = '확인 중…';
+    let resolved;
+    try { resolved = await gsrun('resolveRangeForUi', panel.dataset.series, text); }
+    catch (e) { errEl.innerHTML = `<b style="color:#c0392b">${esc(e.message || e)}</b>`; return; }
+    const want = new Set(resolved.items);
+    const inRun = new Set(s.idxs.map(i => list[i].item));
+    const outside = resolved.items.filter(it => !inRun.has(it));
+    if (outside.length) { errEl.innerHTML = `<b style="color:#c0392b">이 묶음에 없는 번호가 ${outside.length}개 있어요</b>`; return; }
+    target = s.idxs.filter(i => want.has(list[i].item));
+    if (!target.length) { errEl.innerHTML = '<b style="color:#c0392b">대상 항목이 없어요</b>'; return; }
+  }
+  if (btn.dataset.to != null && btn.dataset.to !== '') {
+    const dest = WK_DATA[WEEKPLAN_WHICH].byDay[+btn.dataset.to][s.subj];
+    const moving = target.slice().sort((a, b) => a - b).map(i => list[i]);
+    target.slice().sort((a, b) => b - a).forEach(i => list.splice(i, 1));
+    moving.forEach(it => dest.push(it));
+  } else if (btn.dataset.act === 'done' || btn.dataset.act === 'undone') {
+    target.forEach(i => { list[i].done = btn.dataset.act === 'done'; });
+  } else if (btn.dataset.act === 'del') {
+    target.slice().sort((a, b) => b - a).forEach(i => list.splice(i, 1));
+  }
+  WK_SPLIT = null;
+  render();
+}
+
+function renderWkEditCell(items, di, subj) {
+  let h = '';
+        h += `<div class="chips">`;
+        const bySeriesWk = {};
+        items.forEach((it, ii) => (bySeriesWk[it.series] || (bySeriesWk[it.series] = [])).push({ ...it, idx: ii }));
+        // 문제집형(예: 쎈처럼 #1~80 같은 큰 범위) 교재는 항목마다 칩을 하나씩 만들면 너무
+        // 난잡해지니, 연속되고 상태(완료/밀림)가 같은 항목끼리 범위 하나의 정보 칩으로
+        // 묶어서 보여준다(클릭 토글은 안 함 — 여러 항목을 칩 하나로 묶으면 "일부만 완료"
+        // 상태를 칩의 on/off 하나로 표현할 수 없어서, 진행 상황 표시는 아래 "번호/까지
+        // 완료"로만 한다). 강의형처럼 하루 분량이 적은 교재는 예전처럼 하나씩 따로 표시.
+        for (const sname in bySeriesWk) {
+          const arr = bySeriesWk[sname];
+          // 서버가 매 요청마다 실어 보내는 fresh한 값을 우선 쓰고(교재설정의 완료 방식이 바뀐
+          // 뒤 탭을 새로고침 안 해도 항상 맞게 나옴), 옛 서버 응답(이 필드가 아직 없던 캐시)만
+          // BY_NAME으로 폴백한다.
+          const isPartialWk = arr[0].partial != null ? arr[0].partial : (BY_NAME[sname] && BY_NAME[sname].partial);
+          if (BY_NAME[sname] && BY_NAME[sname].kind === 'code' && arr.length > 1 && arr.every(x => !isNaN(parseInt(String(x.item).split('·')[1], 10)))) {
+            // 코드형("C3·10" 같은 코드·번호)도 숫자 범위와 똑같이 묶는다 — 코드별(등록 순서)·번호순으로 정렬해서 같은 코드의
+            // 연속 번호이고 상태(완료/밀림)가 같은 것끼리 한 칩("C3·1~13" / 코드 전부면 "C1(전체)")으로. 낱개 칩이 수십 개씩
+            // 쭉 나열돼 읽을 수가 없던 문제 — 숫자형(문제집)만 /^\d+$/ 판정으로 묶고 코드형은 통과 못 해서 그랬다.
+            const codeOrder = {};
+            ((BY_NAME[sname].codes) || []).forEach((c, ci) => { codeOrder[c.code] = ci; });
+            const ps = arr.map(x => { const sp = String(x.item).split('·'); return { x, cd: sp[0], n: parseInt(sp[1], 10) }; })
+              .sort((a, b) => ((codeOrder[a.cd] ?? 999999) - (codeOrder[b.cd] ?? 999999)) || (a.cd < b.cd ? -1 : a.cd > b.cd ? 1 : 0) || a.n - b.n);
+            let ci2 = 0;
+            while (ci2 < ps.length) {
+              let cj = ci2;
+              while (cj + 1 < ps.length && ps[cj + 1].cd === ps[ci2].cd && ps[cj + 1].n === ps[cj].n + 1
+                && !!ps[cj + 1].x.done === !!ps[ci2].x.done && !!ps[cj + 1].x.late === !!ps[ci2].x.late) cj++;
+              const crun = ps.slice(ci2, cj + 1);
+              const cf = crun[0].x;
+              if (crun.length === 1) {
+                h += `<span class="chip editable${cf.done ? ' on' : ''}${cf.late ? ' lateItem' : ''}" data-day="${di}" data-subj="${esc(subj)}" data-idx="${cf.idx}">${esc(labelItem(cf.series, cf.item))}${cf.late ? '<span class="dot">↩</span>' : ''}<span class="x" data-del="1">✕</span></span>`;
+              } else {
+                const clabel = sname + ' ' + compactCodeGroups(sname, crun.map(p => p.x.item)).join(', ');
+                h += `<span class="chip chip-info runchip${wkSplitCls(di, subj, crun.map(p => p.x.idx).join(','))}${cf.done ? ' on' : ''}${cf.late ? ' lateItem' : ''}" data-day="${di}" data-subj="${esc(subj)}" data-idxs="${crun.map(p => p.x.idx).join(',')}" title="끌어서 옮기기 / 눌러서 쪼개기">${esc(clabel)}${cf.late ? '<span class="dot">↩</span>' : ''}<span class="x" data-del="1">✕</span></span>`;
+              }
+              ci2 = cj + 1;
+            }
+          } else if (isPartialWk && arr.length > 1 && arr.every(x => /^\d+$/.test(x.item))) {
+            const sorted = arr.slice().sort((a, b) => parseInt(a.item, 10) - parseInt(b.item, 10));
+            let i = 0;
+            while (i < sorted.length) {
+              let j = i;
+              while (j + 1 < sorted.length
+                && parseInt(sorted[j + 1].item, 10) === parseInt(sorted[j].item, 10) + 1
+                && sorted[j + 1].done === sorted[i].done
+                && sorted[j + 1].late === sorted[i].late) j++;
+              const run = sorted.slice(i, j + 1);
+              const label = labelRange(sname, run[0].item, run[run.length - 1].item);
+              h += `<span class="chip chip-info runchip${wkSplitCls(di, subj, run.map(x => x.idx).join(','))}${run[0].done ? ' on' : ''}${run[0].late ? ' lateItem' : ''}" data-day="${di}" data-subj="${esc(subj)}" data-idxs="${run.map(x => x.idx).join(',')}" title="끌어서 옮기기 / 눌러서 쪼개기">${esc(label)}${run[0].late ? '<span class="dot">↩</span>' : ''}<span class="x" data-del="1">✕</span></span>`;
+              i = j + 1;
+            }
+          } else {
+            for (const it of arr) {
+              h += `<span class="chip editable${it.done ? ' on' : ''}${it.late ? ' lateItem' : ''}" data-day="${di}" data-subj="${esc(subj)}" data-idx="${it.idx}">${esc(labelItem(it.series, it.item))}${it.late ? '<span class="dot">↩</span>' : ''}<span class="x" data-del="1">✕</span></span>`;
+            }
+          }
+        }
+        for (const sname in bySeriesWk) {
+          const arr = bySeriesWk[sname];
+          const isPartialUpto = arr[0].partial != null ? arr[0].partial : (BY_NAME[sname] && BY_NAME[sname].partial);
+          if (isPartialUpto && arr.length > 1 && arr.every(x => /^\d+$/.test(x.item))) {
+            const wkNums = arr.map(x => parseInt(x.item, 10));
+            const wkMin = Math.min(...wkNums), wkMax = Math.max(...wkNums);
+            const doneNums = arr.filter(x => x.done).map(x => parseInt(x.item, 10));
+            const prefillWk = doneNums.length ? Math.max(...doneNums) : wkMax;
+            h += `<span class="upto"><span class="uptorange">${wkMin}~</span><input type="number" inputmode="numeric" class="uptoinput" value="${prefillWk}" data-wkday="${di}" data-wksubj="${esc(subj)}" data-wkuptoseries="${esc(sname)}"><button class="act wkuptobtn" data-wkday="${di}" data-wksubj="${esc(subj)}" data-wkuptoseries="${esc(sname)}">까지 완료</button></span>`;
+          }
+        }
+        h += `</div>`;
+        h += `<div class="addrow" data-day="${di}" data-subj="${esc(subj)}">`;
+        h += `<select class="addseries">`;
+        for (const s of SERIES.filter(s => s.subj === subj)) h += `<option value="${esc(s.name)}">${esc(s.name)}</option>`;
+        h += `</select>`;
+        h += `<input type="text" class="additem" placeholder="15 또는 1~30">`;
+        h += `<label class="donechk"><input type="checkbox" class="adddone"> 완료</label>`;
+        h += `<button class="act addbtn">+</button>`;
+        h += `</div>`;
+  h += wkSplitPanel(items, di, subj);
+  return h;
+}
+
+/* ===== 원본 계획 (다음 주 계획을 확정해서 기록 + 지난 확정본 보기) ===== */
+let BL_OPEN = false;
+let BL_LIST = null;
+let BL_SELECTED = null;
+let BL_DATA = null;
+
+function baselineKeyLabel(key) {
+  const [a, b] = key.split('~');
+  const fmt = s => { const [m, d] = s.split('/'); return `${+m}/${+d}`; };
+  return `${fmt(a)} ~ ${fmt(b)}`;
+}
+
+function renderBaselineModal() {
+  if (!BL_OPEN) return '';
+  const curHasContent = nextWeekItemCount(STATE.week) >= 1;
+  const nextHasContent = nextWeekItemCount(STATE.nextWeek) >= 1;
+  let h = `<div class="modal-overlay" id="bloverlay"><div class="modal-box">`;
+  h += `<div class="modal-head"><h2 style="margin:0">원본 계획</h2><button class="modal-close" id="blclose">✕</button></div>`;
+  h += `<div class="muted" style="margin-bottom:12px">"확정"을 누르면 그 순간의 계획을 그대로 기록해둬요. 그 뒤로 자동 재조정이나 손으로 고친 걸로는 이 기록이 안 바뀌니까, 나중에 원래 계획과 지금 상황을 비교할 수 있어요.</div>`;
+  h += `<div class="row" style="margin-bottom:8px">`;
+  h += `<button class="act primary" id="blconfirmcur"${curHasContent ? '' : ' disabled'}>📌 이번 주 계획 확정하기</button>`;
+  h += `<button class="act primary" id="blconfirmnext"${nextHasContent ? '' : ' disabled'}>📌 다음 주 계획 확정하기</button>`;
+  h += `</div>`;
+  if (!curHasContent) h += `<div class="muted" style="margin-bottom:6px">이번 주 계획이 비어있어서 지금은 확정할 게 없어요.</div>`;
+  if (!nextHasContent) h += `<div class="muted" style="margin-bottom:14px">다음 주 계획이 비어있어서 지금은 확정할 게 없어요.</div>`;
+  h += `<div class="muted" id="blmsg" style="margin-bottom:14px"></div>`;
+  h += `<h3 style="margin:0 0 8px;font-size:14px">확정된 기록</h3>`;
+  if (!BL_LIST) {
+    h += `<div class="muted">불러오는 중…</div>`;
+  } else if (!BL_LIST.length) {
+    h += `<div class="muted">아직 확정된 기록이 없어요.</div>`;
+  } else {
+    h += `<div class="row" style="flex-wrap:wrap">`;
+    for (const w of BL_LIST) {
+      h += `<button class="act blitem${BL_SELECTED === w.key ? ' primary' : ''}" data-key="${esc(w.key)}">${esc(baselineKeyLabel(w.key))}<br><span style="font-size:10.5px;opacity:.7">확정 ${esc(w.stamp)}</span></button>`;
+    }
+    h += `</div>`;
+  }
+  if (BL_SELECTED) {
+    if (!BL_DATA) {
+      h += `<div class="muted" style="margin-top:14px">불러오는 중…</div>`;
+    } else {
+      h += `<div style="margin-top:14px">` + renderWeekGrid(BL_DATA, false) + `</div>`;
+    }
+  }
+  h += `</div></div>`;
+  return h;
+}
+
+async function openBaselineModal() {
+  BL_OPEN = true;
+  render();
+  if (!BL_LIST) {
+    try { BL_LIST = await gsrun('listBaselineWeeks'); } catch (e) { BL_LIST = []; }
+    render();
+  }
+}
+
+async function confirmBaseline(which) {
+  const msg = document.getElementById('blmsg');
+  const btnCur = document.getElementById('blconfirmcur');
+  const btnNext = document.getElementById('blconfirmnext');
+  if (btnCur) btnCur.disabled = true;
+  if (btnNext) btnNext.disabled = true;
+  if (msg) msg.textContent = '확정 중…';
+  try {
+    const r = await gsrun('confirmWeekBaseline', which);
+    BL_LIST = await gsrun('listBaselineWeeks');
+    BL_SELECTED = r.key;
+    BL_DATA = await gsrun('getBaselineWeek', r.key);
+    render();
+    const msg2 = document.getElementById('blmsg');
+    if (msg2) msg2.innerHTML = `<b style="color:#257a44">확정됨</b> · ${esc(r.stamp)}`;
+  } catch (e) {
+    if (msg) msg.innerHTML = `<b style="color:#c0392b">확정 실패</b> — ${esc(e.message || e)}`;
+    const btnCur2 = document.getElementById('blconfirmcur');
+    const btnNext2 = document.getElementById('blconfirmnext');
+    if (btnCur2) btnCur2.disabled = false;
+    if (btnNext2) btnNext2.disabled = false;
+  }
+}
+
+async function selectBaselineWeek(key) {
+  BL_SELECTED = key;
+  BL_DATA = null;
+  render();
+  try {
+    BL_DATA = await gsrun('getBaselineWeek', key);
+  } catch (e) {
+    BL_DATA = { title: '불러오기 실패', days: [], byDay: [] };
+  }
+  render();
+}
+
+/* ===== 교재 관리 (새 교재를 코드 수정 없이 추가) ===== */
+let SR_OPEN = false;
+let SR_LIST = null;
+let SR_MSG = '';
+let SR_EDITING = null;
+const SERIES_KIND_EXAMPLE = { num: '예: 14강', hash: '예: #17', chap: '예: #6-3', round: '예: 5회', code: '예: C1(전체), C3·5' };
+
+function renderSeriesCard() {
+  return `<div class="card"><h2>교재 관리</h2>
+<div class="muted" style="margin-bottom:10px">새 교재를 쓰게 되면 여기서 추가하세요. 코드를 안 건드려도 계획에 바로 쓸 수 있어요.</div>
+<button class="act primary" id="seriesopen">📚 교재 관리</button>
+</div>`;
+}
+
+function renderSeriesModal() {
+  if (!SR_OPEN) return '';
+  let h = `<div class="modal-overlay" id="sroverlay"><div class="modal-box">`;
+  h += `<div class="modal-head"><h2 style="margin:0">교재 관리</h2><button class="modal-close" id="srclose">✕</button></div>`;
+  h += `<div class="muted" style="margin-bottom:14px">여기서 추가한 교재는 주간 계획 수정이나 Claude 상담에서 바로 고를 수 있어요. 총 분량을 정해두면 어디까지가 완강인지 계산에 쓸 수 있어요.</div>`;
+  h += `<h3 style="margin:0 0 8px;font-size:14px">새 교재 추가</h3>`;
+  h += `<div class="row" style="flex-wrap:wrap;align-items:center;gap:6px">`;
+  h += `<input type="text" id="srname" placeholder="교재 이름" style="max-width:140px">`;
+  h += `<select id="srsubj"><option value="국어">국어</option><option value="수학">수학</option><option value="영어">영어</option><option value="과탐">과탐</option><option value="사탐">사탐</option></select>`;
+  h += `<select id="srkind"><option value="강">14강 (강)</option><option value="#">#17 (#번호)</option><option value="장-절">#6-3 (장-절)</option><option value="회">5회 (회)</option></select>`;
+  h += `<input type="number" id="srtotal" placeholder="총 분량(선택)" min="1" style="max-width:110px">`;
+  h += `<label style="display:flex;align-items:center;gap:4px;font-size:12.5px;color:#55595f"><input type="checkbox" id="srpartial"> 문제집형(예: 쎈)</label>`;
+  h += `<button class="act primary" id="sradd">추가</button>`;
+  h += `</div>`;
+  h += `<div class="muted" style="margin-top:6px;font-size:11.5px">문제집형으로 체크하면, 오늘 할 일에서 "몇 번까지 풀었는지"로 한번에 완료 표시할 수 있어요. RNP 같은 강의형 교재는 체크하지 마세요.</div>`;
+  h += `<div class="muted" id="srmsg" style="margin-top:8px">${esc(SR_MSG)}</div>`;
+  h += `<h3 style="margin:16px 0 8px;font-size:14px">현재 교재 목록</h3>`;
+  if (!SR_LIST) {
+    h += `<div class="muted">불러오는 중…</div>`;
+  } else {
+    for (const subj of SUBJ_ORDER) {
+      const list = SR_LIST.filter(s => s.subj === subj);
+      if (!list.length) continue;
+      h += `<div class="subjrow"><div class="subjtag">${esc(subj)}</div><div style="flex:1">`;
+      h += list.map(s => {
+        let row = `<div class="srrow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:3px 0">`;
+        row += `<span>${esc(s.name)}</span><span class="muted" style="font-size:11px">${esc(SERIES_KIND_EXAMPLE[s.kind] || '')}${s.custom ? ' · 추가함' : ''}</span>`;
+        if (SR_EDITING === s.name) {
+          row += `<input type="number" class="srtotaledit" min="1" value="${s.total || ''}" placeholder="총 분량" style="max-width:90px">`;
+          row += `<button class="act primary srtotalsave" data-name="${esc(s.name)}">저장</button>`;
+          row += `<button class="act srtotalcancel">취소</button>`;
+        } else {
+          row += `<span class="muted" style="font-size:11px">${s.total ? `· 총 ${s.total}${SERIES_KIND_LABEL_JS(s.kind)}` : '· 총 분량 미정'}</span>`;
+          row += `<button class="act srtotaledit_btn" data-name="${esc(s.name)}" style="font-size:11px;padding:2px 8px">${s.total ? '수정' : '총 분량 정하기'}</button>`;
+          row += `<button class="act srpartialtoggle" data-name="${esc(s.name)}" data-cur="${s.partial ? '1' : '0'}" style="font-size:11px;padding:2px 8px${s.partial ? ';background:#eef3ff;border-color:#c7d6f5' : ''}">${s.partial ? '📘 문제집형' : '🎬 강의형'}</button>`;
+          if (s.custom) row += `<button class="act srdel" data-name="${esc(s.name)}" style="font-size:11px;padding:2px 8px">삭제</button>`;
+        }
+        row += `</div>`;
+        return row;
+      }).join('');
+      h += `</div></div>`;
+    }
+  }
+  h += `</div></div>`;
+  return h;
+}
+function SERIES_KIND_LABEL_JS(kind) {
+  return { num: '강', hash: '개', chap: '장', round: '회' }[kind] || '';
+}
+
+async function openSeriesModal() {
+  SR_OPEN = true;
+  SR_MSG = '';
+  render();
+  if (!SR_LIST) {
+    try { SR_LIST = await gsrun('getSeriesList'); } catch (e) { SR_LIST = []; }
+    render();
+  }
+}
+
+async function addSeriesUI() {
+  const nameEl = document.getElementById('srname');
+  const name = nameEl.value.trim();
+  const subj = document.getElementById('srsubj').value;
+  const kindLabel = document.getElementById('srkind').value;
+  const total = document.getElementById('srtotal').value.trim();
+  const partial = document.getElementById('srpartial').checked;
+  const msg = document.getElementById('srmsg');
+  if (!name) { msg.innerHTML = '<b style="color:#c0392b">교재 이름을 입력하세요.</b>'; return; }
+  msg.textContent = '추가 중…';
+  try {
+    await gsrun('addSeriesEntry', name, subj, kindLabel, total, partial);
+    SR_LIST = await gsrun('getSeriesList');
+    if (!BY_NAME[name]) {
+      const entry = SR_LIST.find(s => s.name === name);
+      if (entry) { SERIES.push(entry); BY_NAME[name] = entry; }
+    }
+    SR_MSG = '';
+    render();
+    const msg2 = document.getElementById('srmsg');
+    if (msg2) msg2.innerHTML = `<b style="color:#257a44">추가됨</b> · ${esc(name)}`;
+  } catch (e) {
+    msg.innerHTML = `<b style="color:#c0392b">추가 실패</b> — ${esc(e.message || e)}`;
+  }
+}
+
+async function saveSeriesTotalUI(name, value) {
+  const msg = document.getElementById('srmsg');
+  if (msg) msg.textContent = '저장 중…';
+  try {
+    await gsrun('setSeriesTotal', name, value);
+    SR_LIST = await gsrun('getSeriesList');
+    const entry = SR_LIST.find(s => s.name === name);
+    if (entry && BY_NAME[name]) BY_NAME[name].total = entry.total;
+    SR_EDITING = null;
+    render();
+    const msg2 = document.getElementById('srmsg');
+    if (msg2) msg2.innerHTML = `<b style="color:#257a44">저장됨</b> · ${esc(name)}`;
+  } catch (e) {
+    SR_EDITING = null;
+    render();
+    const msg2 = document.getElementById('srmsg');
+    if (msg2) msg2.innerHTML = `<b style="color:#c0392b">저장 실패</b> — ${esc(e.message || e)}`;
+  }
+}
+
+async function toggleSeriesPartialUI(name, curPartial) {
+  const msg = document.getElementById('srmsg');
+  if (msg) msg.textContent = '저장 중…';
+  try {
+    await gsrun('setSeriesPartial', name, !curPartial);
+    SR_LIST = await gsrun('getSeriesList');
+    const entry = SR_LIST.find(s => s.name === name);
+    if (entry && BY_NAME[name]) BY_NAME[name].partial = entry.partial;
+    render();
+    const msg2 = document.getElementById('srmsg');
+    if (msg2) msg2.innerHTML = `<b style="color:#257a44">저장됨</b> · ${esc(name)} · ${entry && entry.partial ? '문제집형' : '강의형'}`;
+  } catch (e) {
+    render();
+    const msg2 = document.getElementById('srmsg');
+    if (msg2) msg2.innerHTML = `<b style="color:#c0392b">저장 실패</b> — ${esc(e.message || e)}`;
+  }
+}
+
+async function deleteSeriesUI(name) {
+  const msg = document.getElementById('srmsg');
+  if (msg) msg.textContent = '삭제 중…';
+  try {
+    await gsrun('removeSeriesEntry', name);
+    SR_LIST = await gsrun('getSeriesList');
+    render();
+    const msg2 = document.getElementById('srmsg');
+    if (msg2) msg2.innerHTML = `<b style="color:#257a44">삭제됨</b> · ${esc(name)}`;
+  } catch (e) {
+    render();
+    const msg2 = document.getElementById('srmsg');
+    if (msg2) msg2.innerHTML = `<b style="color:#c0392b">삭제 실패</b> — ${esc(e.message || e)}`;
+  }
+}
+
+/** 사용자가 실제로 건드린 칸만 골라 서버로 보낸다 (안 건드린 칸까지 매번 통째로 다시 보내면,
+ * 완료 항목을 다른 요일로 옮긴 직후 손 안 댄 옛 칸이 옛 상태로 덮어써 버려서 방금 옮긴 게
+ * 도로 뒤집히는 문제가 있었음). */
+function diffWeekCells(wk, pristine) {
+  const cellsData = [];
+  wk.days.forEach((d, di) => {
+    for (const subj of SUBJ_ORDER) {
+      const cur = wk.byDay[di][subj] || [];
+      const before = (pristine && pristine.byDay[di] && pristine.byDay[di][subj]) || [];
+      if (JSON.stringify(cur) === JSON.stringify(before)) continue;
+      cellsData.push({ day: di, subj, entries: cur.map(x => ({ series: x.series, item: x.item, done: x.done, late: x.late })) });
+    }
+  });
+  return cellsData;
+}
+
+async function saveWeekEdits() {
+  const msg = document.getElementById('wkmsg');
+  const btn = document.getElementById('wksave');
+  btn.disabled = true; msg.textContent = '저장 중…';
+  try {
+    const wk = WK_DATA[WEEKPLAN_WHICH];
+    const cellsData = diffWeekCells(wk, WK_PRISTINE && WK_PRISTINE[WEEKPLAN_WHICH]);
+    const outW = await gsrun('saveAndReload', 'saveManualEdits', [WEEKPLAN_WHICH, cellsData], { editable: true });
+    const r = outW.result;
+    if (outW.dashboard && outW.dashboard.editable) {
+      WK_DATA = outW.dashboard.editable;
+      WK_PRISTINE = JSON.parse(JSON.stringify(WK_DATA));
+      applyFresh(outW.dashboard, false);
+    } else {
+      WK_DATA = await gsrun('getEditableWeeks');
+      WK_PRISTINE = JSON.parse(JSON.stringify(WK_DATA));
+      await load();
+    }
+    const msg2 = document.getElementById('wkmsg');
+    if (msg2) msg2.innerHTML = `<b style="color:#257a44">저장됨</b> · ${r.count}개 칸 반영`;
+  } catch (e) {
+    msg.innerHTML = `<b style="color:#c0392b">저장 실패</b> — ${esc(e.message || e)}`;
+  }
+  const btn2 = document.getElementById('wksave');
+  if (btn2) btn2.disabled = false;
+}
+
+/* ===== Claude와 상담 ===== */
+function summarizeProposal(p) {
+  if (p.type === 'week') {
+    const wname = p.payload.week === 'next' ? '다음 주' : '이번 주';
+    const dayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+    const lines = (p.payload.cells || []).map(c => {
+      const items = (c.entries || []).map(e => labelItem(e.series, e.item) + (e.done ? ' [완]' : e.late ? ' ↩' : '')).join(', ') || '(비움)';
+      return `${dayLabels[c.day] || c.day} · ${c.subj}: ${items}`;
+    }).join('\n');
+    return `${wname} 계획 변경\n${p.payload.reason ? p.payload.reason + '\n' : ''}${lines}`;
+  }
+  if (p.type === 'roadmap') {
+    const subj = ['국어', '수학', '영어', '과탐', '사탐', '기타'][p.payload.colIdx] || '';
+    return `로드맵 ${subj} 칸 수정${p.payload.reason ? ' — ' + p.payload.reason : ''}\n→ "${p.payload.text}"`;
+  }
+  return JSON.stringify(p.payload);
+}
+
+function renderChatCard() {
+  return `<div class="card"><h2>Claude와 상담</h2>
+<div class="muted" style="margin-bottom:10px">계획에 대해 물어보고 같이 조정해보세요. Claude가 제안하면, 승인 버튼을 눌러야 실제로 저장돼요.</div>
+<button class="act primary" id="chatopen">💬 상담 시작</button>
+</div>`;
+}
+
+function renderChatModal() {
+  if (!CHAT_OPEN) return '';
+  let h = `<div class="modal-overlay" id="chatoverlay"><div class="modal-box" style="max-width:640px">`;
+  h += `<div class="modal-head"><h2 style="margin:0">Claude와 상담</h2><button class="modal-close" id="chatclose">✕</button></div>`;
+  h += `<div class="chatbox"><div class="chatlog" id="chatlog">`;
+  if (!CHAT_LOG.length) {
+    h += `<div class="muted" style="text-align:center;margin-top:24px">예: "이번 주 과탐이 너무 밀렸는데 어떻게 조정하면 좋을까?"</div>`;
+  }
+  CHAT_LOG.forEach((m, mi) => {
+    if (m.role === 'user') h += `<div class="chatmsg user">${esc(m.text)}</div>`;
+    else if (m.role === 'error') h += `<div class="chatmsg err">${esc(m.text)}</div>`;
+    else {
+      h += `<div class="chatmsg assistant">${esc(m.text)}</div>`;
+      (m.proposals || []).forEach((p, pi) => {
+        h += `<div class="proposal"><div class="ptitle">📝 변경 제안</div>${esc(summarizeProposal(p))}`;
+        h += p.applied
+          ? `<div class="pbtns"><span class="pill ok">적용됨</span></div>`
+          : `<div class="pbtns"><button class="act primary chatapply" data-mi="${mi}" data-pi="${pi}">적용</button></div>`;
+        h += `</div>`;
+      });
+    }
+  });
+  if (CHAT_BUSY) h += `<div class="chatmsg assistant"><span class="muted">생각 중…</span></div>`;
+  h += `</div>`;
+  h += `<div class="chatinputrow"><textarea id="chatinput" rows="2" placeholder="계획에 대해 물어보세요" ${CHAT_BUSY ? 'disabled' : ''}></textarea><button class="act primary" id="chatsend" ${CHAT_BUSY ? 'disabled' : ''}>보내기</button></div>`;
+  h += `</div></div></div>`;
+  return h;
+}
+
+async function sendChatMessage() {
+  const ta = document.getElementById('chatinput');
+  const text = ta.value.trim();
+  if (!text || CHAT_BUSY) return;
+  ta.value = '';
+  CHAT_LOG.push({ role: 'user', text });
+  CHAT_BUSY = true;
+  render();
+  try {
+    const r = await gsrun('chatWithClaude', CHAT_HISTORY, text);
+    CHAT_HISTORY = r.history;
+    CHAT_LOG.push({ role: 'assistant', text: r.reply, proposals: (r.proposals || []).map(p => ({ ...p, applied: false })) });
+  } catch (e) {
+    CHAT_LOG.push({ role: 'error', text: '오류: ' + (e.message || e) });
+  }
+  CHAT_BUSY = false;
+  render();
+}
+
+async function applyChatProposal(mi, pi) {
+  const p = CHAT_LOG[mi] && CHAT_LOG[mi].proposals && CHAT_LOG[mi].proposals[pi];
+  if (!p || p.applied) return;
+  try {
+    await gsrun('applyProposal', p.type, p.payload);
+    p.applied = true;
+    await load();
+  } catch (e) {
+    alert('적용 실패: ' + (e.message || e));
+    render();
+  }
+}
+
+/** "지금까지 뭐가 밀렸고, 어디로 갔고, 오늘은 뭘 먼저 해야 하는지"를 문장으로 만든다 */
+function buildBriefingNarrative(week, todayIdx, res, nextWeek) {
+  const lines = [];
+  const todayList = res.assign[todayIdx] || [];
+  const lateToday = todayList.filter(x => x.late);
+  const carryN = res.carry.length;
+  const carriedIn = carriedInItems(nextWeek);
+  const totalLate = lateToday.length + carryN + carriedIn.length;
+
+  // "밀림"은 시트가 남기는 ↩ 표시(late)로 판단 — 자동 재조정이 밀린 걸 오늘 칸으로 옮기거나
+  // 아예 다음 주 표로 넘겨도 ↩ 표시가 같이 옮겨지기 때문에, 옮겨진 뒤에도 정확히 "밀린 것"으로 잡힘.
+  if (totalLate === 0) {
+    lines.push(`✅ 지금 밀린 건 없어요. 계획대로 잘 따라가고 있어요.`);
+  } else {
+    const desc = groupSeriesFlat(lateToday.concat(res.carry).concat(carriedIn)).map(g => joinItems(g.series, g.items)).join(', ');
+    lines.push(`↩ 그동안 못 끝낸 게 쌓여서 ${desc} 등 총 ${totalLate}개가 밀려 있어요.`);
+    const parts = [];
+    if (lateToday.length) parts.push(`${lateToday.length}개는 오늘 할 일에 끼워 넣었어요`);
+    if (carryN) parts.push(`버퍼데이로도 다 못 채운 ${carryN}개는 이번 주 안에 다음 주로 넘어갈 예정이에요`);
+    if (carriedIn.length) parts.push(`이미 ${carriedIn.length}개는 다음 주 표로 넘어가 있어요`);
+    if (parts.length) lines.push(`→ ${parts.join(', ')}.`);
+  }
+
+  if (lateToday.length) {
+    const desc = groupSeriesFlat(lateToday).map(g => joinItems(g.series, g.items)).join(', ');
+    lines.push(`👉 오늘은 ${desc} 부터 먼저 끝내는 걸 추천해요 — 이미 밀린 거라 더 늦어지면 다음 주로 넘어가요.`);
+  } else if (carryN || carriedIn.length) {
+    // 오늘 칸 자체엔 late 항목이 없어도, 그건 밀린 게 이미 버퍼데이 밖 — 즉 다음 주로 — 밀려났기 때문일 뿐
+    // "따라잡았다"는 뜻이 아니다. 여기서 "페이스 유지"라고 하면 실제로는 계속 밀리고 있는데도
+    // 오히려 안심하게 만드는 역설이 생기므로, 오늘 목록이 깨끗해도 전체 밀림이 있으면 알려준다.
+    lines.push(`👉 오늘 배정된 ${todayList.length}개엔 밀린 게 안 껴 있지만, 그건 밀린 ${carryN + carriedIn.length}개가 버퍼데이로도 못 감당해서 이미 다음 주로 넘어가고 있기 때문이에요. 페이스가 유지되고 있는 게 아니라 밀리는 중이니, 오늘 것만 하고 끝내지 말고 여유 될 때 그것부터 줄여보세요.`);
+  } else if (todayList.length) {
+    lines.push(`👉 오늘 밀린 건 없어요. 원래 계획대로 ${todayList.length}개만 하면 페이스 유지돼요.`);
+  } else {
+    lines.push(`👉 오늘 배정된 게 없어요. 여유 있게 복습하거나 다음 계획을 준비해도 좋아요.`);
+  }
+
+  const badSeries = res.report.filter(r => r.overdue >= 4);
+  if (badSeries.length) {
+    lines.push(`⚠ ${badSeries.map(r => r.series).join(', ')}은(는) 밀린 게 4개 이상 쌓였어요. 이번 주 안에 못 줄이면 다음 주 계획까지 눌릴 수 있어요.`);
+  }
+
+  return lines;
+}
+
+function render() {
+const { week, todayIdx, res, today, doneMax, nextWeek } = STATE;
+const checked = getChecked();
+const todayList = res.assign[todayIdx] || [];
+const todayDoneList = [];
+for (const en of (week.plan[todayIdx] || [])) {
+  if (!en.done) continue;
+  for (const it of en.items) todayDoneList.push({ series: en.series, subj: en.subj, item: it });
+}
+const dstr = `${today.getMonth() + 1}월 ${today.getDate()}일 (${'일월화수목금토'[today.getDay()]})`;
+const wname = ((week.title.match(/\((.+?)\)/) || [, week.title])[1] || '').replace(/\s*-\s*오늘[^)]*/, '');
+const lateCnt = todayList.filter(x => x.late).length;
+const overdueSum = res.report.reduce((a, r) => a + r.overdue, 0);
+const totalPlanned = res.report.reduce((a, r) => a + r.total, 0);
+const totalDone = res.report.reduce((a, r) => a + r.done, 0);
+const weekPct = totalPlanned ? Math.round(totalDone / totalPlanned * 100) : 100;
+
+let h = '';
+h += `<h1>오늘의 학습 계획</h1>`;
+h += `<div class="sub">${esc(dstr)} · ${esc(wname)}${todayIdx < 0 ? ' · <b style="color:#c0392b">⚠ 오늘 날짜가 이번 주 표에 없음 — 주차를 넘겨주세요</b>' : ''}</div>`;
+if (LAST_TIMING) h += `<div class="muted" id="perfline" style="font-size:10.5px;opacity:.7;margin:-4px 0 6px">불러오기 ${LAST_TIMING.client}ms · ${LAST_TIMING.kb}KB${LAST_TIMING.server && LAST_TIMING.server.cache ? ' · 캐시' : ''}${LAST_TIMING.server ? ' · 서버 ' + LAST_TIMING.server.total + 'ms (' + Object.entries(LAST_TIMING.server).filter(([k]) => k !== 'total').map(([k, v]) => k + ' ' + v).join(' · ') + ')' : ''}</div>`;
+if (STATE.cache) {
+  const c = STATE.cache, sd = new Date(c.savedAt || 0);
+  const when = `${sd.getMonth() + 1}/${sd.getDate()} ${String(sd.getHours()).padStart(2, '0')}:${String(sd.getMinutes()).padStart(2, '0')}`;
+  if (c.error) h += `<div class="stalebar">⚠ 최신 내용을 못 불러왔어요 — ${esc(when)}에 저장해 둔 화면이에요 (${esc(c.error)})<button class="act primary" id="stalereload">다시 시도</button></div>`;
+  else if (c.sameDay) h += `<div class="cachebar">⏳ ${esc(when)}에 본 화면이에요 · 최신 내용 불러오는 중…</div>`;
+  else h += `<div class="cachebar">⏳ 이전 화면(${esc(when)})이에요 · 오늘 내용 불러오는 중… 오늘 할 일은 불러온 뒤에 눌러 주세요</div>`;
+}
+if (SHEET_STALE) {
+  h += `<div class="stalebar">📄 다른 곳에서 시트가 바뀐 것 같아요 — 지금 보이는 내용이 최신이 아닐 수 있어요.<button class="act primary" id="stalereload">새로고침</button></div>`;
+}
+h += `<div class="row" style="margin:8px 0 2px">`;
+h += `<button class="act" id="layoutedit">${LAYOUT_EDIT ? '✅ 배치 편집 끝내기' : '🔀 박스 배치 편집'}</button>`;
+if (LAYOUT_EDIT) h += `<button class="act" id="layoutreset">↩ 기본 배치로</button>`;
+h += `</div>`;
+
+h += '<!--CARD:brief-->';
+h += `<div class="card brief">`;
+h += `<div class="briefmsg">오늘 할 일 <b>${todayList.length}개</b>${lateCnt ? `, 밀린 것 <b>${lateCnt}개</b>` : ''} · 이번 주 진행률 <b>${weekPct}%</b>${overdueSum ? ` · 지금 밀린 항목 <b>${overdueSum}개</b>` : ''}</div>`;
+const briefLines = buildBriefingNarrative(week, todayIdx, res, nextWeek);
+if (briefLines.length) h += `<div class="briefnotes">` + briefLines.map(l => `<div>${esc(l)}</div>`).join('') + `</div>`;
+h += `</div>`;
+
+h += '<!--CARD:calendar-->' + renderCalendarCard(STATE.weekEvents);
+
+h += '<!--CARD:today-->';
+h += `<div class="card">`;
+const behindPace = lateCnt > 0 || overdueSum > 0;
+h += `<h2>오늘 할 일 <span class="pill ${behindPace ? 'late' : 'ok'}">${todayList.length}개${lateCnt ? ` · 밀린 것 ${lateCnt}` : overdueSum ? ` · 전체 밀림 ${overdueSum}` : ''}</span></h2>`;
+if (!todayList.length) h += `<div class="muted">${overdueSum ? `오늘 배정된 항목은 없지만, 지금 밀린 항목이 ${overdueSum}개 있어요. 여유 될 때 그것부터 줄여보세요.` : '오늘 배정된 항목이 없습니다. 잘 따라가고 있어요.'}</div>`;
+for (const g of groupBySubj(todayList)) {
+h += `<div class="subjrow"><div class="subjtag">${g.subj}</div><div class="chips">`;
+// N제처럼 번호를 쭉 풀어나가는 시리즈는 하나씩 누르기 번거로우니, 시리즈별로 묶어서
+// "이 번호까지 완료" 입력을 같이 보여준다 (장-절형은 단순 번호가 아니라 제외).
+const bySeries = {};
+for (const x of g.items) (bySeries[x.series] || (bySeries[x.series] = [])).push(x);
+for (const sname in bySeries) {
+const items = bySeries[sname];
+const isPartial = BY_NAME[sname] && BY_NAME[sname].partial;
+// 문제집형(#1~80처럼 큰 범위가 나올 수 있는 시리즈)만 범위 표시를 쓴다 — 강의형은 하루
+// 분량이 보통 몇 개 안 되니, 예전처럼 하나씩 따로 체크할 수 있게 둔다.
+const isCodeSeries = BY_NAME[sname] && BY_NAME[sname].kind === 'code';
+const allNumeric = (isPartial && items.length > 1 && items.every(x => /^\d+$/.test(x.item))) || isCodeSeries;
+if (allNumeric) {
+  // 범위 입력형(문제집형 여러 조각 / 코드형)은 조각별 pill 없이 교재당 최대 두 줄로만 보여준다:
+  //   [교재명] 밀림 [입력창] 까지 완료   ← 밀린(↩) 조각들을 하나로 병합(예: 67~122, 157~185)
+  //   [교재명] 오늘 [입력창] 까지 완료   ← 오늘 배정분
+  // 밀린 게 없으면 오늘 줄만, 전부 밀린 거면 밀림 줄만. 두 줄은 서로 독립적으로 완료 처리된다.
+  // 입력창은 서버 mark_item_complete range와 같은 문법의 범위 텍스트 — 이미 체크해둔 항목이
+  // 있으면 그 범위, 없으면 그 줄의 배정 범위 전체가 기본값(다 했으면 그냥 "까지 완료"만 누르면 됨).
+  // 배정 범위를 넘겨 입력하면 초과분은 같은 시리즈의 다음 배정분(이번 주 다른 요일/다음 주)을
+  // 앞당겨 완료 처리하는 걸로 간주 — 마지막 줄 입력창에 그 범위까지 같이 표시된다.
+  const lines = [
+    { kind: 'late', label: '밀림', list: items.filter(x => x.late) },
+    { kind: 'today', label: '오늘', list: items.filter(x => !x.late) },
+  ].filter(l => l.list.length);
+  const todayIds = new Set(items.map(x => x.series + '|' + x.item));
+  const pulled = [...pullablePool(sname)].filter(id => checked.has(id) && !todayIds.has(id)).map(id => id.slice(sname.length + 1));
+  lines.forEach((ln, li) => {
+    const own = ln.list.filter(x => checked.has(x.series + '|' + x.item)).map(x => x.item);
+    const shown = li === lines.length - 1 ? own.concat(pulled) : own;
+    const txt = rangeText(sname, shown.length ? shown : ln.list.map(x => x.item));
+    h += `<div class="uptoline"><span class="uptoname">${esc(sname)}</span><span class="uptotag${ln.kind === 'late' ? ' late' : ''}">${ln.label}</span><span class="upto"><input type="text" class="uptoinput uptotext" value="${esc(txt)}" data-uptoseries="${esc(sname)}" data-uptokind="${ln.kind}"><button class="act uptobtn" data-uptoseries="${esc(sname)}" data-uptokind="${ln.kind}">까지 완료</button></span><span class="uptoerr muted" data-uptoerr="${esc(sname)}|${ln.kind}"></span></div>`;
+  });
+} else {
+for (const x of items) {
+const id = x.series + '|' + x.item;
+h += `<span class="chip${checked.has(id) ? ' on' : ''}${x.late ? ' lateItem' : ''}" data-id="${esc(id)}">${esc(labelItem(x.series, x.item))}${x.late ? `<span class="dot">${x.origDay === todayIdx ? '' : week.days[x.origDay].label.slice(0, 3)}밀림</span>` : ''}</span>`;
+}
+}
+}
+h += `</div></div>`;
+}
+h += `<div class="row" style="margin-top:14px"><button class="act primary" id="save">완료 저장</button><button class="act" id="mkpaste">텍스트로 보기</button></div>`;
+h += `<div class="muted" style="margin-top:8px" id="savemsg">칩을 눌러 완료 표시 → 저장하면 시트에 바로 반영돼요</div>`;
+if (todayDoneList.length) {
+h += `<div class="muted" style="margin-top:14px;font-size:12px">오늘 완료한 항목 (눌러서 취소)</div>`;
+h += `<div class="chips" style="margin-top:6px">`;
+// 문제집형(예: 쎈)을 한번에 몇십 개씩 "까지 완료"로 끝내면 여기 낱개 칩이 그만큼 쭉
+// 나열돼서 너무 난잡했다 — 연속 번호는 범위 하나로 묶어서 보여준다. 이 목록은(위의
+// 배정 칩과 달리) 전부 이미 "완료" 상태뿐이라 부분완료 표현 문제가 없으므로, 묶은
+// 칩도 그대로 클릭 가능하게 두고 누르면 그 범위 전체를 한번에 취소한다.
+const byDoneSeries = {};
+todayDoneList.forEach(x => (byDoneSeries[x.series] || (byDoneSeries[x.series] = [])).push(x));
+for (const sname in byDoneSeries) {
+  const arr = byDoneSeries[sname];
+  const isPartialDone = BY_NAME[sname] && BY_NAME[sname].partial;
+  const isCodeSeriesDone = BY_NAME[sname] && BY_NAME[sname].kind === 'code';
+  if (isCodeSeriesDone && arr.length > 1) {
+    // 코드형도 숫자 범위와 같은 이유로 묶어서 보여준다 — "T04·1~7" 같은 조각들이 개수만큼
+    // 낱개 칩으로 쭉 나열되던 문제(코드형은 /^\d+$/ 판정에 안 걸려 위 숫자 범위 압축을
+    // 못 타고 그대로 아래 else로 빠졌었음)를 compactCodeGroups와 같은 코드별·범위별
+    // 압축 로직으로 고친다. 이 목록은 전부 완료 상태뿐이라(부분완료 표현 문제 없음)
+    // 묶은 칩도 그대로 클릭 가능하며, 누르면 그 범위 전체를 한번에 취소한다.
+    const codes = (BY_NAME[sname] && BY_NAME[sname].codes) || [];
+    const order = {}; codes.forEach((c, i) => { order[c.code] = i; });
+    const byCode = {}, seen = [];
+    for (const x of arr) {
+      const cd = String(x.item).split('·')[0];
+      if (!byCode[cd]) { byCode[cd] = []; seen.push(cd); }
+      byCode[cd].push(x);
+    }
+    seen.sort((a, b) => (order[a] ?? 999999) - (order[b] ?? 999999));
+    for (const cd of seen) {
+      const items = byCode[cd].slice().sort((a, b) => parseInt(a.item.split('·')[1], 10) - parseInt(b.item.split('·')[1], 10));
+      const nums = items.map(x => parseInt(x.item.split('·')[1], 10));
+      const total = order[cd] != null ? codes[order[cd]].count : null;
+      if (total && nums.length === total && nums[0] === 1 && nums[nums.length - 1] === total) {
+        const ids = items.map(x => x.series + '|' + x.item).join(',');
+        h += `<span class="chip on undodone" data-ids="${esc(ids)}">${esc(sname + ' ' + cd + '(전체)')}<span class="x" data-undo="1">✕</span></span>`;
+        continue;
+      }
+      let i = 0;
+      while (i < items.length) {
+        let j = i;
+        while (j + 1 < items.length && nums[j + 1] === nums[j] + 1) j++;
+        const run = items.slice(i, j + 1);
+        const label = cd + '·' + (j > i ? nums[i] + '~' + nums[j] : String(nums[i]));
+        const ids = run.map(x => x.series + '|' + x.item).join(',');
+        h += `<span class="chip on undodone" data-ids="${esc(ids)}">${esc(sname + ' ' + label)}<span class="x" data-undo="1">✕</span></span>`;
+        i = j + 1;
+      }
+    }
+  } else if (isPartialDone && arr.length > 1 && arr.every(x => /^\d+$/.test(x.item))) {
+    const sorted = arr.slice().sort((a, b) => parseInt(a.item, 10) - parseInt(b.item, 10));
+    let i = 0;
+    while (i < sorted.length) {
+      let j = i;
+      while (j + 1 < sorted.length && parseInt(sorted[j + 1].item, 10) === parseInt(sorted[j].item, 10) + 1) j++;
+      const run = sorted.slice(i, j + 1);
+      const label = labelRange(sname, run[0].item, run[run.length - 1].item);
+      const ids = run.map(x => x.series + '|' + x.item).join(',');
+      h += `<span class="chip on undodone" data-ids="${esc(ids)}">${esc(label)}<span class="x" data-undo="1">✕</span></span>`;
+      i = j + 1;
+    }
+  } else {
+    for (const x of arr) {
+      const id = x.series + '|' + x.item;
+      h += `<span class="chip on undodone" data-id="${esc(id)}">${esc(labelItem(x.series, x.item))}<span class="x" data-undo="1">✕</span></span>`;
+    }
+  }
+}
+h += `</div>`;
+h += `<div class="muted" id="undomsg" style="margin-top:6px"></div>`;
+}
+h += `<div id="pasteout"></div></div>`;
+
+
+const carryN = res.carry.length;
+const carriedIn = carriedInItems(nextWeek);
+const cardCls = (carryN > 20 || carriedIn.length > 20) ? 'err' : (carryN > 0 || carriedIn.length > 0) ? 'warn' : '';
+h += '<!--CARD:carry-->';
+h += `<div class="card ${cardCls}"><h2>이월 현황</h2>`;
+h += `<div class="statrow">`;
+h += `<div class="stat"><div class="stat-num${overdueSum === 0 ? ' zero' : ''}">${overdueSum}</div><div class="stat-lbl">지금 밀린 항목</div></div>`;
+h += `<div class="stat"><div class="stat-num${carryN === 0 ? ' zero' : ' warn'}">${carryN}</div><div class="stat-lbl">다음 주로 넘어갈 것으로 예상</div></div>`;
+h += `<div class="stat"><div class="stat-num${carriedIn.length === 0 ? ' zero' : ' warn'}">${carriedIn.length}</div><div class="stat-lbl">이미 다음 주로 넘어감</div></div>`;
+h += `</div>`;
+if (carriedIn.length) {
+h += `<div class="muted" style="margin-bottom:8px">다음 주 표에 ↩로 이미 넘어가 있는 것들:</div>`;
+for (const g of groupBySubj(carriedIn)) {
+h += `<div class="subjrow"><div class="subjtag">${g.subj}</div><div style="flex:1">${g.items.map(x => esc(labelItem(x.series, x.item))).join(', ')}</div></div>`;
+}
+}
+if (carryN === 0) {
+h += `<div class="muted" style="margin-top:8px">이번 주 버퍼데이 안에서 소화 가능한 양입니다. 지금 페이스면 추가로 다음 주로 안 넘어가요.</div>`;
+} else {
+for (const g of groupBySubj(res.carry)) {
+h += `<div class="subjrow"><div class="subjtag">${g.subj}</div><div style="flex:1">${g.items.map(x => esc(labelItem(x.series, x.item))).join(', ')}</div></div>`;
+}
+const buckets = distributeCarryPreview(res.carry);
+const dayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+h += `<div class="daybadges">`;
+for (let i = 0; i < 7; i++) {
+const cnt = buckets[i].reduce((a, b) => a + b.items.length, 0);
+h += `<div class="daybadge${cnt ? ' has' : ''}"><div class="dlab">${dayLabels[i]}</div><div class="dnum">${cnt || '–'}</div></div>`;
+}
+h += `</div>`;
+h += `<div class="muted" style="margin-top:6px">다음 주 표가 만들어질 때 이렇게 요일별로 나눠 배정됩니다 (자동 계산, 대략적인 미리보기)</div>`;
+if (carryN > 20) {
+h += `<div style="margin-top:10px;font-size:12.5px;color:#c0392b"><b>재배치로는 못 채우는 양이에요.</b> 뭘 미루거나 압축할지 판단이 필요합니다.</div>`;
+}
+}
+h += `</div>`;
+h += '<!--CARD:progress-->';
+h += `<div class="card"><h2>이번주 진행률</h2>`;
+h += STATE.weekBaseline
+  ? `<div class="muted" style="margin-bottom:8px">📌 확정한 원본계획(${esc(STATE.weekBaseline.title.match(/원본계획\s+(\S+)/)?.[1] || '')}) 기준</div>`
+  : `<div class="muted" style="margin-bottom:8px">아직 이번 주 원본계획을 확정 안 해서, 지금 표 기준으로 보여주고 있어요.</div>`;
+for (const r of res.report) {
+const pct = r.total ? Math.round(r.done / r.total * 100) : 0;
+const cls = r.overdue >= 4 ? 'bad' : r.overdue > 0 ? 'behind' : '';
+h += `<div class="pgrow"><div class="nm">${esc(r.series)}</div><div class="bar"><i class="${cls}" style="width:${pct}%"></i></div><div class="vl">${r.done}/${r.total}${r.overdue ? ` · 밀림${r.overdue}` : ''}</div></div>`;
+}
+h += `</div>`;
+
+h += '<!--CARD:weekplan-->' + renderWeekPlanCard();
+h += '<!--CARD:roadmap-->' + renderRoadmapCard(STATE.roadmap);
+h += '<!--CARD:saengibu-->' + renderSaengibuCard();
+h += '<!--CARD:series-->' + renderSeriesCard();
+h += '<!--CARD:nextweek-->' + renderNextWeekCTA(nextWeek);
+h += '<!--CARD:gapwarn-->' + renderGapWarning(STATE.gaps);
+h += '<!--CARD:roadmapmismatch-->' + renderRoadmapMismatch(STATE.roadmapMismatch, nextWeekItemCount(nextWeek) < 10);
+
+h = reorderCardsHtml(h, getCardOrder(), LAYOUT_EDIT);
+
+h += `<div class="muted" style="text-align:center;margin-top:18px">이 페이지를 홈 화면에 추가해두면 앱처럼 바로 열 수 있어요.</div>`;
+
+h += renderRoadmapModal(STATE.roadmap);
+h += renderWeekPlanModal();
+if (!IN_APPS_SCRIPT) h += `<div class="muted" style="text-align:center;font-size:11px;margin:14px 0 4px"><a href="#" id="toklogout">이 기기에서 접속 토큰 지우기</a></div>`;
+h += renderSaengibuModal();
+h += renderBaselineModal();
+h += renderSeriesModal();
+h += renderChatModal();
+h += renderWkCtxMenu();
+
+// render()는 화면 전체를 새로 그려서, 모달(스크롤되는 .modal-overlay)이나 페이지 안쪽 스크롤이 맨 위로 튀었다 —
+// 칩을 끌어 옮기거나 토글할 때마다 순간이동하던 원인. 다시 그리기 전 스크롤 위치를 기억했다가 복원한다.
+const prevOverlay = document.querySelector('.modal-overlay');
+const prevOverlayId = prevOverlay ? prevOverlay.id : null;
+const prevOverlayTop = prevOverlay ? prevOverlay.scrollTop : 0;
+const prevWinY = window.scrollY || document.documentElement.scrollTop || 0;
+document.getElementById('app').innerHTML = h;
+const toklogout = document.getElementById('toklogout');
+if (toklogout) toklogout.onclick = (ev) => { ev.preventDefault(); setUiToken(''); try { localStorage.removeItem(DASH_CACHE_KEY); } catch (e) {} STATE = null; showTokenPrompt(''); };
+document.getElementById('app').classList.toggle('stale-old', !!(STATE.cache && !STATE.cache.sameDay));
+if (prevOverlayId) { const ov = document.getElementById(prevOverlayId); if (ov) ov.scrollTop = prevOverlayTop; }
+if (prevWinY) window.scrollTo(0, prevWinY);
+const stalereload = document.getElementById('stalereload');
+if (stalereload) stalereload.onclick = () => location.reload();
+const layoutedit = document.getElementById('layoutedit');
+if (layoutedit) layoutedit.onclick = () => { LAYOUT_EDIT = !LAYOUT_EDIT; render(); };
+const layoutreset = document.getElementById('layoutreset');
+if (layoutreset) layoutreset.onclick = () => { setCardOrder(DEFAULT_CARD_ORDER.slice()); render(); };
+document.querySelectorAll('.draghandle').forEach(el => { el.onpointerdown = onCardHandlePointerDown; });
+document.querySelectorAll('.chip').forEach(el => {
+    if (el.classList.contains('editable') || el.classList.contains('undodone') || el.classList.contains('chip-info')) return; // 별도 핸들러 또는 정보 표시 전용(클릭 안 함)
+    el.onclick = () => {
+      const s = getChecked();
+      if (el.dataset.ids) {
+        const ids = JSON.parse(el.dataset.ids);
+        const allOn = ids.every(id => s.has(id));
+        ids.forEach(id => allOn ? s.delete(id) : s.add(id));
+      } else {
+        const id = el.dataset.id;
+        s.has(id) ? s.delete(id) : s.add(id);
+      }
+      setChecked(s); el.classList.toggle('on');
+    };
+  });
+  document.querySelectorAll('.undodone').forEach(el => {
+    el.onclick = () => el.dataset.ids ? undoTodayItems(el.dataset.ids.split(',')) : undoTodayItem(el.dataset.id);
+  });
+  document.querySelectorAll('.uptobtn').forEach(el => {
+    el.onclick = async () => {
+      const sname = el.dataset.uptoseries;
+      const kind = el.dataset.uptokind;
+      const input = el.previousElementSibling;
+      const errEl = document.querySelector(`[data-uptoerr="${CSS.escape(sname + '|' + kind)}"]`);
+      const text = input ? input.value.trim() : '';
+      if (!text) return;
+      if (errEl) errEl.textContent = '확인 중…';
+      let resolved;
+      try { resolved = await gsrun('resolveRangeForUi', sname, text); }
+      catch (e) { if (errEl) errEl.innerHTML = `<b style="color:#c0392b">${esc(e.message || e)}</b>`; return; }
+      const inRange = new Set(resolved.items);
+      const todayList = (STATE.res.assign[STATE.todayIdx] || []).filter(x => x.series === sname);
+      const lineItems = new Set(todayList.filter(x => (kind === 'late') === !!x.late).map(x => x.item));
+      const lastKind = todayList.some(x => !x.late) ? 'today' : 'late';
+      const s = getChecked();
+      // 이 줄의 항목은 입력 범위 안이면 체크, 밖이면 해제(줄여서 입력한 경우). 다른 줄 항목은
+      // 범위 안에 들어왔을 때만 체크하고, 해제는 그 줄 자기 입력창의 몫.
+      todayList.forEach(x => {
+        const id = x.series + '|' + x.item;
+        if (inRange.has(x.item)) s.add(id);
+        else if (lineItems.has(x.item)) s.delete(id);
+      });
+      // 오늘 배정을 넘긴 초과분: 같은 시리즈의 다음 배정분(이번 주 다른 요일/다음 주)만 앞당겨 완료.
+      // 마지막 줄만 앞당김 목록을 소유(줄였을 때 해제도 여기서). 배정에 없는 값은 알리고 무시.
+      const pool = pullablePool(sname);
+      const todayItemSet = new Set(todayList.map(x => x.item));
+      let pulled = 0;
+      pool.forEach(id => {
+        const item = id.slice(sname.length + 1);
+        if (todayItemSet.has(item)) return;
+        if (inRange.has(item)) { s.add(id); pulled++; }
+        else if (kind === lastKind) s.delete(id);
+      });
+      const unassigned = resolved.items.filter(it => !todayItemSet.has(it) && !pool.has(sname + '|' + it)).length;
+      setChecked(s);
+      render();
+      const m = document.getElementById('savemsg');
+      const notes = [];
+      if (pulled) notes.push(`오늘 배정을 넘긴 ${pulled}개는 다음 배정분에서 앞당겨 완료 처리돼요`);
+      if (unassigned) notes.push(`배정에 없거나 이미 끝난 ${unassigned}개는 반영되지 않아요`);
+      if (m && notes.length) m.textContent = `${sname}: ${notes.join(' · ')}`;
+    };
+  });
+document.getElementById('mkpaste').onclick = makePaste;
+document.getElementById('save').onclick = saveDone;
+
+  const wpopen = document.getElementById('wpopen');
+  if (wpopen) wpopen.onclick = () => { WEEKPLAN_OPEN = true; render(); };
+  const wpclose = document.getElementById('wpclose');
+  if (wpclose) wpclose.onclick = wpCloseModal;
+  const wkedit = document.getElementById('wkedit');
+  if (wkedit) wkedit.onclick = wpToggleEdit;
+  const wksave = document.getElementById('wksave');
+  if (wksave) wksave.onclick = saveWeekEdits;
+  const wpoverlay = document.getElementById('wpoverlay');
+  if (wpoverlay) wpoverlay.onclick = (ev) => { if (ev.target === wpoverlay) wpCloseModal(); };
+  document.querySelectorAll('[data-wpwhich]').forEach(el => {
+    el.onclick = () => { WEEKPLAN_WHICH = el.dataset.wpwhich; render(); };
+  });
+  const rmopen = document.getElementById('rmopen');
+  if (rmopen) rmopen.onclick = () => { ROADMAP_OPEN = true; render(); };
+  const rmclose = document.getElementById('rmclose');
+  if (rmclose) rmclose.onclick = () => { ROADMAP_OPEN = false; ROADMAP_EDIT = false; render(); };
+  const rmoverlay = document.getElementById('rmoverlay');
+  if (rmoverlay) rmoverlay.onclick = (ev) => { if (ev.target === rmoverlay) { ROADMAP_OPEN = false; ROADMAP_EDIT = false; render(); } };
+  const saengibuopen = document.getElementById('saengibuopen');
+  if (saengibuopen) saengibuopen.onclick = openSaengibu;
+  const sgclose = document.getElementById('sgclose');
+  if (sgclose) sgclose.onclick = () => { SAENGIBU_OPEN = false; render(); };
+  const sgoverlay = document.getElementById('sgoverlay');
+  if (sgoverlay) sgoverlay.onclick = (ev) => { if (ev.target === sgoverlay) { SAENGIBU_OPEN = false; render(); } };
+  const sgback = document.getElementById('sgback');
+  if (sgback) sgback.onclick = () => { if (SAENGIBU_SUBJECT != null) SAENGIBU_SUBJECT = null; else SAENGIBU_GRADE = null; render(); };
+  document.querySelectorAll('[data-sggrade]').forEach(el => {
+    el.onclick = () => { SAENGIBU_GRADE = Number(el.dataset.sggrade); SAENGIBU_SUBJECT = null; render(); };
+  });
+  document.querySelectorAll('[data-sgsubj]').forEach(el => {
+    el.onclick = () => { SAENGIBU_SUBJECT = Number(el.dataset.sgsubj); render(); };
+  });
+  const rmtoggle = document.getElementById('rmtoggle');
+  if (rmtoggle) rmtoggle.onclick = () => { ROADMAP_EDIT = !ROADMAP_EDIT; render(); };
+  const rmsave = document.getElementById('rmsave');
+  if (rmsave) rmsave.onclick = saveRoadmapEdits;
+  const rmshowpast = document.getElementById('rmshowpast');
+  if (rmshowpast) rmshowpast.onclick = () => { SHOW_PAST_DONE = !SHOW_PAST_DONE; render(); };
+
+  const blopen = document.getElementById('blopen');
+  if (blopen) blopen.onclick = openBaselineModal;
+  const blclose = document.getElementById('blclose');
+  if (blclose) blclose.onclick = () => { BL_OPEN = false; BL_SELECTED = null; BL_DATA = null; render(); };
+  const bloverlay = document.getElementById('bloverlay');
+  if (bloverlay) bloverlay.onclick = (ev) => { if (ev.target === bloverlay) { BL_OPEN = false; BL_SELECTED = null; BL_DATA = null; render(); } };
+  const blconfirmcur = document.getElementById('blconfirmcur');
+  if (blconfirmcur) blconfirmcur.onclick = () => confirmBaseline('cur');
+  const blconfirmnext = document.getElementById('blconfirmnext');
+  if (blconfirmnext) blconfirmnext.onclick = () => confirmBaseline('next');
+  document.querySelectorAll('.blitem').forEach(el => {
+    el.onclick = () => selectBaselineWeek(el.dataset.key);
+  });
+  document.querySelectorAll('.gapdismiss').forEach(el => {
+    el.onclick = () => dismissGap(el.dataset.key);
+  });
+  const seriesopen = document.getElementById('seriesopen');
+  if (seriesopen) seriesopen.onclick = openSeriesModal;
+  const srclose = document.getElementById('srclose');
+  if (srclose) srclose.onclick = () => { SR_OPEN = false; render(); };
+  const sroverlay = document.getElementById('sroverlay');
+  if (sroverlay) sroverlay.onclick = (ev) => { if (ev.target === sroverlay) { SR_OPEN = false; render(); } };
+  const sradd = document.getElementById('sradd');
+  if (sradd) sradd.onclick = addSeriesUI;
+  document.querySelectorAll('.srtotaledit_btn').forEach(el => {
+    el.onclick = () => { SR_EDITING = el.dataset.name; render(); };
+  });
+  document.querySelectorAll('.srtotalcancel').forEach(el => {
+    el.onclick = () => { SR_EDITING = null; render(); };
+  });
+  document.querySelectorAll('.srtotalsave').forEach(el => {
+    el.onclick = () => {
+      const row = el.closest('.srrow');
+      const input = row ? row.querySelector('.srtotaledit') : null;
+      saveSeriesTotalUI(el.dataset.name, input ? input.value.trim() : '');
+    };
+  });
+  document.querySelectorAll('.srdel').forEach(el => {
+    el.onclick = () => deleteSeriesUI(el.dataset.name);
+  });
+  document.querySelectorAll('.srpartialtoggle').forEach(el => {
+    el.onclick = () => toggleSeriesPartialUI(el.dataset.name, el.dataset.cur === '1');
+  });
+  document.querySelectorAll('.chip.editable').forEach(el => {
+    el.onclick = (ev) => {
+      if (WK_JUST_DRAGGED) { WK_JUST_DRAGGED = false; return; }
+      const day = +el.dataset.day, subj = el.dataset.subj, idx = +el.dataset.idx;
+      const list = WK_DATA[WEEKPLAN_WHICH].byDay[day][subj];
+      if (ev.target && ev.target.dataset && ev.target.dataset.del) list.splice(idx, 1);
+      else list[idx].done = !list[idx].done;
+      render();
+    };
+    el.onpointerdown = onWkChipPointerDown;
+  });
+  document.querySelectorAll('.chip.runchip').forEach(el => {
+    el.onclick = (ev) => {
+      if (WK_JUST_DRAGGED) { WK_JUST_DRAGGED = false; return; }
+      if (!(ev.target && ev.target.dataset && ev.target.dataset.del)) {
+        const sday = +el.dataset.day, ssubj = el.dataset.subj;
+        const sidxs = el.dataset.idxs.split(',').map(Number);
+        const slist = WK_DATA[WEEKPLAN_WHICH].byDay[sday][ssubj];
+        const scur = wkSplitState(sday, ssubj);
+        WK_SPLIT = (scur && scur.idxs.join(',') === sidxs.join(',')) ? null : { mode: 'move', day: sday, subj: ssubj, idxs: sidxs, ids: sidxs.map(i => slist[i].series + '|' + slist[i].item) };
+        render();
+        return;
+      } // 범위 칩은 눌러서 완료 토글은 안 함(부분 완료는 "까지 완료"로)
+      const day = +el.dataset.day, subj = el.dataset.subj;
+      const list = WK_DATA[WEEKPLAN_WHICH].byDay[day][subj];
+      el.dataset.idxs.split(',').map(Number).sort((a, b) => b - a).forEach(i => list.splice(i, 1));
+      render();
+    };
+    el.onpointerdown = onWkChipPointerDown;
+  });
+  document.querySelectorAll('.splitcancel').forEach(el => { el.onclick = () => { WK_SPLIT = null; render(); }; });
+  document.querySelectorAll('.splitgo, .splitact').forEach(el => { el.onclick = () => wkSplitApply(el); });
+  document.querySelectorAll('.chip.editable, .chip.runchip').forEach(el => {
+    el.oncontextmenu = (ev) => {
+      if (!WK_EDIT || !WK_DATA) return;
+      ev.preventDefault();
+      wkOpenCtx(el, ev.clientX, ev.clientY);
+    };
+  });
+  document.querySelectorAll('.wkctxbtn').forEach(el => { el.onclick = () => wkCtxAct(el.dataset.act); });
+  if (!window.__wkctxBound) {
+    window.__wkctxBound = true;
+    document.addEventListener('click', (ev) => { if (WK_CTX_GUARD) { WK_CTX_GUARD = false; return; } if (WK_CTX && !(ev.target && ev.target.closest && ev.target.closest('.wkctx'))) { WK_CTX = null; render(); } });
+    document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && WK_CTX) { WK_CTX = null; render(); } });
+  }
+  document.querySelectorAll('.wkuptobtn').forEach(el => {
+    el.onclick = () => {
+      const day = +el.dataset.wkday, subj = el.dataset.wksubj, sname = el.dataset.wkuptoseries;
+      const input = el.previousElementSibling;
+      const n = input ? parseInt(input.value, 10) : NaN;
+      if (isNaN(n)) return;
+      const list = (WK_DATA[WEEKPLAN_WHICH].byDay[day] && WK_DATA[WEEKPLAN_WHICH].byDay[day][subj]) || [];
+      list.filter(x => x.series === sname).forEach(x => {
+        const v = parseInt(x.item, 10);
+        if (!isNaN(v)) x.done = v <= n;
+      });
+      render();
+    };
+  });
+  document.querySelectorAll('.addrow').forEach(row => {
+    const addbtn = row.querySelector('.addbtn');
+    if (!addbtn) return;
+    addbtn.onclick = () => {
+      const day = +row.dataset.day, subj = row.dataset.subj;
+      const series = row.querySelector('.addseries').value;
+      const item = row.querySelector('.additem').value.trim();
+      const done = row.querySelector('.adddone').checked;
+      if (!item) return;
+      // "1~30"처럼 범위로 입력하면(장-절형 제외) 낱개 항목으로 풀어서 한번에 추가한다.
+      const kind = BY_NAME[series] && BY_NAME[series].kind;
+      const rangeMatch = kind !== 'chap' && item.match(/^(\d+)\s*~\s*(\d+)$/);
+      const list = WK_DATA[WEEKPLAN_WHICH].byDay[day][subj];
+      if (rangeMatch) {
+        let lo = parseInt(rangeMatch[1], 10), hi = parseInt(rangeMatch[2], 10);
+        if (hi < lo) [lo, hi] = [hi, lo];
+        if (hi - lo > 1000) hi = lo + 1000;
+        for (let n = lo; n <= hi; n++) list.push({ series, item: String(n), done });
+      } else {
+        list.push({ series, item, done });
+      }
+      render();
+    };
+  });
+
+  const chatopen = document.getElementById('chatopen');
+  if (chatopen) chatopen.onclick = () => { CHAT_OPEN = true; render(); };
+  const chatclose = document.getElementById('chatclose');
+  if (chatclose) chatclose.onclick = () => { CHAT_OPEN = false; render(); };
+  const chatoverlay = document.getElementById('chatoverlay');
+  if (chatoverlay) chatoverlay.onclick = (ev) => { if (ev.target === chatoverlay) { CHAT_OPEN = false; render(); } };
+  const chatsend = document.getElementById('chatsend');
+  if (chatsend) chatsend.onclick = sendChatMessage;
+  const chatinput = document.getElementById('chatinput');
+  if (chatinput) chatinput.onkeydown = (ev) => { if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); sendChatMessage(); } };
+  document.querySelectorAll('.chatapply').forEach(btn => {
+    btn.onclick = () => applyChatProposal(+btn.dataset.mi, +btn.dataset.pi);
+  });
+  const chatlog = document.getElementById('chatlog');
+  if (chatlog) chatlog.scrollTop = chatlog.scrollHeight;
+}
+
+/** 체크한 항목을 시트의 오늘 칸에 [완]으로 직접 반영 */
+async function saveDone() {
+const btn = document.getElementById('save');
+const msg = document.getElementById('savemsg');
+const checked = [...getChecked()];
+const { week, todayIdx } = STATE;
+const todayList = (STATE.res.assign[todayIdx] || []).map(x => x.series + '|' + x.item);
+// 오늘 배정분 + "까지 완료"로 앞당겨 체크한 같은 시리즈의 다음 배정분(이번 주 다른 요일/다음 주)
+const pullSeries = {};
+const relevant = checked.filter(id => {
+  if (todayList.includes(id)) return true;
+  const sn = id.slice(0, id.indexOf('|'));
+  return (pullSeries[sn] || (pullSeries[sn] = pullablePool(sn))).has(id);
+});
+
+btn.disabled = true;
+msg.textContent = '저장 중…';
+try {
+// 저장 + 다시 불러오기를 서버 한 번 호출로(예전엔 저장 1번 + 다시 불러오기 8번)
+const out = await gsrun('saveAndReload', 'markDoneToday', [relevant], {});
+const r = out.result;
+if (out.dashboard) applyFresh(out.dashboard, false); else await load();
+const msgDone = document.getElementById('savemsg');
+if (msgDone) msgDone.innerHTML = `<b style="color:#257a44">저장됨</b> · ${r.count}개 · 시트에 바로 반영됐어요`;
+} catch (e) {
+msg.innerHTML = `<b style="color:#c0392b">저장 실패</b> — ${esc(e.message || e)}`;
+btn.disabled = false;
+}
+}
+
+/** "완료 저장"으로 [완] 처리했던 오늘 항목을 다시 미완료로 되돌림 */
+async function undoTodayItem(id) {
+  return undoTodayItems([id]);
+}
+async function undoTodayItems(ids) {
+const msg = document.getElementById('undomsg');
+if (msg) msg.textContent = '되돌리는 중…';
+try {
+const outU = await gsrun('saveAndReload', 'unmarkDoneToday', [ids], {});
+const s = getChecked(); ids.forEach(id => s.delete(id)); setChecked(s);
+if (outU.dashboard) applyFresh(outU.dashboard, false); else await load();
+} catch (e) {
+if (msg) msg.innerHTML = `<b style="color:#c0392b">되돌리기 실패</b> — ${esc(e.message || e)}`;
+}
+}
+
+function makePaste() {
+const { week, todayIdx, res } = STATE;
+const checked = getChecked();
+const list = res.assign[todayIdx] || [];
+const out = [];
+for (const subj of SUBJ_ORDER) {
+const mine = list.filter(x => x.subj === subj);
+if (!mine.length) continue;
+const bySeries = {};
+for (const x of mine) (bySeries[x.series] || (bySeries[x.series] = [])).push(x);
+const lines = [];
+for (const [name, arr] of Object.entries(bySeries)) {
+const done = arr.filter(x => checked.has(name + '|' + x.item)).map(x => x.item);
+const undone = arr.filter(x => !checked.has(name + '|' + x.item)).map(x => x.item);
+if (done.length) lines.push(joinItems(name, done) + ' [완]');
+if (undone.length) lines.push(joinItems(name, undone));
+}
+out.push(`【${subj}】 ${week.days[todayIdx] ? week.days[todayIdx].label : ''}\n` + lines.join('\n'));
+}
+const txt = out.join('\n\n') || '체크한 항목이 없습니다.';
+const box = document.getElementById('pasteout');
+box.innerHTML = `<pre class="paste">${esc(txt)}</pre>`;
+}
+
+/* ===== 부트 ===== */
+/* ===== 불러오기 — 서버 한 번 호출(getDashboardData) + 마지막 화면을 먼저 보여주기 =====
+ * 예전엔 첫 화면에 서버 호출을 8번(7번 동시 + 1번 뒤따라) 해서, 그게 다 끝나야 화면이 그려졌다. 이제는 한 번에 받아오고,
+ * 그 전에 이 기기에 저장해 둔 마지막 화면을 바로 그려 둔다(같은 날이면 그대로, 지난날이면 "오늘 할 일"만 잠가 둠). */
+const DASH_CACHE_KEY = 'dashCache_v1';
+let WEEK_EVENTS = null;   // 캘린더 카드 데이터(불러오기와 따로 도착)
+let LOADED_DAY = null;    // 마지막으로 서버에서 새로 받아온 날(앱 기준 날짜)
+let LAST_LOAD_AT = 0;
+function appDayKey() { const d = appToday(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+function readDashCache() {
+  try { const c = JSON.parse(localStorage.getItem(DASH_CACHE_KEY) || 'null'); return c && c.v === 1 ? c : null; } catch (e) { return null; }
+}
+function writeDashCache(patch) {
+  try { const c = readDashCache() || { v: 1 }; Object.assign(c, patch); localStorage.setItem(DASH_CACHE_KEY, JSON.stringify(c)); } catch (e) { /* 저장 공간이 없으면 캐시 없이 동작 */ }
+}
+/** 받아온 묶음으로 STATE를 만든다. cacheInfo가 있으면 "저장해 둔 화면"이라는 표시. */
+function applyDashboard(b, cacheInfo) {
+  const { week, roadmap, nextWeek, gaps, seriesList, roadmapMismatch, syncStatus } = b;
+  if (!cacheInfo) {
+    // 방금 시트를 새로 불러왔으니 그 시점을 기준으로 삼는다 — 이후에 다른 곳에서 수동 편집이 생기면 배너가 뜬다.
+    SYNC_BASELINE = syncStatus.lastEditAt;
+    SHEET_STALE = false;
+  }
+  for (const s of seriesList) {
+    if (s.custom && !BY_NAME[s.name]) { SERIES.push(s); BY_NAME[s.name] = s; }
+    // 기본 제공 교재도 "문제집형" 여부/총 분량은 시트(교재설정)에서 바꿀 수 있으니 매번 동기화.
+    else if (BY_NAME[s.name]) { BY_NAME[s.name].partial = s.partial; BY_NAME[s.name].total = s.total; if (s.codes) BY_NAME[s.name].codes = s.codes; }
+  }
+  const today = appToday();
+  const todayIdx = week.todayIdx;
+  let res = replan(week, todayIdx >= 0 ? todayIdx : 0, week.dowWeights);
+  const weekBaseline = b.baseline || null;
+  if (weekBaseline) res = applyBaselineProgress(res, week, weekBaseline);
+  STATE = { week, todayIdx, today, res, monthTargets: week.monthTargets || [], doneMax: week.doneMax || {}, doneSet: week.doneSet || {}, roadmap, nextWeek, gaps, roadmapMismatch, weekBaseline, weekEvents: WEEK_EVENTS, cache: cacheInfo || null };
+}
+/** 서버에서 새로 받은 묶음 적용 + 이 기기에 저장. idle이면 입력 중일 때 화면을 바로 갈아엎지 않는다. */
+function applyFresh(b, idle) {
+  applyDashboard(b, null);
+  LOADED_DAY = appDayKey(); LAST_LOAD_AT = Date.now();
+  if (b.timing) console.info('[dashboard] server ms', JSON.stringify(b.timing), b.snapshotError ? 'snapshotError=' + b.snapshotError : '');
+  const toSave = Object.assign({}, b); delete toSave.editable;
+  writeDashCache({ savedAt: Date.now(), dayKey: LOADED_DAY, bundle: toSave });
+  if (idle) renderWhenIdle(); else render();
+}
+/** 사용자가 입력칸에 타이핑 중이면 그 칸에서 나갈 때까지 다시 그리기를 미룬다(쓰던 내용이 날아가지 않게). */
+function renderWhenIdle() {
+  const a = document.activeElement;
+  if (a && a !== document.body && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.closest && a.closest('#app')) {
+    if (!a.__pendingRender) {
+      a.__pendingRender = true;
+      a.addEventListener('blur', () => { a.__pendingRender = false; setTimeout(render, 0); }, { once: true });
+    }
+    return;
+  }
+  render();
+}
+async function load(opts) {
+  const b = await gsrun('getDashboardData', opts || {});
+  applyFresh(b, false);
+  return b;
+}
+function loadEvents() {
+  gsrun('getWeekEvents')
+    .then(we => { WEEK_EVENTS = we; writeDashCache({ weekEvents: we, eventsDayKey: appDayKey() }); if (STATE) { STATE.weekEvents = we; renderWhenIdle(); } })
+    .catch(e => { WEEK_EVENTS = { ok: false, error: String(e.message || e) }; if (STATE) { STATE.weekEvents = WEEK_EVENTS; renderWhenIdle(); } });
+}
+let LAST_TIMING = null;
+async function boot() {
+  if (!IN_APPS_SCRIPT && !getUiToken()) { showTokenPrompt(''); return; }
+  const cached = readDashCache();
+  if (cached && cached.bundle) {
+    try {
+      if (cached.weekEvents && cached.eventsDayKey === appDayKey()) WEEK_EVENTS = cached.weekEvents;
+      applyDashboard(cached.bundle, { savedAt: cached.savedAt || 0, sameDay: cached.dayKey === appDayKey() });
+      render();
+    } catch (e) { STATE = null; }
+  }
+  loadEvents(); // 캘린더는 느리니 동시에 출발시키고, 도착하는 대로 그 카드만 갱신
+  try {
+    const t0 = performance.now();
+    const b = await gsrun('getDashboardData', {});
+    LAST_TIMING = { client: Math.round(performance.now() - t0), server: b.timing || null, kb: Math.round(JSON.stringify(b).length / 1024) };
+    applyFresh(b, true);
+  } catch (e) {
+    if (e && e.code === 'auth') { setUiToken(''); STATE = null; showTokenPrompt(e.message); return; }
+    if (STATE && STATE.cache) { STATE.cache.error = String(e.message || e); renderWhenIdle(); return; }
+    document.getElementById('app').innerHTML =
+      `<div class="card err"><b>불러오기 실패</b><div class="muted" style="margin-top:6px">${esc(e.message || e)}</div></div>`;
+  }
+}
+boot();
+// 휴대폰에서 탭을 열어둔 채 다음 날 다시 보거나 오래 비웠다가 돌아오면 자동으로 새로 불러온다.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !STATE || STATE.cache) return;
+  if (LOADED_DAY !== appDayKey() || Date.now() - LAST_LOAD_AT > 30 * 60 * 1000) {
+    gsrun('getDashboardData', {}).then(b => applyFresh(b, true)).catch(() => {});
+    loadEvents();
+  }
+});
+
+// 다른 기기/탭에서 시트를 직접(구글시트 화면에서) 고쳤는지 주기적으로 확인 — 우리 웹앱
+// 자신의 저장은 onEdit이 안 잡으니 여기 안 걸리고, 사람이 시트에서 직접 편집할 때만 걸린다.
+// SYNC_BASELINE이 아직 없으면(최초 load 전) 건너뛰고, 이미 배너가 떠 있으면 다시 확인할
+// 필요 없다.
+setInterval(async () => {
+  if (document.hidden || SYNC_BASELINE == null || SHEET_STALE) return;
+  try {
+    const s = await gsrun('getSyncStatus');
+    if (s.lastEditAt > SYNC_BASELINE) { SHEET_STALE = true; render(); }
+  } catch (e) { /* 다음 주기에 다시 시도 */ }
+}, 30000);
+</script>
+</body>
+</html>
