@@ -2439,15 +2439,15 @@ async function saveYesterdayDone() {
   const pad = (n) => String(n).padStart(2, '0');
   const ydate = y.getFullYear() + '-' + pad(y.getMonth() + 1) + '-' + pad(y.getDate());
   const names = late.slice(0, 8).map(x => labelItem(x.series, x.item)).join(', ') + (late.length > 8 ? ' 외 ' + (late.length - 8) + '개' : '');
-  if (!confirm('밀림으로 떠 있는 ' + late.length + '개를 어제(' + ydate + ') 한 걸로 저장할까요?\n\n' + names + '\n\n안 한 게 있으면 취소하고 칩에서 직접 골라 저장하세요.')) return;
+  if (!confirm('밀림으로 떠 있는 ' + late.length + '개를 어제(' + ydate + ') 한 걸로 저장하고, 남은 계획을 오늘~토요일에 다시 고르게 나눌까요?\n\n' + names + '\n\n안 한 게 있으면 취소하고 칩에서 직접 골라 저장하세요.')) return;
   const btn = document.getElementById('yesterdaydone'), msg = document.getElementById('savemsg');
   if (btn) btn.disabled = true;
   if (msg) msg.textContent = '저장 중…';
   try {
-    const out = await gsrun('saveAndReload', 'markDoneToday', [late.map(x => x.series + '|' + x.item), ydate], {});
+    const out = await gsrun('saveAndReload', 'markDoneToday', [late.map(x => x.series + '|' + x.item), ydate, true], {});
     if (out.dashboard) applyFresh(out.dashboard, false); else await load();
     const m2 = document.getElementById('savemsg');
-    if (m2) m2.innerHTML = `<b style="color:#257a44">저장됨</b> · ${out.result.count}개 · 어제 한 걸로 기록했어요`;
+    if (m2) m2.innerHTML = `<b style="color:#257a44">저장됨</b> · ${out.result.count}개 · 어제 한 걸로 기록하고 남은 계획을 다시 나눴어요`;
   } catch (e) {
     if (msg) msg.innerHTML = `<b style="color:#c0392b">저장 실패</b> — ${esc(e.message || e)}`;
     if (btn) btn.disabled = false;
