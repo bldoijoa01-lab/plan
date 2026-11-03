@@ -313,16 +313,40 @@ h1 { letter-spacing: -.02em; }
 .card.warn, .card.err, .card.brief { border-color: transparent; }
 .chip { border-radius: 999px; }
 .act { border-radius: 12px; }
-.themesw { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; background: var(--card); }
-.themesw button { font: inherit; font-size: 12.5px; font-weight: 700; padding: 6px 12px; border: 0; background: transparent; color: var(--ink-soft); cursor: pointer; }
-.themesw button[aria-pressed="true"] { background: var(--accent-strong); color: var(--on-accent); }
+.themesw { position: relative; display: inline-grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; background: var(--card); }
+.themesw .thumb { position: absolute; top: 0; bottom: 0; left: 0; width: 33.3334%; background: var(--accent-strong); border-radius: 999px; }
+.themesw button { position: relative; z-index: 1; font: inherit; font-size: 12.5px; font-weight: 700; padding: 6px 12px; min-width: 4.4em; text-align: center; border: 0; background: transparent; color: var(--ink-soft); cursor: pointer; }
+.themesw button[aria-pressed="true"] { color: var(--on-accent); }
 .themesw button:focus-visible, .foldh:focus-visible { outline: 2px solid var(--today-ink); outline-offset: 2px; }
 .foldh { cursor: pointer; display: flex; align-items: center; gap: 8px; user-select: none; }
 .foldh::after { content: "▾"; margin-left: auto; color: var(--muted); font-size: 12px; }
 .card.folded .foldh::after { content: "▸"; }
 .card.folded .foldh { margin-bottom: 0; }
-.card.folded > .foldbody { display: none; }
+.foldbody { display: grid; grid-template-rows: 1fr; }
+.foldbody > .foldinner { overflow: hidden; min-height: 0; }
+.card.folded > .foldbody { grid-template-rows: 0fr; visibility: hidden; }
 .foldh .foldhint { font-family: inherit; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+/* ── 모션 (gradecut 참고): "동작 줄이기" 설정이면 전부 꺼짐 ── */
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+@keyframes growx { from { transform: scaleX(0); } }
+@keyframes growy { from { transform: scaleY(0); } }
+@keyframes fadein { from { opacity: 0; } }
+@media (prefers-reduced-motion: no-preference) {
+  #app.intro > :not(.modal-overlay) { animation: rise .55s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+  #app.intro .bar > i { animation: growx .8s cubic-bezier(.2,.7,.2,1) both; animation-delay: .45s; transform-origin: left; }
+  .modal-overlay:not(.noanim) { animation: fadein .2s ease both; }
+  .modal-overlay:not(.noanim) .modal-box { animation: rise .28s cubic-bezier(.2,.7,.2,1) both; }
+  .modal-overlay:not(.noanim) .wp-bstack > div { animation: growy .6s cubic-bezier(.2,.7,.2,1) both; transform-origin: bottom; animation-delay: .15s; }
+  .card, .act, .chip, .daybadge, .pill, .themesw button { transition: transform .18s ease, box-shadow .18s ease, background-color .2s, border-color .2s, color .2s; }
+  .act:active, .chip:active, .themesw button:active { transform: scale(.96); }
+  .themesw .thumb.ready { transition: transform .45s cubic-bezier(.3,1.25,.5,1); }
+  .foldbody { transition: grid-template-rows .3s cubic-bezier(.2,.7,.2,1), visibility 0s; }
+  .card.folded > .foldbody { transition: grid-template-rows .3s cubic-bezier(.2,.7,.2,1), visibility 0s .3s; }
+  .foldh::after { transition: transform .25s ease; display: inline-block; }
+  .bar > i { transition: width .5s cubic-bezier(.2,.7,.2,1); }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .45s; animation-timing-function: ease; }
+  html.theme-fade, html.theme-fade *, html.theme-fade *::before, html.theme-fade *::after { transition: background-color .45s ease, color .45s ease, border-color .45s ease, box-shadow .45s ease !important; }
+}
 </style>
 </head>
 <body>
@@ -761,19 +785,24 @@ function setCardOrder(order) { try { localStorage.setItem(CARD_ORDER_KEY, JSON.s
  * 이어붙인다. 편집 중이면 각 카드 맨 앞에 손잡이(⠿⠿)를 끼워넣는다 — 카드 자체는 그대로 #app의
  * 직계 자식으로 남아야 다단(column) 레이아웃 CSS(#app > .card)가 안 깨지므로, 감싸는 wrapper
  * div를 새로 만들지 않고 기존 <div class="card..."> 여는 태그에 속성/손잡이만 끼워넣는다. */
+function REDUCED_MOTION() { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } }
 function getTheme() { try { const t = localStorage.getItem("theme_v1"); return t === "light" || t === "dark" ? t : "auto"; } catch (e) { return "auto"; } }
 function themeSwitchHtml() {
   const cur = getTheme();
   const opt = (v, l) => "<button type=\"button\" data-t=\"" + v + "\" aria-pressed=\"" + (cur === v) + "\">" + l + "</button>";
-  return "<div class=\"themesw\" role=\"group\" aria-label=\"화면 색상\">" + opt("auto", "자동") + opt("light", "라이트") + opt("dark", "다크") + "</div>";
+  const idx = ["auto", "light", "dark"].indexOf(cur);
+  return "<div class=\"themesw\" role=\"group\" aria-label=\"화면 색상\"><span class=\"thumb\" aria-hidden=\"true\" style=\"transform:translateX(" + idx * 100 + "%)\"></span>" + opt("auto", "자동") + opt("light", "라이트") + opt("dark", "다크") + "</div>";
 }
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest && ev.target.closest(".themesw button");
   if (!b) return;
   const v = b.dataset.t;
   try { if (v === "auto") localStorage.removeItem("theme_v1"); else localStorage.setItem("theme_v1", v); } catch (e) {}
-  if (v === "light" || v === "dark") document.documentElement.setAttribute("data-theme", v); else document.documentElement.removeAttribute("data-theme");
+  const applyTheme = () => { if (v === "light" || v === "dark") document.documentElement.setAttribute("data-theme", v); else document.documentElement.removeAttribute("data-theme"); };
+  if (REDUCED_MOTION()) applyTheme();
+  else { const root = document.documentElement; root.classList.add("theme-fade"); applyTheme(); setTimeout(() => root.classList.remove("theme-fade"), 500); }
   document.querySelectorAll(".themesw button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  document.querySelectorAll(".themesw .thumb").forEach(th => { th.classList.add("ready"); th.style.transform = "translateX(" + ["auto", "light", "dark"].indexOf(v) * 100 + "%)"; });
 });
 
 /* 보조 카드는 접어 둘 수 있게 — 제목을 누르면 접힘/펼침, 기기별로 기억(기본: 달력만 펼침) */
@@ -781,6 +810,31 @@ const FOLDABLE = ["calendar", "carry", "progress", "roadmap", "saengibu", "serie
 const FOLD_OPEN_DEFAULT = ["calendar"];
 function foldMap() { try { return JSON.parse(localStorage.getItem("fold_v1") || "{}") || {}; } catch (e) { return {}; } }
 function isFolded(id) { const m = foldMap(); return id in m ? !!m[id] : !FOLD_OPEN_DEFAULT.includes(id); }
+let INTRO_DONE = false, INTRO_TIMER = null;
+const NUM_PREV = {};
+/* 큰 숫자는 값이 바뀔 때(처음 열 때는 0에서) 올라가거나 내려가며 바뀐다 */
+function animateNumbers(intro) {
+  const reduced = REDUCED_MOTION();
+  document.querySelectorAll("#app .stat-num, #app .briefmsg b, #app .dnum").forEach((el, i) => {
+    const m = /^(\d+)(\D*)$/.exec(el.textContent.trim());
+    if (!m) return;
+    const to = +m[1], suf = m[2];
+    const card = el.closest("[data-card-id]");
+    const key = (card ? card.dataset.cardId : "x") + ":" + el.className + ":" + i;
+    const prev = key in NUM_PREV ? NUM_PREV[key] : (intro ? 0 : to);
+    NUM_PREV[key] = to;
+    if (reduced || prev === to) return;
+    const dur = intro ? 800 : 450, t0 = performance.now();
+    el.textContent = prev + suf;
+    const step = (now) => {
+      const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(prev + (to - prev) * e) + suf;
+      if (p < 1 && el.isConnected) requestAnimationFrame(step); else if (el.isConnected) el.textContent = to + suf;
+    };
+    requestAnimationFrame(step);
+    setTimeout(() => { if (el.isConnected) el.textContent = to + suf; }, dur + 150); // 화면이 가려져 프레임이 멈춰도 최종 값은 반드시 표시
+  });
+}
 function applyFolds() {
   document.querySelectorAll("#app [data-card-id]").forEach(card => {
     const id = card.dataset.cardId;
@@ -789,7 +843,10 @@ function applyFolds() {
     if (!h2 || card.querySelector(":scope > .foldbody")) return;
     const body = document.createElement("div");
     body.className = "foldbody";
-    while (h2.nextSibling) body.appendChild(h2.nextSibling);
+    const inner = document.createElement("div");
+    inner.className = "foldinner";
+    while (h2.nextSibling) inner.appendChild(h2.nextSibling);
+    body.appendChild(inner);
     card.appendChild(body);
     h2.classList.add("foldh");
     h2.setAttribute("role", "button"); h2.setAttribute("tabindex", "0");
@@ -2267,8 +2324,19 @@ const prevOverlay = document.querySelector('.modal-overlay');
 const prevOverlayId = prevOverlay ? prevOverlay.id : null;
 const prevOverlayTop = prevOverlay ? prevOverlay.scrollTop : 0;
 const prevWinY = window.scrollY || document.documentElement.scrollTop || 0;
-document.getElementById('app').innerHTML = h;
+const appRoot = document.getElementById('app');
+clearTimeout(INTRO_TIMER); appRoot.classList.remove('intro');
+appRoot.innerHTML = h;
 applyFolds();
+const firstPaint = !INTRO_DONE; INTRO_DONE = true;
+if (firstPaint && !REDUCED_MOTION()) {
+  [...appRoot.children].forEach((ch, i) => ch.style.setProperty('--i', String(Math.min(i, 9))));
+  appRoot.classList.add('intro');
+  INTRO_TIMER = setTimeout(() => appRoot.classList.remove('intro'), 1800);
+}
+const ovNew = document.querySelector('.modal-overlay');
+if (ovNew && prevOverlayId === ovNew.id) ovNew.classList.add('noanim');
+animateNumbers(firstPaint);
 const toklogout = document.getElementById('toklogout');
 if (toklogout) toklogout.onclick = (ev) => { ev.preventDefault(); setUiToken(''); try { localStorage.removeItem(DASH_CACHE_KEY); } catch (e) {} STATE = null; showTokenPrompt(''); };
 document.getElementById('app').classList.toggle('stale-old', !!(STATE.cache && !STATE.cache.sameDay));
