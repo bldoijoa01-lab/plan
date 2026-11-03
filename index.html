@@ -61,13 +61,11 @@ font-family: 'Gowun Dodum', -apple-system, BlinkMacSystemFont, "Segoe UI", "Malg
 font-size: 15px; line-height: 1.6; font-weight: 400;
 }
 #app { max-width: 640px; margin-left: auto; margin-right: auto; }
-@media (min-width: 860px) {
-  #app { max-width: 1180px; -webkit-column-count: 2; column-count: 2; -webkit-column-gap: 20px; column-gap: 20px; }
-  #app > .card { break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid; display: inline-block; width: 100%; vertical-align: top; }
-}
-@media (min-width: 1280px) {
-  #app { max-width: 1440px; -webkit-column-count: 3; column-count: 3; }
-}
+@media (min-width: 860px) { #app { max-width: 1180px; } }
+@media (min-width: 1280px) { #app { max-width: 1440px; } }
+/* 넓은 화면의 단(열) 배치: JS(layoutColumns)가 카드마다 열을 한 번 정해 주므로, 접거나 펴도 카드가 옆 열로 튀지 않는다 */
+.cols { display: flex; gap: 20px; align-items: flex-start; }
+.cols > .col { flex: 1 1 0; min-width: 0; }
 h1 { font-family: 'Jua', sans-serif; font-size: 24px; font-weight: 700; margin: 0 0 2px; letter-spacing: -.2px; }
 h2 { font-family: 'Jua', sans-serif; font-size: 14px; margin: 0 0 12px; letter-spacing: .1px; color: var(--ink); font-weight: 700; }
 .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; font-weight: 600; }
@@ -332,7 +330,8 @@ h1 { letter-spacing: -.02em; }
 @keyframes growy { from { transform: scaleY(0); } }
 @keyframes fadein { from { opacity: 0; } }
 @media (prefers-reduced-motion: no-preference) {
-  #app.intro > :not(.modal-overlay) { animation: rise .55s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+  #app.intro .col > .card { animation: rise .55s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+  #app.intro > :not(.modal-overlay):not(.cols) { animation: rise .55s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 60ms); }
   #app.intro .bar > i { animation: growx .8s cubic-bezier(.2,.7,.2,1) both; animation-delay: .45s; transform-origin: left; }
   .modal-overlay:not(.noanim) { animation: fadein .2s ease both; }
   .modal-overlay:not(.noanim) .modal-box { animation: rise .28s cubic-bezier(.2,.7,.2,1) both; }
@@ -835,6 +834,44 @@ function animateNumbers(intro) {
     setTimeout(() => { if (el.isConnected) el.textContent = to + suf; }, dur + 150); // 화면이 가려져 프레임이 멈춰도 최종 값은 반드시 표시
   });
 }
+/* 넓은 화면에서는 카드를 열(1~3개)에 나눠 담는다. 어느 열에 들어갈지는 카드 순서와 고정 무게로만 정한다(접힘 상태·실제 높이와 무관). */
+const CARD_WEIGHT = { brief: 2, calendar: 2, today: 4, weekplan: 1, carry: 1, progress: 1, roadmap: 1, saengibu: 1, series: 1, nextweek: 2, gapwarn: 1, roadmapmismatch: 1 };
+function colCount() { const w = window.innerWidth || 0; return w >= 1280 ? 3 : w >= 860 ? 2 : 1; }
+function layoutColumns() {
+  const app = document.getElementById("app");
+  if (!app) return;
+  const old = app.querySelector(":scope > .cols");
+  let cards;
+  if (old) {
+    cards = Array.from(old.querySelectorAll(".card[data-card-id]")).sort((a, b) => (+a.dataset.ord) - (+b.dataset.ord));
+  } else {
+    cards = Array.from(app.querySelectorAll(":scope > .card[data-card-id]"));
+    cards.forEach((card, i) => { card.dataset.ord = String(i); });
+  }
+  const n = colCount();
+  if (!cards.length) return;
+  if (n === 1) {
+    if (old) { old.replaceWith(...cards); }
+    return;
+  }
+  const marker = document.createComment("cols");
+  if (!old) app.insertBefore(marker, cards[0]);
+  const box = document.createElement("div");
+  box.className = "cols";
+  const cols = [];
+  const load = [];
+  for (let i = 0; i < n; i++) { const col = document.createElement("div"); col.className = "col"; box.appendChild(col); cols.push(col); load.push(0); }
+  cards.forEach((card, i) => {
+    let k = 0;
+    for (let j = 1; j < n; j++) if (load[j] < load[k]) k = j;
+    load[k] += CARD_WEIGHT[card.dataset.cardId] || 1;
+    card.style.setProperty("--i", String(Math.min(i + 3, 9)));
+    cols[k].appendChild(card);
+  });
+  if (old) old.replaceWith(box); else marker.replaceWith(box);
+}
+let COLS_N = 0;
+window.addEventListener("resize", () => { clearTimeout(window.__colT); window.__colT = setTimeout(() => { const n = colCount(); if (n !== COLS_N) { COLS_N = n; layoutColumns(); } }, 150); });
 function applyFolds() {
   document.querySelectorAll("#app [data-card-id]").forEach(card => {
     const id = card.dataset.cardId;
@@ -2328,6 +2365,8 @@ const appRoot = document.getElementById('app');
 clearTimeout(INTRO_TIMER); appRoot.classList.remove('intro');
 appRoot.innerHTML = h;
 applyFolds();
+COLS_N = colCount();
+layoutColumns();
 const firstPaint = !INTRO_DONE; INTRO_DONE = true;
 if (firstPaint && !REDUCED_MOTION()) {
   Array.from(appRoot.children || []).forEach((ch, i) => { if (ch.style && ch.style.setProperty) ch.style.setProperty('--i', String(Math.min(i, 9))); });
