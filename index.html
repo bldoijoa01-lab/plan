@@ -2330,7 +2330,7 @@ appRoot.innerHTML = h;
 applyFolds();
 const firstPaint = !INTRO_DONE; INTRO_DONE = true;
 if (firstPaint && !REDUCED_MOTION()) {
-  [...appRoot.children].forEach((ch, i) => ch.style.setProperty('--i', String(Math.min(i, 9))));
+  Array.from(appRoot.children || []).forEach((ch, i) => { if (ch.style && ch.style.setProperty) ch.style.setProperty('--i', String(Math.min(i, 9))); });
   appRoot.classList.add('intro');
   INTRO_TIMER = setTimeout(() => appRoot.classList.remove('intro'), 1800);
 }
