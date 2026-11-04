@@ -113,6 +113,13 @@ h2 { font-family: 'Jua', sans-serif; font-size: 14px; margin: 0 0 12px; letter-s
 .chip:active { transform: scale(.97); }
 .chip.on { background: var(--accent-strong); color: var(--on-accent); }
 .chip.lateItem { background: var(--accent-tint); color: var(--accent-ink); }
+.ydpanel { margin-top: 14px; padding: 14px; border: 1.5px dashed var(--accent-bd); border-radius: 14px; background: var(--accent-tint); }
+.ydpanel .ydhint { font-size: 13px; color: var(--ink-soft); margin-bottom: 10px; }
+.ydrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 8px 0; }
+.ydname { font-weight: 700; font-size: 13px; min-width: 4.5em; }
+.ydchip { border: none; border-radius: 14px; padding: 8px 12px; font-size: 14px; font-weight: 600; cursor: pointer; user-select: none; background: var(--divider); color: var(--muted); text-decoration: line-through; }
+.ydchip.on { background: var(--accent-strong); color: var(--on-accent); text-decoration: none; }
+.ydrange { flex: 1 1 12em; min-width: 8em; font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--ink); }
 .chip.chip-info { cursor: default; border: 1.5px dashed var(--border); background: transparent; }
 .chip.chip-info:hover, .chip.chip-info:active { transform: none; }
 .chip.chip-info.lateItem { border-color: var(--accent-bd); }
@@ -2212,7 +2219,8 @@ h += `<span class="chip${checked.has(id) ? ' on' : ''}${x.late ? ' lateItem' : '
 }
 h += `</div></div>`;
 }
-h += `<div class="row" style="margin-top:14px"><button class="act primary" id="save">완료 저장</button>${lateCnt ? `<button class="act" id="yesterdaydone">😴 어제 체크 못 했어요</button>` : ''}<button class="act" id="mkpaste">텍스트로 보기</button></div>`;
+h += `<div class="row" style="margin-top:14px"><button class="act primary" id="save">완료 저장</button>${lateCnt ? `<button class="act" id="yesterdaydone">😴 ${YD_OPEN ? '닫기' : '어제 체크 못 했어요'}</button>` : ''}<button class="act" id="mkpaste">텍스트로 보기</button></div>`;
+if (YD_OPEN && lateCnt) h += ydPanelHtml();
 h += `<div class="muted" style="margin-top:8px" id="savemsg">칩을 눌러 완료 표시 → 저장하면 시트에 바로 반영돼요</div>`;
 if (todayDoneList.length) {
 h += `<div class="muted" style="margin-top:14px;font-size:12px">오늘 완료한 항목 (눌러서 취소)</div>`;
@@ -2454,7 +2462,9 @@ document.querySelectorAll('.chip').forEach(el => {
   });
 document.getElementById('mkpaste').onclick = makePaste;
 document.getElementById('save').onclick = saveDone;
-const ydBtn = document.getElementById('yesterdaydone'); if (ydBtn) ydBtn.onclick = saveYesterdayDone;
+const ydBtn = document.getElementById('yesterdaydone'); if (ydBtn) ydBtn.onclick = () => { YD_OPEN = !YD_OPEN; YD_NOT.clear(); render(); };
+document.querySelectorAll('.ydchip').forEach(el => { el.onclick = () => { const id = el.dataset.id; if (YD_NOT.has(id)) YD_NOT.delete(id); else YD_NOT.add(id); render(); }; });
+const ydGo = document.getElementById('ydsave'); if (ydGo) ydGo.onclick = saveYesterdayDone;
 
   const wpopen = document.getElementById('wpopen');
   if (wpopen) wpopen.onclick = () => { WEEKPLAN_OPEN = true; render(); };
@@ -2640,20 +2650,65 @@ const ydBtn = document.getElementById('yesterdaydone'); if (ydBtn) ydBtn.onclick
   if (chatlog) chatlog.scrollTop = chatlog.scrollHeight;
 }
 
-/** 어제 체크를 못 하고 잔 경우: 지금 "밀림"으로 떠 있는 오늘 칸 항목 전부를 어제 완료한 것으로 저장(진도로그 실제완료일 = 어제) */
+let YD_OPEN = false;
+const YD_NOT = new Set();
+const YD_MAXCHIPS = 8;
+function ydLateBySeries() {
+  const by = {};
+  for (const x of (STATE.res.assign[STATE.todayIdx] || [])) if (x.late) (by[x.series] || (by[x.series] = [])).push(x);
+  return by;
+}
+/** "어제 한 것" 고르기 패널: 항목이 적은 교재는 칩(눌러서 못 한 것 표시), 많은 교재는 범위 입력 */
+function ydPanelHtml() {
+  const by = ydLateBySeries();
+  let s = `<div class="ydpanel"><div class="ydhint">어제 <b>한 것</b>만 남기세요. 못 한 건 칩을 눌러 끄거나(취소선), 범위에서 지우세요. 못 한 건 남은 요일에 다시 나눠 담아요.</div>`;
+  for (const sname in by) {
+    const items = by[sname];
+    s += `<div class="ydrow"><span class="ydname">${esc(sname)}</span>`;
+    if (items.length <= YD_MAXCHIPS || !BY_NAME[sname]) {
+      for (const x of items) { const id = x.series + '|' + x.item; s += `<span class="ydchip${YD_NOT.has(id) ? '' : ' on'}" data-id="${esc(id)}">${esc(labelItem(x.series, x.item))}</span>`; }
+    } else {
+      s += `<input type="text" class="ydrange" data-series="${esc(sname)}" value="${esc(rangeText(sname, items.map(x => x.item)))}">`;
+    }
+    s += `</div>`;
+  }
+  return s + `<div class="row" style="margin-top:10px"><button class="act primary" id="ydsave">이대로 어제 한 걸로 저장 + 다시 나누기</button></div></div>`;
+}
+/** 어제 체크를 못 하고 잔 경우: 패널에서 고른 항목만 어제 완료한 것으로 저장(진도로그 실제완료일 = 어제)하고 남은 계획 재분배 */
 async function saveYesterdayDone() {
-  const late = (STATE.res.assign[STATE.todayIdx] || []).filter(x => x.late);
-  if (!late.length) return;
+  const by = ydLateBySeries();
+  if (!Object.keys(by).length) return;
+  const msg = document.getElementById('savemsg');
+  const sel = [];
+  try {
+    for (const sname in by) {
+      const items = by[sname];
+      const inp = document.querySelector('.ydrange[data-series="' + (window.CSS && CSS.escape ? CSS.escape(sname) : sname) + '"]');
+      if (inp) {
+        const text = inp.value.trim();
+        if (!text) continue;
+        const resolved = await gsrun('resolveRangeForUi', sname, text);
+        const want = new Set(resolved.items);
+        for (const x of items) if (want.has(x.item)) sel.push(x.series + '|' + x.item);
+      } else {
+        for (const x of items) { const id = x.series + '|' + x.item; if (!YD_NOT.has(id)) sel.push(id); }
+      }
+    }
+  } catch (e) {
+    if (msg) msg.innerHTML = `<b style="color:var(--bad)">범위를 읽을 수 없어요</b> — ${esc(e.message || e)}`;
+    return;
+  }
   const y = new Date(); y.setDate(y.getDate() - 1);
   const pad = (n) => String(n).padStart(2, '0');
   const ydate = y.getFullYear() + '-' + pad(y.getMonth() + 1) + '-' + pad(y.getDate());
-  const names = late.slice(0, 8).map(x => labelItem(x.series, x.item)).join(', ') + (late.length > 8 ? ' 외 ' + (late.length - 8) + '개' : '');
-  if (!confirm('밀림으로 떠 있는 ' + late.length + '개를 어제(' + ydate + ') 한 걸로 저장하고, 남은 계획을 오늘~토요일에 다시 고르게 나눌까요?\n\n' + names + '\n\n안 한 게 있으면 취소하고 칩에서 직접 골라 저장하세요.')) return;
-  const btn = document.getElementById('yesterdaydone'), msg = document.getElementById('savemsg');
+  const total = Object.values(by).reduce((a, l) => a + l.length, 0);
+  if (!confirm('어제(' + ydate + ') 한 것 ' + sel.length + '개를 저장하고, 못 한 ' + (total - sel.length) + '개를 포함한 남은 계획을 오늘~토요일에 다시 고르게 나눌까요?')) return;
+  const btn = document.getElementById('ydsave');
   if (btn) btn.disabled = true;
   if (msg) msg.textContent = '저장 중…';
   try {
-    const out = await gsrun('saveAndReload', 'markDoneToday', [late.map(x => x.series + '|' + x.item), ydate, true], {});
+    const out = await gsrun('saveAndReload', 'markDoneToday', [sel, ydate, true], {});
+    YD_OPEN = false; YD_NOT.clear();
     if (out.dashboard) applyFresh(out.dashboard, false); else await load();
     const m2 = document.getElementById('savemsg');
     if (m2) m2.innerHTML = `<b style="color:var(--mint-ink)">저장됨</b> · ${out.result.count}개 · 어제 한 걸로 기록하고 남은 계획을 다시 나눴어요`;
