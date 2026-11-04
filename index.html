@@ -161,7 +161,8 @@ tr.bufferday td.day { color: var(--lav-ink); }
 pre.paste { background: var(--divider); border: none; border-radius: 12px; padding: 10px 12px; font-size: 13px; white-space: pre-wrap; margin: 10px 0 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .stalebar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--butter-tint); border: none; color: var(--butter-ink); border-radius: 14px; padding: 10px 14px; font-size: 13px; font-weight: 700; margin: 8px 0 2px; }
 .stalebar .act { padding: 6px 12px; font-size: 13px; }
-.cachebar { background: var(--lav-tint); color: var(--lav-ink); border-radius: 14px; padding: 8px 14px; font-size: 12.5px; font-weight: 700; margin: 8px 0 2px; }
+.cachebar { background: var(--lav-tint); color: var(--lav-ink); border-radius: 14px; padding: 8px 14px; font-size: 12.5px; font-weight: 700; position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 400; max-width: calc(100vw - 32px); box-shadow: var(--shadow-md); transition: opacity .3s ease; }
+.cachebar.out { opacity: 0; }
 #app.stale-old [data-card-id="today"] { opacity: .5; pointer-events: none; }
 .muted { color: var(--muted); font-size: 12.5px; font-weight: 600; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -2145,7 +2146,7 @@ const weekPct = totalPlanned ? Math.round(totalDone / totalPlanned * 100) : 100;
 let h = '';
 h += `<h1>오늘의 학습 계획</h1>`;
 h += `<div class="sub">${esc(dstr)} · ${esc(wname)}${todayIdx < 0 ? ' · <b style="color:var(--bad)">⚠ 오늘 날짜가 이번 주 표에 없음 — 주차를 넘겨주세요</b>' : ''}</div>`;
-if (LAST_TIMING) h += `<div class="muted" id="perfline" style="font-size:10.5px;opacity:.7;margin:-4px 0 6px">불러오기 ${LAST_TIMING.client}ms · ${LAST_TIMING.kb}KB${LAST_TIMING.server && LAST_TIMING.server.cache ? ' · 캐시' : ''}${LAST_TIMING.server ? ' · 서버 ' + LAST_TIMING.server.total + 'ms (' + Object.entries(LAST_TIMING.server).filter(([k]) => k !== 'total').map(([k, v]) => k + ' ' + v).join(' · ') + ')' : ''}</div>`;
+h += `<div class="muted" id="perfline" style="font-size:10.5px;opacity:.7;margin:-4px 0 6px;min-height:1.5em">${perfText()}</div>`;
 if (STATE.cache) {
   const c = STATE.cache, sd = new Date(c.savedAt || 0);
   const when = `${sd.getMonth() + 1}/${sd.getDate()} ${String(sd.getHours()).padStart(2, '0')}:${String(sd.getMinutes()).padStart(2, '0')}`;
@@ -2825,11 +2826,21 @@ function applyDashboard(b, cacheInfo) {
 }
 /** 서버에서 새로 받은 묶음 적용 + 이 기기에 저장. idle이면 입력 중일 때 화면을 바로 갈아엎지 않는다. */
 function applyFresh(b, idle) {
+  // 저장해 둔 화면과 내용이 똑같으면 화면을 다시 그리지 않는다(깜빡임·끊김 방지) — "불러오는 중" 표시만 걸어낸다.
+  const wasCached = !!(STATE && STATE.cache && !STATE.cache.error && STATE.cache.sameDay);
+  const sig = (x) => { const c = Object.assign({}, x); delete c.timing; delete c.editable; return JSON.stringify(c); };
+  const same = idle && wasCached && STATE.cacheSig && STATE.cacheSig === sig(b);
   applyDashboard(b, null);
   LOADED_DAY = appDayKey(); LAST_LOAD_AT = Date.now();
   if (b.timing) console.info('[dashboard] server ms', JSON.stringify(b.timing), b.snapshotError ? 'snapshotError=' + b.snapshotError : '');
   const toSave = Object.assign({}, b); delete toSave.editable;
   writeDashCache({ savedAt: Date.now(), dayKey: LOADED_DAY, bundle: toSave });
+  if (same) {
+    const bar = document.querySelector('#app .cachebar');
+    if (bar) { bar.classList.add('out'); setTimeout(() => bar.remove(), 300); }
+    const pf = document.getElementById('perfline'); if (pf) pf.textContent = perfText();
+    return;
+  }
   if (idle) renderWhenIdle(); else render();
 }
 /** 사용자가 입력칸에 타이핑 중이면 그 칸에서 나갈 때까지 다시 그리기를 미룬다(쓰던 내용이 날아가지 않게). */
@@ -2851,10 +2862,14 @@ async function load(opts) {
 }
 function loadEvents() {
   gsrun('getWeekEvents')
-    .then(we => { WEEK_EVENTS = we; writeDashCache({ weekEvents: we, eventsDayKey: appDayKey() }); if (STATE) { STATE.weekEvents = we; renderWhenIdle(); } })
+    .then(we => { const same = JSON.stringify(we) === JSON.stringify(WEEK_EVENTS); WEEK_EVENTS = we; writeDashCache({ weekEvents: we, eventsDayKey: appDayKey() }); if (STATE) { STATE.weekEvents = we; if (!same) renderWhenIdle(); } })
     .catch(e => { WEEK_EVENTS = { ok: false, error: String(e.message || e) }; if (STATE) { STATE.weekEvents = WEEK_EVENTS; renderWhenIdle(); } });
 }
 let LAST_TIMING = null;
+function perfText() {
+  if (!LAST_TIMING) return '';
+  return `불러오기 ${LAST_TIMING.client}ms · ${LAST_TIMING.kb}KB${LAST_TIMING.server && LAST_TIMING.server.cache ? ' · 캐시' : ''}${LAST_TIMING.server ? ' · 서버 ' + LAST_TIMING.server.total + 'ms (' + Object.entries(LAST_TIMING.server).filter(([k]) => k !== 'total').map(([k, v]) => k + ' ' + v).join(' · ') + ')' : ''}`;
+}
 async function boot() {
   if (!IN_APPS_SCRIPT && !getUiToken()) { showTokenPrompt(''); return; }
   const cached = readDashCache();
@@ -2862,6 +2877,7 @@ async function boot() {
     try {
       if (cached.weekEvents && cached.eventsDayKey === appDayKey()) WEEK_EVENTS = cached.weekEvents;
       applyDashboard(cached.bundle, { savedAt: cached.savedAt || 0, sameDay: cached.dayKey === appDayKey() });
+      STATE.cacheSig = (() => { const c = Object.assign({}, cached.bundle); delete c.timing; delete c.editable; return JSON.stringify(c); })();
       render();
     } catch (e) { STATE = null; }
   }
