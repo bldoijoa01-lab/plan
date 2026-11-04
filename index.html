@@ -54,6 +54,7 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; }
+html { overflow-y: scroll; scrollbar-gutter: stable; } /* 접거나 펼쳐 페이지 길이가 바뀔 때 세로 스크롤바가 생겼다 사라지며 화면이 좌우로 흔들리지 않게 항상 자리를 잡아 둠 */
 body {
 margin: 0; padding: max(16px, env(safe-area-inset-top)) 16px calc(60px + env(safe-area-inset-bottom));
 background: var(--bg); color: var(--ink);
