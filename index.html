@@ -1158,21 +1158,21 @@ function wpModel(which, wk) {
 }
 
 function wpBarsHtml(model) {
-  const max = Math.max(1, ...model.days.map(d => (d.state === 'done' ? 0 : d.total)));
+  const max = Math.max(1, ...model.days.map(d => (d.state === 'done' ? 0 : d.load)));
   let h = `<div class="wp-bars">`;
   for (const d of model.days) {
     h += `<div class="wp-bcol${d.state === 'today' ? ' today' : ''}">`;
-    if (d.state === 'done' || !d.total) {
+    if (d.state === 'done' || !d.load) {
       h += `<div class="wp-bnum">${d.state === 'done' ? '완료' : '–'}</div><div class="wp-bstack" style="height:6px"></div>`;
     } else {
-      const hh = Math.max(6, Math.round(d.total / max * 84));
+      const hh = Math.max(6, Math.round(d.load / max * 84));
       let inner = '';
       for (const subj of SUBJ_ORDER) {
         const g = d.bySubj[subj];
         if (!g || !g.n) continue;
-        inner += `<div style="height:${Math.max(2, Math.round(hh * g.n / d.total))}px;background:var(--wp-${WP_CLS[subj]})"></div>`;
+        inner += `<div style="height:${Math.max(2, Math.round(hh * g.load / d.load))}px;background:var(--wp-${WP_CLS[subj]})"></div>`;
       }
-      h += `<div class="wp-bnum">${d.total}</div><div class="wp-bstack" style="height:${hh}px">${inner}</div>`;
+      h += `<div class="wp-bnum">${Math.round(d.load)}</div><div class="wp-bstack" style="height:${hh}px">${inner}</div>`;
     }
     h += `<div class="wp-blab">${esc(d.dow)}</div></div>`;
   }
@@ -1183,7 +1183,7 @@ function renderWeekPlanCard() {
   const m = wpModel('cur');
   if (!m) return '';
   let h = `<div class="card"><h2>이번주 계획</h2>`;
-  h += `<div class="muted" style="margin:-4px 0 8px;font-size:12.5px">하루 분량 (문항 수)</div>`;
+  h += `<div class="muted" style="margin:-4px 0 8px;font-size:12.5px">하루 분량 (부하 점수 P)</div>`;
   h += `<div class="wp">${wpBarsHtml(m)}</div>`;
   h += `<div class="row" style="margin-top:10px"><button class="act primary" id="wpopen">📅 이번주 계획 크게 보기</button><button class="act" id="blopen">📌 원본 계획</button></div>`;
   h += `</div>`;
@@ -1257,7 +1257,7 @@ function renderWeekPlanModal() {
     h += `<div class="wp-sub">표를 찾지 못했습니다.</div></div></div>`;
     return h;
   }
-  h += `<div class="wp-load"><h3>하루 분량 (문항 수)</h3>${wpBarsHtml(m)}</div>`;
+  h += `<div class="wp-load"><h3>하루 분량 (부하 점수 P)</h3>${wpBarsHtml(m)}</div>`;
   h += `<div class="wp-grid">`;
   for (const d of m.days) {
     const tag = d.state === 'today' ? '<span class="wp-tag t">오늘</span>' : d.state === 'done' ? '<span class="wp-tag">완료</span>' : d.state === 'buffer' ? '<span class="wp-tag">Buffer</span>' : '';
@@ -1266,7 +1266,7 @@ function renderWeekPlanModal() {
     if ((editing || d.state !== 'done') && d.total) {
       const st = STATE.settings || { load_warn: 80, load_high: 100 };
       const lv = d.load > st.load_high ? ' high' : d.load > st.load_warn ? ' warn' : '';
-      h += `<div class="wp-total${lv}">하루 총 <b>${d.total}</b>문항 · <b>${d.load}P</b></div>`;
+      h += `<div class="wp-total${lv}">하루 총 <b>${d.load}P</b> · <b>${d.total}</b>문항</div>`;
     }
     if (editing) {
       // 수정 모드: 과목마다 칸(.wkcell)을 열어 칩 토글/삭제/드래그 이동/추가를 쓴다(예전 주간 계획 편집 표와 같은 방식).
