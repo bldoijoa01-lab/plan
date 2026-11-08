@@ -113,6 +113,13 @@ h2 { font-family: 'Jua', sans-serif; font-size: 14px; margin: 0 0 12px; letter-s
 .chip:active { transform: scale(.97); }
 .chip.on { background: var(--accent-strong); color: var(--on-accent); }
 .chip.lateItem { background: var(--accent-tint); color: var(--accent-ink); }
+.dlbox { margin-top: 12px; font-size: 13px; }
+.dlbox summary { cursor: pointer; font-weight: 700; color: var(--ink-soft); }
+.dlrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 8px 0; }
+.dlname { font-weight: 700; min-width: 5.5em; }
+.dlhours { width: 4.6em; font: inherit; padding: 6px 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--ink); }
+.dlchip { border-radius: 14px; padding: 6px 11px; font-weight: 600; cursor: pointer; user-select: none; background: var(--divider); color: var(--ink-soft); }
+.dlchip.on { background: var(--accent-strong); color: var(--on-accent); }
 .ydpanel { margin-top: 14px; padding: 14px; border: 1.5px dashed var(--accent-bd); border-radius: 14px; background: var(--accent-tint); }
 .ydpanel .ydhint { font-size: 13px; color: var(--ink-soft); margin-bottom: 10px; }
 .ydrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 8px 0; }
@@ -269,6 +276,9 @@ pre.paste { background: var(--divider); border: none; border-radius: 12px; paddi
 .wp-tag.t { background: var(--wp-today); color: #3a2a00; }
 .wp-total { font-size: 13px; color: var(--wp-mute); margin: -4px 0 10px; }
 .wp-total b { color: var(--wp-ink); }
+.wp-total.warn, .wp-total.high { display: inline-block; padding: 3px 9px; border-radius: 8px; color: var(--wp-ink); }
+.wp-total.warn { background: color-mix(in srgb, #f4b942 28%, transparent); }
+.wp-total.high { background: color-mix(in srgb, #e0623a 42%, transparent); }
 .wp-sec { border-left: 4px solid; border-radius: 6px; padding: 8px 10px; margin-top: 8px; }
 .wp-sec.kor { border-color: var(--wp-kor); background: var(--wp-kor-bg); }
 .wp-sec.mat { border-color: var(--wp-mat); background: var(--wp-mat-bg); }
@@ -1124,12 +1134,14 @@ function wpModel(which, wk) {
   const days = src.days.map((d, i) => {
     const entries = (src.plan && src.plan[i]) || [];
     const bySubj = {};
-    let total = 0;
+    let total = 0, load = 0;
     for (const en of entries) {
       const n = en.items.length;
       total += n;
-      const g = bySubj[en.subj] || (bySubj[en.subj] = { n: 0, rows: [] });
-      g.n += n;
+      const pts = n * ((BY_NAME[en.series] && BY_NAME[en.series].load != null) ? BY_NAME[en.series].load : 1);
+      load += pts;
+      const g = bySubj[en.subj] || (bySubj[en.subj] = { n: 0, load: 0, rows: [] });
+      g.n += n; g.load += pts;
       let label;
       try { label = joinItems(en.series, en.items); } catch (e) { label = en.series + ' ' + en.items.join(', '); }
       g.rows.push({ label, n, done: !!en.done, late: !!en.late });
@@ -1140,7 +1152,7 @@ function wpModel(which, wk) {
     if (i === todayIdx) state = 'today';
     else if (todayIdx >= 0 && i < todayIdx && allDone) state = 'done';
     else if (d.buffer) state = 'buffer';
-    return { idx: i, dow: m ? WP_DOW[m[1]] : '', date: d.month ? `${d.month}/${d.day}` : '', state, past: todayIdx >= 0 && i < todayIdx, total, bySubj, empty: !entries.length };
+    return { idx: i, dow: m ? WP_DOW[m[1]] : '', date: d.month ? `${d.month}/${d.day}` : '', state, past: todayIdx >= 0 && i < todayIdx, total, load: Math.round(load * 100) / 100, bySubj, empty: !entries.length };
   });
   return { days, todayIdx };
 }
@@ -1251,18 +1263,22 @@ function renderWeekPlanModal() {
     const tag = d.state === 'today' ? '<span class="wp-tag t">오늘</span>' : d.state === 'done' ? '<span class="wp-tag">완료</span>' : d.state === 'buffer' ? '<span class="wp-tag">Buffer</span>' : '';
     h += `<div class="wp-day${d.state === 'today' ? ' today' : ''}${d.state === 'done' && !editing ? ' past' : ''}">`;
     h += `<div class="wp-dh"><div class="wp-d">${esc(d.dow)}<small>${esc(d.date)}</small></div>${tag}</div>`;
-    if ((editing || d.state !== 'done') && d.total) h += `<div class="wp-total">하루 총 <b>${d.total}</b>문항</div>`;
+    if ((editing || d.state !== 'done') && d.total) {
+      const st = STATE.settings || { load_warn: 80, load_high: 100 };
+      const lv = d.load > st.load_high ? ' high' : d.load > st.load_warn ? ' warn' : '';
+      h += `<div class="wp-total${lv}">하루 총 <b>${d.total}</b>문항 · <b>${d.load}P</b></div>`;
+    }
     if (editing) {
       // 수정 모드: 과목마다 칸(.wkcell)을 열어 칩 토글/삭제/드래그 이동/추가를 쓴다(예전 주간 계획 편집 표와 같은 방식).
       for (const subj of SUBJ_ORDER) {
         const g = d.bySubj[subj];
-        h += `<div class="wp-sec ${WP_CLS[subj]} wkcell" data-day="${d.idx}" data-subj="${esc(subj)}"><div class="wp-sh"><span>${esc(subj)}</span><span>${g ? g.n : 0}문항</span></div>${renderWkEditCell((wk.byDay[d.idx] && wk.byDay[d.idx][subj]) || [], d.idx, subj)}</div>`;
+        h += `<div class="wp-sec ${WP_CLS[subj]} wkcell" data-day="${d.idx}" data-subj="${esc(subj)}"><div class="wp-sh"><span>${esc(subj)}</span><span>${g ? g.n : 0}문항 · ${g ? Math.round(g.load * 100) / 100 : 0}P</span></div>${renderWkEditCell((wk.byDay[d.idx] && wk.byDay[d.idx][subj]) || [], d.idx, subj)}</div>`;
       }
     } else {
       for (const subj of SUBJ_ORDER) {
         const g = d.bySubj[subj];
         if (!g) continue;
-        h += `<div class="wp-sec ${WP_CLS[subj]}"><div class="wp-sh"><span>${esc(subj)}</span><span>${g.n}문항</span></div>`;
+        h += `<div class="wp-sec ${WP_CLS[subj]}"><div class="wp-sh"><span>${esc(subj)}</span><span>${g.n}문항 · ${Math.round(g.load * 100) / 100}P</span></div>`;
         for (const r of g.rows) {
           h += `<div class="wp-it${r.done ? ' done' : ''}"><span>${esc(r.label)}${r.late && !r.done ? '<span class="wp-carry">↩ 어제 밀린 것</span>' : ''}</span><span class="wp-n">${r.n}</span></div>`;
         }
@@ -2223,6 +2239,7 @@ h += `</div></div>`;
 h += `<div class="row" style="margin-top:14px"><button class="act primary" id="save">완료 저장</button>${lateCnt ? `<button class="act" id="yesterdaydone">😴 ${YD_OPEN ? '닫기' : '어제 체크 못 했어요'}</button>` : ''}<button class="act" id="mkpaste">텍스트로 보기</button></div>`;
 if (YD_OPEN && lateCnt) h += ydPanelHtml();
 h += `<div class="muted" style="margin-top:8px" id="savemsg">칩을 눌러 완료 표시 → 저장하면 시트에 바로 반영돼요</div>`;
+h += dailyLogHtml();
 if (todayDoneList.length) {
 h += `<div class="muted" style="margin-top:14px;font-size:12px">오늘 완료한 항목 (눌러서 취소)</div>`;
 h += `<div class="chips" style="margin-top:6px">`;
@@ -2466,6 +2483,10 @@ document.getElementById('save').onclick = saveDone;
 const ydBtn = document.getElementById('yesterdaydone'); if (ydBtn) ydBtn.onclick = () => { YD_OPEN = !YD_OPEN; YD_NOT.clear(); render(); };
 document.querySelectorAll('.ydchip').forEach(el => { el.onclick = () => { const id = el.dataset.id; if (YD_NOT.has(id)) YD_NOT.delete(id); else YD_NOT.add(id); render(); }; });
 const ydGo = document.getElementById('ydsave'); if (ydGo) ydGo.onclick = saveYesterdayDone;
+document.querySelectorAll('.dlrow').forEach(row => {
+  row.querySelectorAll('.dlchip').forEach(ch => { ch.onclick = () => { const was = ch.classList.contains('on'); row.querySelectorAll('.dlchip').forEach(x => x.classList.remove('on')); if (!was) ch.classList.add('on'); }; });
+  row.querySelector('.dlsave').onclick = () => saveDailyLogRow(row);
+});
 
   const wpopen = document.getElementById('wpopen');
   if (wpopen) wpopen.onclick = () => { WEEKPLAN_OPEN = true; render(); };
@@ -2651,6 +2672,39 @@ const ydGo = document.getElementById('ydsave'); if (ydGo) ydGo.onclick = saveYes
   if (chatlog) chatlog.scrollTop = chatlog.scrollHeight;
 }
 
+/** 하루 기록(공부시간 + 체감) — 어제/오늘 칸. 선택 입력이라 안 해도 아무것도 막히지 않는다. 부하점수(P) 보정용으로 상담 AI가 읽는다. */
+const DL_INT = [['light', '가벼움'], ['normal', '보통'], ['hard', '빡셈']];
+function dailyLogHtml() {
+  const logs = STATE && STATE.dailyLogs;
+  if (!logs) return '';
+  const keys = Object.keys(logs).sort().reverse().slice(0, 2); // 오늘, 어제
+  if (!keys.length) return '';
+  let s = `<details class="dlbox"><summary>⏱ 공부시간·체감 기록 <span class="muted">(선택)</span></summary>`;
+  keys.forEach((k, i) => {
+    const v = logs[k] || {};
+    const [, mm, dd] = k.split('-');
+    s += `<div class="dlrow" data-date="${esc(k)}"><span class="dlname">${i === 0 ? '오늘' : '어제'} (${+mm}/${+dd})</span>`
+      + `<input type="number" class="dlhours" min="0" max="24" step="0.5" inputmode="decimal" placeholder="시간" value="${v.study_hours == null ? '' : v.study_hours}"><span class="muted">시간</span>`
+      + DL_INT.map(([val, lab]) => `<span class="dlchip${v.intensity === val ? ' on' : ''}" data-v="${val}">${lab}</span>`).join('')
+      + `<button class="act dlsave">저장</button><span class="muted dlmsg"></span></div>`;
+  });
+  return s + `<div class="muted" style="font-size:11.5px;margin-top:4px">0.5시간 단위 · 체감은 다시 누르면 해제돼요</div></details>`;
+}
+async function saveDailyLogRow(row) {
+  const date = row.dataset.date, msg = row.querySelector('.dlmsg'), btn = row.querySelector('.dlsave');
+  const hv = row.querySelector('.dlhours').value.trim();
+  const on = row.querySelector('.dlchip.on');
+  const hours = hv === '' ? null : Number(hv);
+  if (hours === null && !on) { msg.textContent = '시간이나 체감 중 하나는 적어 주세요'; return; }
+  if (hours !== null && (isNaN(hours) || hours < 0 || hours > 24 || Math.round(hours * 2) !== hours * 2)) { msg.textContent = '0.5시간 단위로 적어 주세요'; return; }
+  btn.disabled = true; msg.textContent = '저장 중…';
+  try {
+    const rec = await gsrun('saveDailyLog', date, hours, on ? on.dataset.v : null);
+    if (STATE.dailyLogs) STATE.dailyLogs[date] = { date, study_hours: rec.study_hours, intensity: rec.intensity, note: rec.note };
+    msg.innerHTML = `<b style="color:var(--mint-ink)">저장됨</b>`;
+  } catch (e) { msg.innerHTML = `<b style="color:var(--bad)">${esc(e.message || e)}</b>`; }
+  btn.disabled = false;
+}
 let YD_OPEN = false;
 const YD_NOT = new Set();
 const YD_MAXCHIPS = 8;
@@ -2815,14 +2869,14 @@ function applyDashboard(b, cacheInfo) {
   for (const s of seriesList) {
     if (s.custom && !BY_NAME[s.name]) { SERIES.push(s); BY_NAME[s.name] = s; }
     // 기본 제공 교재도 "문제집형" 여부/총 분량은 시트(교재설정)에서 바꿀 수 있으니 매번 동기화.
-    else if (BY_NAME[s.name]) { BY_NAME[s.name].partial = s.partial; BY_NAME[s.name].total = s.total; if (s.codes) BY_NAME[s.name].codes = s.codes; }
+    else if (BY_NAME[s.name]) { BY_NAME[s.name].partial = s.partial; BY_NAME[s.name].total = s.total; BY_NAME[s.name].kind = s.kind; BY_NAME[s.name].subj = s.subj; BY_NAME[s.name].load = s.load; if (s.codes) BY_NAME[s.name].codes = s.codes; }
   }
   const today = appToday();
   const todayIdx = week.todayIdx;
   let res = replan(week, todayIdx >= 0 ? todayIdx : 0, week.dowWeights);
   const weekBaseline = b.baseline || null;
   if (weekBaseline) res = applyBaselineProgress(res, week, weekBaseline);
-  STATE = { week, todayIdx, today, res, monthTargets: week.monthTargets || [], doneMax: week.doneMax || {}, doneSet: week.doneSet || {}, roadmap, nextWeek, gaps, roadmapMismatch, weekBaseline, weekEvents: WEEK_EVENTS, cache: cacheInfo || null };
+  STATE = { week, todayIdx, today, res, monthTargets: week.monthTargets || [], doneMax: week.doneMax || {}, doneSet: week.doneSet || {}, roadmap, nextWeek, gaps, roadmapMismatch, weekBaseline, weekEvents: WEEK_EVENTS, cache: cacheInfo || null, settings: b.settings || { load_warn: 80, load_high: 100 }, dailyLogs: b.dailyLogs || null };
 }
 /** 서버에서 새로 받은 묶음 적용 + 이 기기에 저장. idle이면 입력 중일 때 화면을 바로 갈아엎지 않는다. */
 function applyFresh(b, idle) {
