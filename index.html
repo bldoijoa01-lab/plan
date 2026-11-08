@@ -1302,11 +1302,9 @@ function renderRoadmapCard(roadmap) {
   if (!roadmap || !roadmap.rows.length) {
     return `<div class="card"><h2>학습 로드맵</h2><div class="muted">로드맵 표(K~P열)를 찾지 못했습니다.</div></div>`;
   }
-  const behindCount = roadmap.rows.reduce((a, r) => a + r.cells.filter(c => c.status === 'behind').length, 0);
   let h = `<div class="card"><h2>학습 로드맵</h2>`;
   h += `<div class="statrow">`;
   h += `<div class="stat"><div class="stat-num">${roadmap.rows.length}</div><div class="stat-lbl">전체 구간</div></div>`;
-  h += `<div class="stat"><div class="stat-num${behindCount ? ' warn' : ' zero'}">${behindCount}</div><div class="stat-lbl">밀린 구간</div></div>`;
   h += `</div>`;
   h += `<button class="act primary" id="rmopen" style="margin-top:4px">🗺️ 로드맵 크게 보기</button>`;
   h += `</div>`;
@@ -2366,8 +2364,6 @@ h += '<!--CARD:roadmap-->' + renderRoadmapCard(STATE.roadmap);
 h += '<!--CARD:saengibu-->' + renderSaengibuCard();
 h += '<!--CARD:series-->' + renderSeriesCard();
 h += '<!--CARD:nextweek-->' + renderNextWeekCTA(nextWeek);
-h += '<!--CARD:gapwarn-->' + renderGapWarning(STATE.gaps);
-h += '<!--CARD:roadmapmismatch-->' + renderRoadmapMismatch(STATE.roadmapMismatch, nextWeekItemCount(nextWeek) < 10);
 
 h = reorderCardsHtml(h, getCardOrder(), LAYOUT_EDIT);
 
