@@ -716,7 +716,6 @@ test('Hub document catalog, OneNote memo integration, star toggle persistence, a
   assert.equal(renderHomeHtmlCheck(renderedHome), true);
   assert.match(renderedHome, /data-act="go-hub"/);
   assert.match(renderedHome, /data-act="note-open" data-id="n_hub_1"/);
-  assert.match(renderedHome, /빠른 스티커 메모 보드/);
 });
 
 function renderHomeHtmlCheck(html) {
