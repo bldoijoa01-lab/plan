@@ -1466,7 +1466,7 @@ export function renderAll(state) {
             return `
               <div class="cc ${ds === REAL ? 'td' : ''} ${
                 selB.size && !it.length ? 'dim' : ''
-              }" data-act="goto" data-d="${ds}" data-v2="today">
+              }" data-act="calpop" data-d="${ds}">
                 <div class="dn">
                   <span>${day}</span>
                   <span style="color:var(--mute);font-weight:400">${
@@ -1513,7 +1513,7 @@ export function renderAll(state) {
           .join('')}
       </div>
       <div class="note" style="margin-top:8px">
-        칸을 누르면 그날 목록으로 가요. 위 막대는 부하(P), 숫자는 하루 총 P예요. 교재를 고르면 그 교재만 보여요.
+        칸을 누르면 그날의 상세 일정을 팝업으로 볼 수 있어요. 위 막대는 부하(P), 숫자는 하루 총 P예요. 교재를 고르면 그 교재만 보여요.
       </div>
     </div>
   `;
@@ -1934,6 +1934,179 @@ export function renderBookModal(state) {
                 </div>`
               : ''
           }
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+export function renderCalDayModal(state) {
+  const { calModalDate, plans, cfg, logs, selB, REAL } = state;
+  if (!calModalDate) return '';
+
+  const ds = calModalDate;
+  const ym = ds.slice(0, 7);
+  const all = liveItems(plans[ds]);
+  const filteredItems = selB && selB.size ? all.filter((x) => selB.has(x.b)) : all;
+  const totalP = sumP(all, cfg);
+  const doneP = sumP(all, cfg, (x) => x.done);
+  const doneCount = all.filter((x) => x.done).length;
+  const cap = capOf(ds, plans, cfg);
+  const loadRatio = Math.min(100, (totalP / Math.max(cap, 1)) * 100);
+  const loadCls =
+    totalP > 100 ? 'var(--bad)' : totalP > cap ? 'var(--warn)' : 'var(--ok)';
+
+  const gcalEvents =
+    groupGcalByDate((state.gcalByMonth || {})[ym] || [], [ds])[ds] || [];
+  const dayLog = (logs && logs[ds]) || null;
+
+  return `
+    <div class="modal-backdrop" data-act="calpopbg">
+      <div class="modal-card cal-day-modal" role="dialog" aria-modal="true" aria-label="${esc(
+        lab(ds)
+      )} 상세 일정">
+        <div class="row wrap-row">
+          <b class="modal-title">${esc(lab(ds))}</b>
+          ${ds === REAL ? '<span class="tag">오늘</span>' : ''}
+          <span class="sp"></span>
+          <button type="button" class="btn p sm" data-act="calpop-goto" data-d="${esc(
+            ds
+          )}">더보기 · 일간계획 →</button>
+          <button type="button" class="btn sm" data-act="calpopclose">닫기</button>
+        </div>
+
+        <div class="modal-stats">
+          <div class="stat-pill">
+            <span>완료 / 공부 계획</span>
+            <b>${doneCount} / ${all.length}개</b>
+          </div>
+          <div class="stat-pill">
+            <span>일일 부하</span>
+            <b>${Math.round(totalP)}P / ${Math.round(cap)}P</b>
+          </div>
+          <div class="stat-pill">
+            <span>구글 일정</span>
+            <b>${gcalEvents.length}개</b>
+          </div>
+        </div>
+
+        <div class="pg" style="grid-template-columns:1fr auto;margin:8px 0">
+          <div class="t"><i style="width:${loadRatio}%;background:${loadCls}"></i></div>
+          <em>완료 ${fmt(doneP)}P / 전체 ${fmt(totalP)}P</em>
+        </div>
+
+        <div class="modal-list">
+          ${
+            gcalEvents.length
+              ? `
+                <div class="calpop-sec">
+                  <div class="calpop-sec-h">📅 Google 캘린더 일정 (${gcalEvents.length})</div>
+                  ${gcalEvents
+                    .map(
+                      (ev) => `
+                        <div class="modal-row calpop-gev">
+                          <div class="row wrap-row">
+                            <span class="subj-dot" style="background:${ev.color}"></span>
+                            <span class="mono date-col">${esc(
+                              ev.allDay ? '종일' : ev.time || '일정'
+                            )}</span>
+                            <span class="range-col">${esc(ev.title)}</span>
+                            ${
+                              ev.calName
+                                ? `<span class="bdg">${esc(ev.calName)}</span>`
+                                : ''
+                            }
+                            ${
+                              ev.link
+                                ? `<a class="btn sm" href="${esc(
+                                    ev.link
+                                  )}" target="_blank" rel="noopener">열기</a>`
+                                : ''
+                            }
+                          </div>
+                          ${
+                            ev.location
+                              ? `<div class="note" style="margin-top:4px">📍 ${esc(
+                                  ev.location
+                                )}</div>`
+                              : ''
+                          }
+                        </div>
+                      `
+                    )
+                    .join('')}
+                </div>
+              `
+              : ''
+          }
+
+          <div class="calpop-sec">
+            <div class="calpop-sec-h">📚 공부 계획 (${filteredItems.length}${
+              selB && selB.size && filteredItems.length !== all.length
+                ? ` / 전체 ${all.length}`
+                : ''
+            })</div>
+            ${
+              filteredItems.length
+                ? filteredItems
+                    .map((item) => {
+                      const cVar = SC[item.s] ? SC[item.s][0] : '--acc';
+                      const bName = BNAME[item.b] || item.b || '';
+                      const unit = (BOOKS[item.b] && BOOKS[item.b].u) || '';
+                      const p = sumP([item], cfg);
+                      const overdue = !item.done && ds < REAL;
+                      return `
+                        <div class="modal-row">
+                          <div class="row wrap-row">
+                            <span class="subj-dot" style="background:var(${cVar})"></span>
+                            <span class="bdg">${esc(item.s || '일반')}</span>
+                            <span class="range-col ${item.done ? 'done-tx' : ''}">
+                              ${bName ? `<b>${esc(bName)}</b> · ` : ''}${esc(item.t || '')}
+                            </span>
+                            <span class="p mono">${item.n ? `${item.n}${esc(unit)} · ` : ''}${fmt(
+                              p
+                            )}P</span>
+                            ${
+                              item.done
+                                ? '<span class="tag">✓ 완료</span>'
+                                : overdue
+                                  ? '<span class="tag b">밀림</span>'
+                                  : '<span class="bdg">예정</span>'
+                            }
+                          </div>
+                        </div>
+                      `;
+                    })
+                    .join('')
+                : '<div class="note" style="padding:10px 0">이날 등록된 공부 계획이 없어요.</div>'
+            }
+          </div>
+
+          ${
+            dayLog && (dayLog.hours || dayLog.feel || dayLog.note)
+              ? `
+                <div class="calpop-sec">
+                  <div class="calpop-sec-h">📝 일일 기록</div>
+                  <div class="modal-row">
+                    <div class="note">
+                      ${dayLog.hours ? `공부 시간 ${dayLog.hours}h` : ''}
+                      ${dayLog.feel ? ` · 컨디션 ${dayLog.feel}` : ''}
+                      ${dayLog.note ? `<div style="margin-top:4px">${esc(dayLog.note)}</div>` : ''}
+                    </div>
+                  </div>
+                </div>
+              `
+              : ''
+          }
+        </div>
+
+        <div class="row wrap-row" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+          <span class="note">세부 체크·편집·추가는 일간계획에서 할 수 있어요.</span>
+          <span class="sp"></span>
+          <button type="button" class="btn sm" data-act="calpopclose">닫기</button>
+          <button type="button" class="btn p sm" data-act="calpop-goto" data-d="${esc(
+            ds
+          )}">더보기 (일간계획) →</button>
         </div>
       </div>
     </div>

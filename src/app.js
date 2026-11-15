@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-12';
+} from './core/date.js?v=20261115-13';
 import {
   BNAME,
   BOOKS,
@@ -16,29 +16,29 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-12';
+} from './core/units.js?v=20261115-13';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
-} from './core/carry.js?v=20261115-12';
+} from './core/carry.js?v=20261115-13';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-12';
+} from './core/matrix.js?v=20261115-13';
 import {
   DEFAULT_ONENOTE_CLIENT_ID,
   defaultOneNoteConfig,
   normalizeNotesState,
   normalizeStickyColor,
-} from './core/onenote.js?v=20261115-12';
+} from './core/onenote.js?v=20261115-13';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261115-12';
-import { esc } from './core/html.js?v=20261115-12';
+} from './core/hub.js?v=20261115-13';
+import { esc } from './core/html.js?v=20261115-13';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -48,7 +48,7 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-12';
+} from './services/store.js?v=20261115-13';
 import {
   clearOneNoteAuth,
   completeOneNoteAuthRedirectIfPresent,
@@ -63,25 +63,26 @@ import {
   startOneNotePkceLogin,
   syncNotesBidirectional,
   verifyDirectToken,
-} from './services/onenote.js?v=20261115-12';
+} from './services/onenote.js?v=20261115-13';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261115-12';
+} from './services/gcal.js?v=20261115-13';
 import {
   renderAll,
   renderBookModal,
   renderBooksView,
+  renderCalDayModal,
   renderHome,
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-12';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-12';
-import { renderMatrix } from './views/matrix.js?v=20261115-12';
-import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-12';
+} from './views/schedule.js?v=20261115-13';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-13';
+import { renderMatrix } from './views/matrix.js?v=20261115-13';
+import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-13';
 
 const $ = (s) => document.querySelector(s);
 
@@ -287,6 +288,7 @@ const state = {
   selB: new Set(),
   bookModalId: null,
   bookModalFilter: 'all',
+  calModalDate: null,
 
   // Hub transient UI state
   hubAdding: false,
@@ -560,13 +562,21 @@ function syncNav() {
 function syncBookModal() {
   const modalSlot = $('#modal-root');
   if (!modalSlot) return;
-  if (!state.bookModalId) {
+  if (!state.bookModalId && !state.calModalDate) {
     const existing = modalSlot.querySelector('.modal-backdrop');
     if (existing && existing.classList.contains('out')) return;
     modalSlot.innerHTML = '';
     delete modalSlot.dataset.bookId;
+    delete modalSlot.dataset.calDate;
     return;
   }
+  if (!state.bookModalId && state.calModalDate) {
+    delete modalSlot.dataset.bookId;
+    modalSlot.innerHTML = renderCalDayModal(state);
+    modalSlot.dataset.calDate = String(state.calModalDate);
+    return;
+  }
+  delete modalSlot.dataset.calDate;
   const html = renderBookModal(state);
   const tpl = document.createElement('template');
   tpl.innerHTML = html;
@@ -615,6 +625,32 @@ function closeBookModal() {
     if (!state.bookModalId && modalSlot) {
       modalSlot.innerHTML = '';
       delete modalSlot.dataset.bookId;
+    }
+  };
+  backdrop.addEventListener('transitionend', finish, { once: true });
+  setTimeout(finish, 240);
+}
+
+function closeCalModal() {
+  const modalSlot = $('#modal-root');
+  const backdrop = modalSlot && modalSlot.querySelector('.modal-backdrop');
+  state.calModalDate = null;
+  if (!backdrop || reduceMotion()) {
+    if (modalSlot) {
+      modalSlot.innerHTML = '';
+      delete modalSlot.dataset.calDate;
+    }
+    return;
+  }
+  if (backdrop.classList.contains('out')) return;
+  backdrop.classList.add('out');
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    if (!state.calModalDate && !state.bookModalId && modalSlot) {
+      modalSlot.innerHTML = '';
+      delete modalSlot.dataset.calDate;
     }
   };
   backdrop.addEventListener('transitionend', finish, { once: true });
@@ -1063,6 +1099,7 @@ function handleClick(e) {
     const motion =
       nextView !== prevView ? tabDirection(prevView, nextView) : 'soft';
     closeBookModal();
+    closeCalModal();
     render({ motion });
     return;
   }
@@ -1082,6 +1119,7 @@ function handleClick(e) {
     const motion =
       nextView !== prevView ? tabDirection(prevView, nextView) : '';
     closeBookModal();
+    closeCalModal();
     render({ motion });
     return;
   }
@@ -1141,6 +1179,38 @@ function handleClick(e) {
   if (a === 'bookpopfilter') {
     state.bookModalFilter = t.dataset.f || 'all';
     syncBookModal();
+    return;
+  }
+
+  if (a === 'calpop') {
+    if (!d) return;
+    state.bookModalId = null;
+    state.calModalDate = d;
+    syncBookModal();
+    return;
+  }
+
+  if (a === 'calpopbg' && e.target !== t) return;
+  if (a === 'calpopbg' || a === 'calpopclose') {
+    closeCalModal();
+    return;
+  }
+
+  if (a === 'calpop-goto') {
+    if (!d) return;
+    const prevView = state.view;
+    state.calModalDate = null;
+    const modalSlot = $('#modal-root');
+    if (modalSlot) {
+      modalSlot.innerHTML = '';
+      delete modalSlot.dataset.calDate;
+    }
+    state.cur = d;
+    state.view = 'today';
+    state.sec = DEFAULT_VIEW_SECTION.today;
+    state.lastSub[state.sec] = 'today';
+    state.moving = null;
+    render({ motion: tabDirection(prevView, 'today') });
     return;
   }
 
@@ -2480,6 +2550,10 @@ function handleInput(e) {
 function handleKeydown(e) {
   if (e.key === 'Escape' && state.bookModalId) {
     closeBookModal();
+    return;
+  }
+  if (e.key === 'Escape' && state.calModalDate) {
+    closeCalModal();
     return;
   }
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {

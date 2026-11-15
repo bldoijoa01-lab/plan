@@ -3310,3 +3310,17 @@ nav button:active,
   border-left: 3px solid var(--gc, #4285f4);
   font-size: 13px;
 }
+.cal-day-modal {
+  max-width: 620px;
+}
+.calpop-sec + .calpop-sec {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.calpop-sec-h {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--mute);
+  margin-bottom: 6px;
+}
