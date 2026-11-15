@@ -9,6 +9,7 @@ import {
 import { DEFAULT_MATRIX_RULES, normalizeMatrixState } from '../core/matrix.js';
 import { defaultOneNoteConfig, normalizeNotesState } from '../core/onenote.js';
 import { normalizeHubState } from '../core/hub.js';
+import { defaultGcalConfig } from '../core/gcal.js';
 
 export const WORKER_URL = 'https://study-plan.bldoijoa01.workers.dev';
 export const TOKEN_KEY = 'uiToken_v1';
@@ -102,6 +103,7 @@ export function defaultConfig() {
     calendarMode: 'WEEK',
     matrixRules: CL(DEFAULT_MATRIX_RULES),
     onenote: defaultOneNoteConfig(),
+    gcal: defaultGcalConfig(),
   };
 }
 
@@ -122,6 +124,10 @@ export function mergeConfig(raw) {
     onenote: {
       ...base.onenote,
       ...((raw && raw.onenote) || {}),
+    },
+    gcal: {
+      ...base.gcal,
+      ...((raw && raw.gcal) || {}),
     },
   };
 }

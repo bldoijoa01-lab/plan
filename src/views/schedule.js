@@ -43,6 +43,8 @@ import { buildMatrixBoard, resolveMatrixRules } from '../core/matrix.js';
 import { defaultOneNoteConfig, normalizeNotesState } from '../core/onenote.js';
 import { KIND_MAP, normalizeHubState } from '../core/hub.js';
 import { getOneNoteAuth } from '../services/onenote.js';
+import { groupGcalByDate } from '../core/gcal.js';
+import { isGcalConnected } from '../services/gcal.js';
 import { renderHomeStickyWidget, renderTodayNoteWidget } from './notes.js';
 
 const WARN_P = 80;
@@ -915,7 +917,21 @@ export function renderToday(state) {
     </div>
   `;
 
-  return `<div class="today-layout"><div class="today-main">${mainCol}</div><div class="today-side">${summarySideCard}${addSideCard}${logSideCard}${renderTodayNoteWidget(
+  const gcalToday = ((state.gcalByMonth || {})[cur.slice(0, 7)] || []).filter(
+    (e) => e.startDate <= cur && cur <= e.endDate
+  );
+  const gcalSideCard = gcalToday.length
+    ? `<div class="card"><b class="card-title-sm">📅 구글 캘린더 일정</b>${gcalToday
+        .sort((a, b) => (b.allDay ? 1 : 0) - (a.allDay ? 1 : 0) || String(a.time).localeCompare(String(b.time)))
+        .map(
+          (e) => `<div class="gev-row" style="--gc:${e.color}"><span class="mono note">${
+            e.allDay ? '종일' : esc(e.time)
+          }</span> <span>${esc(e.title)}</span></div>`
+        )
+        .join('')}</div>`
+    : '';
+
+  return `<div class="today-layout"><div class="today-main">${mainCol}</div><div class="today-side">${summarySideCard}${gcalSideCard}${addSideCard}${logSideCard}${renderTodayNoteWidget(
     state
   )}</div></div>`;
 }
@@ -1360,9 +1376,65 @@ function logsHistoryHtml(plans, cfg, logs, showEmpty = false) {
   `;
 }
 
+function gcalBarHtml(state) {
+  const g = (state.cfg && state.cfg.gcal) || {};
+  const connected = isGcalConnected();
+  const n = ((state.gcalByMonth || {})[state.calM] || []).length;
+  if (!g.clientId) {
+    return `
+      <div class="gcal-bar">
+        <b>📅 구글 캘린더 일정 통합</b>
+        <span class="note">Google Cloud에서 만든 OAuth 클라이언트 ID를 한 번만 등록하면 월간 캘린더에 구글 일정이 표시돼요.</span>
+        <button type="button" class="btn sm pri" data-act="gcal-setup-tog">${state.gcalSetupOpen ? '설정 닫기' : '설정하기'}</button>
+      </div>
+      ${state.gcalSetupOpen ? gcalSetupHtml(state) : ''}`;
+  }
+  return `
+    <div class="gcal-bar">
+      <b>📅 구글 캘린더</b>
+      <span class="note">${
+        state.gcalLoading
+          ? '불러오는 중...'
+          : state.gcalMsg
+            ? esc(state.gcalMsg)
+            : connected
+              ? `이 달 일정 ${n}개 표시 중`
+              : '연결이 필요해요'
+      }</span>
+      <span class="sp"></span>
+      ${
+        connected
+          ? '<button type="button" class="btn sm" data-act="gcal-refresh">🔄 새로고침</button>'
+          : '<button type="button" class="btn sm pri" data-act="gcal-connect">🔗 Google 캘린더 연결</button>'
+      }
+      <button type="button" class="btn sm" data-act="gcal-setup-tog">⚙️</button>
+    </div>
+    ${state.gcalSetupOpen ? gcalSetupHtml(state) : ''}`;
+}
+
+function gcalSetupHtml(state) {
+  const g = (state.cfg && state.cfg.gcal) || {};
+  const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
+  return `
+    <div class="gcal-setup">
+      <div class="note" style="line-height:1.6">
+        1) <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener noreferrer">Google Calendar API 사용 설정</a>
+        · 2) <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">사용자 인증 정보</a> → 만들기 → <b>OAuth 클라이언트 ID</b> → 유형 <b>웹 애플리케이션</b>
+        · 3) <b>승인된 JavaScript 원본</b>에 <code>${esc(origin || 'https://내도메인')}</code> 추가
+        · 4) OAuth 동의 화면에서 테스트 사용자에 본인 구글 계정 추가 · 5) 생성된 클라이언트 ID를 아래에 붙여넣기 (읽기 전용 권한만 사용)
+      </div>
+      <div class="row wrap-row" style="margin-top:8px">
+        <input type="text" id="gcal-client-id" placeholder="xxxxxxxx.apps.googleusercontent.com" value="${esc(g.clientId || '')}" style="flex:1;min-width:240px">
+        <button type="button" class="btn sm pri" data-act="gcal-save-id">저장 후 연결</button>
+        ${g.clientId ? '<button type="button" class="btn sm danger" data-act="gcal-disconnect">연결 해제</button>' : ''}
+      </div>
+    </div>`;
+}
+
 export function renderAll(state) {
   const { plans, cfg, logs, calM, selB, REAL } = state;
   const { year: Y, month: M, pad, dates: monthDates } = monthInfo(calM);
+  const gcalMap = groupGcalByDate((state.gcalByMonth || {})[calM] || [], monthDates);
 
   const calCard = `
     <div class="card">
@@ -1371,6 +1443,7 @@ export function renderAll(state) {
         <b>${Y}년 ${M}월</b>
         <button type="button" class="btn sm" data-act="cm" data-n="1">▶</button>
       </div>
+      ${gcalBarHtml(state)}
       ${bookChipsHtml(plans, selB)}
       <div class="cal">
         ${WD_KO.map((x) => `<div class="h">${x}</div>`).join('')}
@@ -1419,6 +1492,21 @@ export function renderAll(state) {
                     }${o.n}</span>`;
                   })
                   .join('')}
+                ${(() => {
+                  const ge = gcalMap[ds] || [];
+                  return (
+                    ge
+                      .slice(0, 3)
+                      .map(
+                        (e) =>
+                          `<span class="gev" style="--gc:${e.color}" title="${esc(
+                            (e.time ? e.time + ' ' : '') + e.title + (e.calName ? ' · ' + e.calName : '')
+                          )}">${e.time ? esc(e.time) + ' ' : ''}${esc(e.title)}</span>`
+                      )
+                      .join('') +
+                    (ge.length > 3 ? `<span class="gev-more">+${ge.length - 3}개</span>` : '')
+                  );
+                })()}
               </div>
             `;
           })

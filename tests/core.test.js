@@ -811,3 +811,28 @@ test('Sticky Notes colors, OneNote metadata color round-trip, and AADSTS700016 l
   assert.match(homeStickyHtml, /home-sticky-grid/);
   assert.match(homeStickyHtml, /mini-sticky-card sticky-blue/);
 });
+
+test('Google Calendar events: KST dates, all-day exclusive end, multi-day grouping', async () => {
+  const { gcalEventToItem, groupGcalByDate } = await import('../src/core/gcal.js');
+  const cal = { id: 'c1', summary: '학교', backgroundColor: '#16a765' };
+  const timed = gcalEventToItem({ id: 'e1', summary: '면담', start: { dateTime: '2026-11-15T14:30:00Z' }, end: { dateTime: '2026-11-15T15:30:00Z' } }, cal);
+  assert.equal(timed.startDate, '2026-11-15');
+  assert.equal(timed.time, '23:30');
+  const crossing = gcalEventToItem({ id: 'e2', summary: '야간', start: { dateTime: '2026-11-15T14:00:00Z' }, end: { dateTime: '2026-11-15T16:00:00Z' } }, cal);
+  assert.equal(crossing.startDate, '2026-11-15');
+  assert.equal(crossing.endDate, '2026-11-16');
+  const allDay = gcalEventToItem({ id: 'e3', summary: '수련회', start: { date: '2026-11-17' }, end: { date: '2026-11-20' } }, cal);
+  assert.equal(allDay.endDate, '2026-11-19');
+  assert.equal(allDay.allDay, true);
+  assert.equal(gcalEventToItem({ id: 'x', status: 'cancelled' }, cal), null);
+  const map = groupGcalByDate([timed, allDay], ['2026-11-15', '2026-11-18', '2026-11-20']);
+  assert.equal(map['2026-11-15'].length, 1);
+  assert.equal(map['2026-11-18'].length, 1);
+  assert.equal(map['2026-11-20'], undefined);
+  const html = renderAll({
+    REAL: '2026-11-15', cur: '2026-11-15', calM: '2026-11', plans: {}, cfg: { ...defaultConfig(), gcal: { clientId: 'x.apps.googleusercontent.com', hiddenCalendarIds: [] } },
+    logs: {}, selB: new Set(), gcalByMonth: { '2026-11': [timed, allDay] },
+  });
+  assert.match(html, /class="gev"/);
+  assert.match(html, /수련회/);
+});

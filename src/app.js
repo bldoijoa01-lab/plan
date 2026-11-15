@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-8';
+} from './core/date.js?v=20261115-10';
 import {
   BNAME,
   BOOKS,
@@ -16,29 +16,29 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-8';
+} from './core/units.js?v=20261115-10';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
-} from './core/carry.js?v=20261115-8';
+} from './core/carry.js?v=20261115-10';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-8';
+} from './core/matrix.js?v=20261115-10';
 import {
   DEFAULT_ONENOTE_CLIENT_ID,
   defaultOneNoteConfig,
   normalizeNotesState,
   normalizeStickyColor,
-} from './core/onenote.js?v=20261115-8';
+} from './core/onenote.js?v=20261115-10';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261115-8';
-import { esc } from './core/html.js?v=20261115-8';
+} from './core/hub.js?v=20261115-10';
+import { esc } from './core/html.js?v=20261115-10';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -48,7 +48,7 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-8';
+} from './services/store.js?v=20261115-10';
 import {
   clearOneNoteAuth,
   completeOneNoteAuthRedirectIfPresent,
@@ -63,7 +63,13 @@ import {
   startOneNotePkceLogin,
   syncNotesBidirectional,
   verifyDirectToken,
-} from './services/onenote.js?v=20261115-8';
+} from './services/onenote.js?v=20261115-10';
+import {
+  connectGcal,
+  disconnectGcal,
+  fetchGcalMonth,
+  isGcalConnected,
+} from './services/gcal.js?v=20261115-10';
 import {
   renderAll,
   renderBookModal,
@@ -72,10 +78,10 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-8';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-8';
-import { renderMatrix } from './views/matrix.js?v=20261115-8';
-import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-8';
+} from './views/schedule.js?v=20261115-10';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-10';
+import { renderMatrix } from './views/matrix.js?v=20261115-10';
+import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-10';
 
 const $ = (s) => document.querySelector(s);
 
@@ -296,6 +302,11 @@ const state = {
   matrixUndo: [],
 
   // OneNote / Notes transient UI state
+  gcalByMonth: {},
+  gcalTried: {},
+  gcalLoading: false,
+  gcalMsg: '',
+  gcalSetupOpen: false,
   notesViewMode: 'sticky',
   stickyNewColor: 'yellow',
   notesSelectedId: null,
@@ -610,6 +621,31 @@ function closeBookModal() {
   setTimeout(finish, 240);
 }
 
+async function loadGcalMonth(ym, { force = false } = {}) {
+  const g = (state.cfg && state.cfg.gcal) || {};
+  if (!g.clientId || !isGcalConnected()) return;
+  if (!force && (state.gcalByMonth[ym] || state.gcalTried[ym])) return;
+  state.gcalTried = { ...state.gcalTried, [ym]: true };
+  state.gcalLoading = true;
+  render();
+  try {
+    const res = await fetchGcalMonth(ym, g.hiddenCalendarIds || []);
+    state.gcalByMonth = { ...state.gcalByMonth, [ym]: res.items };
+    state.gcalMsg = `${res.calendars.length}개 캘린더에서 일정 ${res.items.length}개를 불러왔어요.`;
+  } catch (err) {
+    state.gcalMsg = (err && err.message) || String(err);
+  } finally {
+    state.gcalLoading = false;
+    render();
+  }
+}
+
+function saveGcalClientId(clientId) {
+  state.cfg = CL(state.cfg);
+  state.cfg.gcal = { hiddenCalendarIds: [], ...(state.cfg.gcal || {}), clientId };
+  store.saveCfg(state.cfg);
+}
+
 function render(opts = {}) {
   const realToday = todayKst();
   if (realToday !== state.REAL) {
@@ -663,6 +699,11 @@ function render(opts = {}) {
   syncBookModal();
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(refreshAllPills);
+  }
+
+  if ((state.view === 'all' || state.view === 'today') && !state.gcalLoading) {
+    const gym = state.view === 'all' ? state.calM : String(state.cur).slice(0, 7);
+    setTimeout(() => loadGcalMonth(gym), 0);
   }
 
   if (state.asking) {
@@ -1178,6 +1219,49 @@ function handleClick(e) {
     const n = Number(t.dataset.n);
     state.calM = addMonth(state.calM, n);
     render({ motion: n > 0 ? 'right' : n < 0 ? 'left' : 'soft' });
+  } else if (a === 'gcal-setup-tog') {
+    state.gcalSetupOpen = !state.gcalSetupOpen;
+    render();
+  } else if (a === 'gcal-save-id') {
+    const clientId = (($('#gcal-client-id') || {}).value || '').trim();
+    if (!clientId) {
+      state.gcalMsg = '클라이언트 ID를 입력해 주세요.';
+      render();
+      return;
+    }
+    saveGcalClientId(clientId);
+    connectGcal(clientId)
+      .then(() => {
+        state.gcalSetupOpen = false;
+        state.gcalByMonth = {};
+        state.gcalTried = {};
+        return loadGcalMonth(state.calM, { force: true });
+      })
+      .catch((err) => {
+        state.gcalMsg = (err && err.message) || String(err);
+        render();
+      });
+  } else if (a === 'gcal-connect') {
+    const g = (state.cfg && state.cfg.gcal) || {};
+    connectGcal(g.clientId)
+      .then(() => {
+        state.gcalByMonth = {};
+        return loadGcalMonth(state.calM, { force: true });
+      })
+      .catch((err) => {
+        state.gcalMsg = (err && err.message) || String(err);
+        render();
+      });
+  } else if (a === 'gcal-refresh') {
+    loadGcalMonth(state.calM, { force: true });
+  } else if (a === 'gcal-disconnect') {
+    disconnectGcal();
+    state.cfg = CL(state.cfg);
+    state.cfg.gcal = { hiddenCalendarIds: [], clientId: '' };
+    store.saveCfg(state.cfg);
+    state.gcalByMonth = {};
+    state.gcalMsg = '구글 캘린더 연결을 해제했어요.';
+    render();
   } else if (a === 'selb') {
     const b = t.dataset.b;
     if (state.selB.has(b)) state.selB.delete(b);

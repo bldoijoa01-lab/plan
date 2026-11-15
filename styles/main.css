@@ -172,8 +172,10 @@ body {
     radial-gradient(820px 540px at 86% 92%, rgba(20, 184, 166, 0.16), transparent 62%);
   background-attachment: fixed;
   color: var(--ink);
-  font: 15px/1.6 'Gowun Dodum', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+  font: 15px/1.6 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI',
     'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   padding: 16px max(clamp(16px, 6vw, 96px), env(safe-area-inset-right)) 52px
     max(clamp(16px, 6vw, 96px), env(safe-area-inset-left));
 }
@@ -304,14 +306,14 @@ body {
   line-height: 1.15;
 }
 .brand-text strong {
-  font: 700 18px 'Jua', sans-serif;
+  font: 400 18px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   letter-spacing: -0.02em;
 }
 .brand-text small {
   font-size: 10px;
   letter-spacing: 0.08em;
   color: var(--mute);
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'IBM Plex Mono', 'Pretendard Variable', 'Noto Sans KR', ui-monospace, monospace;
 }
 
 .sub {
@@ -361,7 +363,7 @@ body {
 }
 .head-dd-chip em {
   font-style: normal;
-  font-family: 'Jua', sans-serif;
+  font-family: 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   color: var(--acc);
 }
 
@@ -397,7 +399,7 @@ body {
   border: 0;
   background: transparent;
   color: var(--ink2);
-  font: 12px 'Jua', sans-serif;
+  font: 12px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   padding: 4px 10px;
   cursor: pointer;
 }
@@ -454,7 +456,7 @@ nav {
   border-radius: 11px;
   background: var(--acc-grad);
   color: #ffffff;
-  font: 400 13px 'Jua', sans-serif;
+  font: 400 13px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   box-shadow: 0 4px 12px rgba(236, 72, 153, 0.24);
   white-space: nowrap;
   flex: none;
@@ -495,7 +497,7 @@ nav button {
   color: var(--ink2);
   padding: 7px 13px;
   border-radius: 11px;
-  font-family: 'Jua', sans-serif;
+  font-family: 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.22s var(--ease), color 0.22s var(--ease),
@@ -570,7 +572,7 @@ nav[data-pill='ready'] button.on:hover {
   color: var(--mute);
 }
 .ddc b {
-  font: 400 26px/1.2 'Jua', sans-serif;
+  font: 400 26px/1.2 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   color: var(--acc);
 }
 .ddc-1 b {
@@ -634,7 +636,7 @@ nav[data-pill='ready'] button.on:hover {
   color: var(--ink2);
   padding: 7px 14px;
   border-radius: 12px;
-  font-family: 'Jua', sans-serif;
+  font-family: 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   font-size: 14px;
   cursor: pointer;
   transition: transform 0.2s var(--spring), background-color 0.24s var(--ease),
@@ -750,7 +752,7 @@ nav[data-pill='ready'] button.on:hover {
 }
 .hero-kicker {
   display: inline-block;
-  font: 600 11px 'IBM Plex Mono', ui-monospace, monospace;
+  font: 600 11px 'IBM Plex Mono', 'Pretendard Variable', 'Noto Sans KR', ui-monospace, monospace;
   letter-spacing: 0.06em;
   color: var(--acc);
   background: var(--field);
@@ -759,7 +761,7 @@ nav[data-pill='ready'] button.on:hover {
   padding: 2px 10px;
 }
 .hero-title {
-  font: 700 23px/1.25 'Jua', sans-serif;
+  font: 400 23px/1.25 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   margin: 6px 0 3px;
 }
 .hero-title b {
@@ -904,7 +906,7 @@ nav[data-pill='ready'] button.on:hover {
   border: 1px solid var(--line);
   color: var(--ink);
   text-decoration: none;
-  font: 400 13px 'Jua', sans-serif;
+  font: 400 13px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   transition: transform 0.2s var(--spring), border-color 0.22s var(--ease),
     box-shadow 0.22s var(--ease);
 }
@@ -952,10 +954,10 @@ nav[data-pill='ready'] button.on:hover {
 }
 
 .card-title {
-  font: 400 17px 'Jua', sans-serif;
+  font: 400 17px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
 }
 .card-title-md {
-  font: 400 15px 'Jua', sans-serif;
+  font: 400 15px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
 }
 .card-title-sm {
   font-size: 14px;
@@ -984,7 +986,7 @@ nav[data-pill='ready'] button.on:hover {
   justify-content: space-between;
 }
 .datebar b {
-  font: 700 18px 'Jua', sans-serif;
+  font: 400 18px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
 }
 
 .gauge {
@@ -1038,7 +1040,7 @@ nav[data-pill='ready'] button.on:hover {
   flex: none;
 }
 .subj {
-  font: 700 14px 'Jua', sans-serif;
+  font: 400 14px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   color: var(--ink2);
   letter-spacing: 0.02em;
 }
@@ -1144,7 +1146,7 @@ nav[data-pill='ready'] button.on:hover {
 .datebar b + *,
 td.r,
 .gauge + .row span:first-child {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'IBM Plex Mono', 'Pretendard Variable', 'Noto Sans KR', ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1379,14 +1381,14 @@ table.tbl th.r {
   min-width: 0;
 }
 .bcol .num {
-  font: 400 15px 'Jua', sans-serif;
+  font: 400 15px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   margin-bottom: 4px;
   min-height: 22px;
   display: flex;
   align-items: flex-end;
 }
 .bcol .num.sm {
-  font: 400 12px 'Gowun Dodum', sans-serif;
+  font: 400 12px 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
   color: var(--mute);
 }
 .wbar {
@@ -1513,7 +1515,7 @@ table.tbl th.r {
   background: var(--field);
 }
 .sum b {
-  font: 400 17px 'Jua', sans-serif;
+  font: 400 17px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
 }
 .sum.warn {
   background: var(--warn-bg);
@@ -1538,7 +1540,7 @@ table.tbl th.r {
 }
 .sech b {
   color: var(--c);
-  font: 400 14px 'Jua', sans-serif;
+  font: 400 14px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
 }
 .wrow {
   display: flex;
@@ -1576,7 +1578,7 @@ table.tbl th.r {
 }
 .big3 b {
   display: block;
-  font: 400 21px/1.2 'Jua', sans-serif;
+  font: 400 21px/1.2 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   overflow-wrap: anywhere;
 }
 .big3 span {
@@ -1843,7 +1845,7 @@ table.tbl th.r {
   transform: translate3d(0, 12px, 0) scale(0.97);
 }
 .modal-title {
-  font: 400 19px 'Jua', sans-serif;
+  font: 400 19px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
 }
 .modal-stats {
   display: grid;
@@ -1864,7 +1866,7 @@ table.tbl th.r {
   color: var(--mute);
 }
 .stat-pill b {
-  font: 400 16px/1.3 'Jua', sans-serif;
+  font: 400 16px/1.3 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
 }
 .modal-list {
   overflow-y: auto;
@@ -1975,7 +1977,7 @@ table.tbl th.r {
   font-size: 22px;
 }
 .hub-app-name {
-  font: 400 15px 'Jua', sans-serif;
+  font: 400 15px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
 }
 .hub-app-sub {
   font-size: 11.5px;
@@ -2017,7 +2019,7 @@ table.tbl th.r {
   margin-top: 12px;
 }
 .hub-group-title {
-  font: 400 13px 'Jua', sans-serif;
+  font: 400 13px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   color: var(--mute);
   margin-bottom: 6px;
 }
@@ -2109,7 +2111,7 @@ table.tbl th.r {
   flex-wrap: wrap;
 }
 .hub-sec-head b {
-  font: 400 14.5px 'Jua', sans-serif;
+  font: 400 14.5px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
 }
 .hub-search-bar {
   display: flex;
@@ -2251,7 +2253,7 @@ table.tbl th.r {
   margin-bottom: 10px;
 }
 .mx-qhead b {
-  font: 400 17px 'Jua', sans-serif;
+  font: 400 17px 'Jua', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
   margin-right: 6px;
 }
 .mx-list {
@@ -2444,7 +2446,7 @@ table.tbl th.r {
   box-shadow: 0 0 0 2px rgba(147, 51, 234, 0.16);
 }
 .note-list-title {
-  font: 700 14.5px 'Gowun Dodum', sans-serif;
+  font: 700 14.5px 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2635,7 +2637,7 @@ table.tbl th.r {
   border-bottom: 1px dashed rgba(15, 23, 42, 0.18);
   background: transparent;
   color: inherit;
-  font: 700 15.5px 'Gowun Dodum', sans-serif;
+  font: 700 15.5px 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
   padding: 4px 2px 6px;
   border-radius: 0;
   box-sizing: border-box;
@@ -2844,7 +2846,7 @@ table.tbl th.r {
   background: rgba(255, 255, 255, 0.65);
 }
 .mini-sticky-title {
-  font: 700 13.5px 'Gowun Dodum', sans-serif;
+  font: 700 13.5px 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3226,4 +3228,51 @@ nav button:active,
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Google Calendar integration */
+.gcal-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  font-size: 13px;
+}
+.gcal-setup {
+  margin: -4px 0 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
+  background: var(--field);
+}
+.cc .gev {
+  display: block;
+  border-left: 3px solid var(--gc, #4285f4);
+  background: color-mix(in srgb, var(--gc, #4285f4) 14%, transparent);
+  border-radius: 3px;
+  padding: 0 3px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc .gev-more {
+  display: block;
+  margin-top: 1px;
+  color: var(--mute);
+  font-size: 10px;
+}
+.gev-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-top: 8px;
+  padding-left: 8px;
+  border-left: 3px solid var(--gc, #4285f4);
+  font-size: 13px;
 }
