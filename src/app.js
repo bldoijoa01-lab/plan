@@ -1,10 +1,9 @@
 import {
   addDay,
   addMonth,
-  ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-19';
+} from './core/date.js?v=20261115-20';
 import {
   BNAME,
   BOOKS,
@@ -16,24 +15,24 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-19';
+} from './core/units.js?v=20261115-20';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
   movePlanSlice,
-} from './core/carry.js?v=20261115-19';
+} from './core/carry.js?v=20261115-20';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-19';
+} from './core/matrix.js?v=20261115-20';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261115-19';
-import { esc } from './core/html.js?v=20261115-19';
+} from './core/hub.js?v=20261115-20';
+import { esc } from './core/html.js?v=20261115-20';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -43,13 +42,13 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-19';
+} from './services/store.js?v=20261115-20';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261115-19';
+} from './services/gcal.js?v=20261115-20';
 import {
   renderAll,
   renderBookModal,
@@ -60,9 +59,9 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-19';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-19';
-import { renderMatrix } from './views/matrix.js?v=20261115-19';
+} from './views/schedule.js?v=20261115-20';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-20';
+import { renderMatrix } from './views/matrix.js?v=20261115-20';
 
 const $ = (s) => document.querySelector(s);
 
@@ -438,35 +437,21 @@ function syncThemeSwitchInPlace(headEl) {
   });
 }
 
-function syncHead(ddays) {
+function syncHead() {
   const headEl = $('#head');
   if (!headEl) return;
-  const ddKey = JSON.stringify(ddays);
   if (
     headEl.dataset.built === '1' &&
-    headEl.dataset.today === state.REAL &&
-    headEl.dataset.ddkey === ddKey
+    headEl.dataset.today === state.REAL
   ) {
     syncThemeSwitchInPlace(headEl);
     return;
   }
   headEl.dataset.built = '1';
   headEl.dataset.today = state.REAL;
-  headEl.dataset.ddkey = ddKey;
-  const ddPills = (ddays || [])
-    .slice(0, 2)
-    .map(
-      (x) =>
-        `<span class="head-dd-chip"><b>${esc(x.n)}</b> <em>${ddayLabel(
-          x.d,
-          state.REAL
-        )}</em></span>`
-    )
-    .join('');
   headEl.innerHTML = `
     <div class="head-top">
       <span class="today-pill">오늘 ${lab(state.REAL)}</span>
-      ${ddPills}
       ${themeSwitchHtml()}
     </div>
   `;
