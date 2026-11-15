@@ -56,6 +56,7 @@ import {
   createSection,
   ensureValidAccessToken,
   getOneNoteRedirectUri,
+  hasOutlookScope,
   isOneNoteConnected,
   listNotebooks,
   listSections,
@@ -64,6 +65,7 @@ import {
   syncNotesBidirectional,
   verifyDirectToken,
 } from './services/onenote.js?v=20261115-8';
+import { syncOutlookNotes } from './services/outlook.js?v=20261115-8';
 import {
   renderAll,
   renderBookModal,
@@ -815,6 +817,43 @@ async function loadOneNoteContainers({ silent = false } = {}) {
       state.notesSyncMsg = `OneNote 목록 불러오기 실패: ${(err && err.message) || err}`;
     }
   } finally {
+    render();
+  }
+}
+
+async function runOutlookSync() {
+  if (state.notesSyncing) return;
+  if (!isOneNoteConnected() || !hasOutlookScope()) {
+    state.notesConnectOpen = true;
+    state.notesSyncMsg =
+      'Outlook 메모 연동은 [📬 Outlook 메모 권한 포함 로그인]이 필요해요. (Entra 앱 API 권한에 Mail.ReadWrite 추가 후)';
+    render();
+    return;
+  }
+  state.notesSyncing = true;
+  state.notesSyncMsg = 'Outlook 메모와 동기화 중...';
+  render();
+  try {
+    const cfgOneNote = {
+      ...defaultOneNoteConfig(),
+      ...((state.cfg && state.cfg.onenote) || {}),
+    };
+    const res = await syncOutlookNotes({ notesState: state.notes, cfgOneNote });
+    state.notes = res.nextNotesState;
+    state.cfg = { ...CL(state.cfg), onenote: res.nextCfgOneNote };
+    store.saveNotes(state.notes);
+    store.saveCfg(state.cfg);
+    const s = res.stats;
+    state.notesSyncMsg =
+      `Outlook 메모('${s.folderName}', 원격 ${s.remoteTotal}개) 동기화 · 가져오기 ${s.pulled}건 · 전송 ${s.pushed}건` +
+      (s.failed ? ` · 실패 ${s.failed}건 (${s.firstError})` : '') +
+      (s.remoteTotal === 0
+        ? ' — 원격 목록이 비어 있어요. Graph가 이 메모 형식을 반환하지 않을 수 있어요.'
+        : '');
+  } catch (err) {
+    state.notesSyncMsg = `Outlook 동기화 실패: ${(err && err.message) || err}`;
+  } finally {
+    state.notesSyncing = false;
     render();
   }
 }
@@ -1748,6 +1787,9 @@ function handleClick(e) {
       curNotes.deletedPageIds.push(target.onenotePageId);
     }
     curNotes.items = curNotes.items.filter((x) => x.id !== id);
+    if (target.outlookId && !curNotes.deletedOutlookIds.includes(target.outlookId)) {
+      curNotes.deletedOutlookIds.push(target.outlookId);
+    }
     state.notes = curNotes;
     if (state.notesSelectedId === id) state.notesSelectedId = null;
     store.saveNotes(state.notes);
@@ -1909,6 +1951,30 @@ function handleClick(e) {
     captureActiveNoteDraft();
     state.notesAuthTab = t.dataset.tab || 'pkce';
     render();
+  } else if (a === 'ol-sync') {
+    captureActiveNoteDraft();
+    runOutlookSync();
+  } else if (a === 'on-pkce-outlook') {
+    const clientId =
+      (($('#on-client-id') || {}).value || '').trim() ||
+      (state.cfg.onenote && state.cfg.onenote.clientId) ||
+      DEFAULT_ONENOTE_CLIENT_ID;
+    const tenant =
+      (($('#on-tenant') || {}).value || '').trim() ||
+      (state.cfg.onenote && state.cfg.onenote.tenant) ||
+      'common';
+    state.cfg = CL(state.cfg);
+    state.cfg.onenote = {
+      ...defaultOneNoteConfig(),
+      ...(state.cfg.onenote || {}),
+      clientId,
+      tenant,
+    };
+    store.saveCfg(state.cfg);
+    startOneNotePkceLogin({ clientId, tenant, includeMail: true }).catch((err) => {
+      state.notesSyncMsg = (err && err.message) || String(err);
+      render();
+    });
   } else if (a === 'on-tenant-preset') {
     const nextTenant = String(t.dataset.tenant || 'consumers').trim() || 'consumers';
     const curClientId =

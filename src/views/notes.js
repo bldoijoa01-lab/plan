@@ -43,6 +43,9 @@ function syncBadgeHtml(note, isConnected) {
   if (note.dirty && isConnected) {
     return '<span class="mini-pill due">✏️ 동기화 대기</span>';
   }
+  if (note.outlookId && !note.onenotePageId) {
+    return '<span class="mini-pill note-on-badge">📬 Outlook</span>';
+  }
   if (note.onenotePageId) {
     return '<span class="mini-pill note-on-badge">🟣 OneNote</span>';
   }
@@ -166,6 +169,10 @@ function renderConnectPanel({
             )}" style="width:150px" title="개인 계정 전용: consumers / 공통: common / 조직: organizations">
             <button type="button" class="btn sm pri" data-act="on-pkce-consumers">👤 개인 계정 전용(consumers)으로 바로 로그인</button>
             <button type="button" class="btn sm" data-act="on-pkce-login">입력값대로 로그인</button>
+            <button type="button" class="btn sm pri" data-act="on-pkce-outlook" title="Outlook '메모' 폴더 동기화용 Mail.ReadWrite 권한 포함">📬 Outlook 메모 권한 포함 로그인</button>
+          </div>
+          <div class="note" style="margin-top:6px;line-height:1.55">
+            📬 Outlook 메모(메일함 '메모' 폴더) 연동: Entra 앱 → API 권한 → Microsoft Graph → 위임된 권한 → <code>Mail.ReadWrite</code> 추가 후 위 버튼으로 다시 로그인하세요.
           </div>
           <div class="row wrap-row" style="margin-top:8px">
             <span class="note">리디렉션 URI (SPA):</span>
@@ -733,6 +740,9 @@ export function renderNotesView(state) {
           <button type="button" class="btn sm pri" data-act="on-sync" ${
             state.notesSyncing ? 'disabled' : ''
           }>${state.notesSyncing ? '⏳ 동기화 중...' : '🔄 OneNote 동기화'}</button>
+          <button type="button" class="btn sm" data-act="ol-sync" ${
+            state.notesSyncing ? 'disabled' : ''
+          }>📬 Outlook 메모 동기화</button>
           <button type="button" class="btn sm" data-act="on-connect-tog">${
             state.notesConnectOpen ? '설정 닫기' : '⚙️ Microsoft 연결 설정'
           }</button>

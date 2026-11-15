@@ -111,7 +111,16 @@ async function sha256Base64Url(input) {
   return bytesToBase64Url(new Uint8Array(hash));
 }
 
-async function graphFetch(pathOrUrl, accessToken, options = {}) {
+export const OUTLOOK_EXTRA_SCOPE = 'Mail.ReadWrite';
+
+export function hasOutlookScope() {
+  const auth = getOneNoteAuth();
+  return Boolean(
+    auth && new RegExp(OUTLOOK_EXTRA_SCOPE, 'i').test(String(auth.scope || ''))
+  );
+}
+
+export async function graphFetch(pathOrUrl, accessToken, options = {}) {
   const url = /^https?:\/\//i.test(pathOrUrl) ? pathOrUrl : GRAPH_BASE + pathOrUrl;
   const headers = {
     Authorization: `Bearer ${accessToken}`,
@@ -175,9 +184,11 @@ export async function startOneNotePkceLogin({
   clientId,
   tenant = 'consumers',
   prompt = 'select_account',
+  includeMail = false,
 }) {
   const cleanClientId = String(clientId || '').trim();
   const cleanTenant = String(tenant || 'consumers').trim() || 'consumers';
+  const scope = includeMail ? `${OAUTH_SCOPES} ${OUTLOOK_EXTRA_SCOPE}` : OAUTH_SCOPES;
   if (!cleanClientId) {
     throw new Error('Azure 앱 등록 클라이언트 ID(Client ID)를 입력해 주세요.');
   }
@@ -196,6 +207,7 @@ export async function startOneNotePkceLogin({
     clientId: cleanClientId,
     tenant: cleanTenant,
     redirectUri,
+    scope,
   });
 
   const authParams = new URLSearchParams({
@@ -203,7 +215,7 @@ export async function startOneNotePkceLogin({
     response_type: 'code',
     redirect_uri: redirectUri,
     response_mode: 'query',
-    scope: OAUTH_SCOPES,
+    scope,
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
@@ -258,7 +270,7 @@ export async function completeOneNoteAuthRedirectIfPresent() {
   try {
     const tok = await exchangeTokenEndpoint(pkce.tenant || 'common', {
       client_id: pkce.clientId,
-      scope: OAUTH_SCOPES,
+      scope: pkce.scope || OAUTH_SCOPES,
       code,
       redirect_uri: pkce.redirectUri || getOneNoteRedirectUri(),
       grant_type: 'authorization_code',
@@ -276,6 +288,7 @@ export async function completeOneNoteAuthRedirectIfPresent() {
       userEmail: (me && (me.mail || me.userPrincipalName)) || '',
       clientId: pkce.clientId,
       tenant: pkce.tenant || 'common',
+      scope: tok.scope || pkce.scope || OAUTH_SCOPES,
     };
     setOneNoteAuth(authObj);
     return { handled: true, ok: true, auth: authObj };
@@ -331,7 +344,6 @@ export async function ensureValidAccessToken(cfgOneNote = {}) {
   if (auth.refreshToken && clientId) {
     const tok = await exchangeTokenEndpoint(tenant, {
       client_id: clientId,
-      scope: OAUTH_SCOPES,
       refresh_token: auth.refreshToken,
       grant_type: 'refresh_token',
     });
@@ -341,6 +353,7 @@ export async function ensureValidAccessToken(cfgOneNote = {}) {
       accessToken: tok.access_token,
       refreshToken: tok.refresh_token || auth.refreshToken,
       expiresAt: Date.now() + expiresInSec * 1000,
+      scope: tok.scope || auth.scope || '',
     };
     setOneNoteAuth(nextAuth);
     return nextAuth.accessToken;
