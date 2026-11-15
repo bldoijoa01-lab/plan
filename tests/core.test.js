@@ -835,4 +835,25 @@ test('Google Calendar events: KST dates, all-day exclusive end, multi-day groupi
   });
   assert.match(html, /class="gev"/);
   assert.match(html, /수련회/);
+  assert.match(html, /data-act="calpop"/);
+
+  const { renderCalDayModal } = await import('../src/views/schedule.js');
+  const modalHtml = renderCalDayModal({
+    REAL: '2026-11-15',
+    calModalDate: '2026-11-15',
+    plans: {
+      '2026-11-15': [
+        { id: '1', s: '수학', b: '쎈', t: '#1~5', n: 5, done: false },
+      ],
+    },
+    cfg: defaultConfig(),
+    logs: { '2026-11-15': { hours: 4, feel: '보통', note: '집중 잘됨' } },
+    selB: new Set(),
+    gcalByMonth: { '2026-11': [timed] },
+  });
+  assert.match(modalHtml, /data-act="calpop-goto"/);
+  assert.match(modalHtml, /기하 쎈/);
+  assert.match(modalHtml, /5문제/);
+  assert.match(modalHtml, /면담/);
+  assert.match(modalHtml, /집중 잘됨/);
 });

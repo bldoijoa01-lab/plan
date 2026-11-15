@@ -2052,7 +2052,7 @@ export function renderCalDayModal(state) {
                     .map((item) => {
                       const cVar = SC[item.s] ? SC[item.s][0] : '--acc';
                       const bName = BNAME[item.b] || item.b || '';
-                      const unit = (BOOKS[item.b] && BOOKS[item.b].u) || '';
+                      const unit = UNIT[item.b] || '';
                       const p = sumP([item], cfg);
                       const overdue = !item.done && ds < REAL;
                       return `

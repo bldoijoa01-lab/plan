@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-13';
+} from './core/date.js?v=20261115-15';
 import {
   BNAME,
   BOOKS,
@@ -16,29 +16,29 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-13';
+} from './core/units.js?v=20261115-15';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
-} from './core/carry.js?v=20261115-13';
+} from './core/carry.js?v=20261115-15';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-13';
+} from './core/matrix.js?v=20261115-15';
 import {
   DEFAULT_ONENOTE_CLIENT_ID,
   defaultOneNoteConfig,
   normalizeNotesState,
   normalizeStickyColor,
-} from './core/onenote.js?v=20261115-13';
+} from './core/onenote.js?v=20261115-15';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261115-13';
-import { esc } from './core/html.js?v=20261115-13';
+} from './core/hub.js?v=20261115-15';
+import { esc } from './core/html.js?v=20261115-15';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -48,7 +48,7 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-13';
+} from './services/store.js?v=20261115-15';
 import {
   clearOneNoteAuth,
   completeOneNoteAuthRedirectIfPresent,
@@ -63,13 +63,13 @@ import {
   startOneNotePkceLogin,
   syncNotesBidirectional,
   verifyDirectToken,
-} from './services/onenote.js?v=20261115-13';
+} from './services/onenote.js?v=20261115-15';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261115-13';
+} from './services/gcal.js?v=20261115-15';
 import {
   renderAll,
   renderBookModal,
@@ -79,10 +79,10 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-13';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-13';
-import { renderMatrix } from './views/matrix.js?v=20261115-13';
-import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-13';
+} from './views/schedule.js?v=20261115-15';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-15';
+import { renderMatrix } from './views/matrix.js?v=20261115-15';
+import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-15';
 
 const $ = (s) => document.querySelector(s);
 
