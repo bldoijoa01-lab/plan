@@ -3410,6 +3410,9 @@ nav button:active,
 .plan-ctx-menu button:hover {
   background: var(--field);
 }
+.plan-ctx-menu button.danger {
+  color: var(--bad);
+}
 .move-cal-modal {
   max-width: 780px;
 }

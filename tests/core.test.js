@@ -832,7 +832,24 @@ test('Google Calendar events: KST dates, all-day exclusive end, multi-day groupi
 
 test('Weekly drag/context-menu move and partial workbook range move modal', async () => {
   const { movePlanSlice } = await import('../src/core/carry.js');
-  const { renderWeek, renderMoveCalModal } = await import('../src/views/schedule.js');
+  const { renderToday, renderWeek, renderMoveCalModal } = await import('../src/views/schedule.js');
+
+  const todayHtml = renderToday({
+    REAL: '2026-11-15',
+    cur: '2026-11-15',
+    plans: {
+      '2026-11-15': [
+        { id: 'w1', s: '수학', b: '쎈', t: '#1~10', n: 10, done: false },
+      ],
+    },
+    cfg: defaultConfig(),
+    logs: {},
+    closing: false,
+    adding: false,
+    addKind: 'book',
+  });
+  assert.match(todayHtml, /data-it-d="2026-11-15" data-it-id="w1"/);
+  assert.doesNotMatch(todayHtml, /data-act="menu"/);
 
   const plans = {
     '2026-11-15': [

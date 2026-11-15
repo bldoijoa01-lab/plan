@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-18';
+} from './core/date.js?v=20261115-19';
 import {
   BNAME,
   BOOKS,
@@ -16,24 +16,24 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-18';
+} from './core/units.js?v=20261115-19';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
   movePlanSlice,
-} from './core/carry.js?v=20261115-18';
+} from './core/carry.js?v=20261115-19';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-18';
+} from './core/matrix.js?v=20261115-19';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261115-18';
-import { esc } from './core/html.js?v=20261115-18';
+} from './core/hub.js?v=20261115-19';
+import { esc } from './core/html.js?v=20261115-19';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -43,13 +43,13 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-18';
+} from './services/store.js?v=20261115-19';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261115-18';
+} from './services/gcal.js?v=20261115-19';
 import {
   renderAll,
   renderBookModal,
@@ -60,9 +60,9 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-18';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-18';
-import { renderMatrix } from './views/matrix.js?v=20261115-18';
+} from './views/schedule.js?v=20261115-19';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-19';
+import { renderMatrix } from './views/matrix.js?v=20261115-19';
 
 const $ = (s) => document.querySelector(s);
 
@@ -1920,7 +1920,7 @@ function closePlanContextMenu() {
   if (existing) existing.remove();
 }
 
-function openPlanContextMenu(fromDate, id, clientX, clientY) {
+function openPlanContextMenu(fromDate, id, clientX, clientY, { showFull = false } = {}) {
   closePlanContextMenu();
   const item = findItem(fromDate, id);
   if (!item) return;
@@ -1930,9 +1930,26 @@ function openPlanContextMenu(fromDate, id, clientX, clientY) {
   menu.innerHTML = `
     <div class="plan-ctx-head">${esc(item.t || '')}</div>
     <button type="button" data-act="ctx-move" data-d="${esc(fromDate)}" data-id="${esc(id)}">📅 계획 이동 (월간 달력)</button>
+    ${
+      showFull
+        ? `
+          <button type="button" data-act="mv" data-d="${esc(fromDate)}" data-id="${esc(id)}" data-to="${addDay(fromDate, 1)}">⏭ 내일로 이동</button>
+          ${
+            fromDate !== state.REAL
+              ? `<button type="button" data-act="mv" data-d="${esc(fromDate)}" data-id="${esc(id)}" data-to="${state.REAL}">📌 오늘로 이동</button>`
+              : ''
+          }
+          <button type="button" data-act="togimp" data-d="${esc(fromDate)}" data-id="${esc(id)}">${
+            item.important ? '★ 중요 해제' : '☆ 중요 표시'
+          }</button>
+          <button type="button" data-act="menu" data-id="${esc(id)}">📆 마감·날짜 옵션</button>
+        `
+        : ''
+    }
     <button type="button" data-act="ctx-tog" data-d="${esc(fromDate)}" data-id="${esc(id)}">${
       item.done ? '↩ 미완료로 되돌리기' : '✓ 완료 처리'
     }</button>
+    <button type="button" class="danger" data-act="del" data-d="${esc(fromDate)}" data-id="${esc(id)}">🗑 삭제</button>
   `;
   document.body.appendChild(menu);
   const vw = window.innerWidth || 360;
@@ -1946,9 +1963,20 @@ function openPlanContextMenu(fromDate, id, clientX, clientY) {
 
 document.addEventListener('contextmenu', (e) => {
   const wrow = e.target.closest('[data-wdrag-id]');
-  if (!wrow) return;
-  e.preventDefault();
-  openPlanContextMenu(wrow.dataset.wdragD, wrow.dataset.wdragId, e.clientX, e.clientY);
+  if (wrow) {
+    e.preventDefault();
+    openPlanContextMenu(wrow.dataset.wdragD, wrow.dataset.wdragId, e.clientX, e.clientY, {
+      showFull: false,
+    });
+    return;
+  }
+  const itRow = e.target.closest('[data-it-id]');
+  if (itRow) {
+    e.preventDefault();
+    openPlanContextMenu(itRow.dataset.itD, itRow.dataset.itId, e.clientX, e.clientY, {
+      showFull: true,
+    });
+  }
 });
 
 document.addEventListener('dragstart', (e) => {
@@ -2077,10 +2105,14 @@ document.addEventListener('drop', (e) => {
 });
 
 document.addEventListener('click', (e) => {
+  const clickedMenuBtn = e.target.closest('#plan-ctx-menu button');
   if (!e.target.closest('#plan-ctx-menu')) {
     closePlanContextMenu();
   }
   handleClick(e);
+  if (clickedMenuBtn) {
+    closePlanContextMenu();
+  }
 });
 document.addEventListener('change', handleChange);
 document.addEventListener('input', handleInput);

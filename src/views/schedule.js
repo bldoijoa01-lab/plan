@@ -117,7 +117,9 @@ function itemRowHtml(dateIso, it, state) {
   if (it.due) badges.push(`<span class="mini-pill due">마감 ${shortDate(it.due)}</span>`);
 
   return `
-    <div class="it ${it.done ? 'done' : ''}">
+    <div class="it ${it.done ? 'done' : ''}" data-it-d="${esc(dateIso)}" data-it-id="${esc(
+      it.id
+    )}" title="우클릭하여 이동·중요·마감·삭제 메뉴 열기">
       <input type="checkbox" data-act="tog" data-d="${esc(dateIso)}" data-id="${esc(
         it.id
       )}" ${it.done ? 'checked' : ''} aria-label="완료 체크">
@@ -160,9 +162,6 @@ function itemRowHtml(dateIso, it, state) {
         }
       </div>
       <span class="p mono">${it.x ? '기록' : fmt(p) + 'P'}</span>
-      <button type="button" class="btn sm icon-btn" data-act="menu" data-id="${esc(
-        it.id
-      )}" aria-label="항목 메뉴">⋯</button>
     </div>
   `;
 }
