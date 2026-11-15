@@ -51,6 +51,98 @@ import { renderMatrix } from './views/matrix.js';
 
 const $ = (s) => document.querySelector(s);
 
+const TAB_ORDER = ['today', 'week', 'all', 'matrix', 'hub', 'set'];
+const reduceMotion = () =>
+  typeof window !== 'undefined' &&
+  Boolean(
+    window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+
+let trackedPills = [];
+function syncPill(box, activeBtn) {
+  if (!box || !activeBtn) return;
+  const apply = () => {
+    const w = activeBtn.offsetWidth;
+    const h = activeBtn.offsetHeight;
+    if (!w || !h) return;
+    box.style.setProperty('--pill-x', activeBtn.offsetLeft + 'px');
+    box.style.setProperty('--pill-y', activeBtn.offsetTop + 'px');
+    box.style.setProperty('--pill-w', w + 'px');
+    box.style.setProperty('--pill-h', h + 'px');
+    box.setAttribute('data-pill', 'ready');
+  };
+  apply();
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(apply);
+  }
+}
+
+function registerPill(box, getActive) {
+  if (!box) return;
+  trackedPills = trackedPills.filter((item) => item.box !== box);
+  trackedPills.push({ box, getActive });
+  const act = getActive();
+  if (act) syncPill(box, act);
+}
+
+function refreshAllPills() {
+  trackedPills = trackedPills.filter(
+    (item) => typeof document !== 'undefined' && document.body.contains(item.box)
+  );
+  trackedPills.forEach((item) => {
+    const act = item.getActive();
+    if (act) syncPill(item.box, act);
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'resize',
+    () => requestAnimationFrame(refreshAllPills),
+    { passive: true }
+  );
+}
+if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => {
+    requestAnimationFrame(refreshAllPills);
+  });
+}
+
+function animateSwap(el, dir) {
+  if (!el || reduceMotion() || typeof el.animate !== 'function') return;
+  const dx = dir === 'left' ? -16 : dir === 'right' ? 16 : 0;
+  const dy = dx === 0 ? 8 : 0;
+  el.animate(
+    [
+      { opacity: 0, transform: `translate3d(${dx}px,${dy}px,0)` },
+      { opacity: 1, transform: 'translate3d(0,0,0)' },
+    ],
+    { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+  );
+}
+
+function triggerViewTransition(appEl, dir) {
+  if (!appEl || reduceMotion()) return;
+  appEl.classList.remove('view-enter');
+  if (dir && dir !== 'soft') appEl.setAttribute('data-dir', dir);
+  else appEl.removeAttribute('data-dir');
+  void appEl.offsetWidth;
+  appEl.classList.add('view-enter');
+}
+
+function tabDirection(prevView, nextView) {
+  const prevIdx = TAB_ORDER.indexOf(prevView);
+  const nextIdx = TAB_ORDER.indexOf(nextView);
+  if (prevIdx !== -1 && nextIdx !== -1 && prevIdx !== nextIdx) {
+    return nextIdx > prevIdx ? 'right' : 'left';
+  }
+  return 'soft';
+}
+
+let hasEnteredOnce = false;
+let lastSyncKey = '';
+
 const state = {
   REAL: todayKst(),
   view: 'today',
@@ -135,6 +227,22 @@ function setTheme(v) {
   }
 }
 
+function applyTheme(v) {
+  const commit = () => {
+    setTheme(v);
+    render();
+  };
+  if (
+    typeof document !== 'undefined' &&
+    document.startViewTransition &&
+    !reduceMotion()
+  ) {
+    document.startViewTransition(commit);
+  } else {
+    commit();
+  }
+}
+
 function themeSwitchHtml() {
   const cur = getTheme();
   const idx = ['auto', 'light', 'dark'].indexOf(cur);
@@ -157,8 +265,11 @@ function renderSyncBanner() {
   if (!el) return;
   const st = state.syncStatus;
   if (!st.offline && !st.isError) {
-    el.innerHTML = '';
-    el.className = 'sync-banner-slot';
+    if (lastSyncKey !== '') {
+      lastSyncKey = '';
+      el.innerHTML = '';
+      el.className = 'sync-banner-slot';
+    }
     return;
   }
   const title = st.offline ? '오프라인 상태' : '저장 실패';
@@ -168,6 +279,9 @@ function renderSyncBanner() {
       ? '네트워크 연결이 끊겨 있어요. 변경 내용은 이 기기에 임시 보관됩니다.'
       : '서버 저장에 실패했어요.';
   const countTxt = st.failedCount ? ` (미저장 ${st.failedCount}건)` : '';
+  const nextKey = `${title}|${countTxt}|${detail}`;
+  if (lastSyncKey === nextKey) return;
+  lastSyncKey = nextKey;
   el.className = 'sync-banner-slot active';
   el.innerHTML = `
     <div class="sync-banner" role="alert">
@@ -203,7 +317,155 @@ function renderAuthCard() {
   `;
 }
 
-function render() {
+function syncThemeSwitchInPlace(headEl) {
+  const cur = getTheme();
+  const idx = ['auto', 'light', 'dark'].indexOf(cur);
+  const thumb = headEl.querySelector('.themesw .thumb');
+  if (thumb) {
+    thumb.style.transform = `translateX(${idx * 100}%)`;
+  }
+  headEl.querySelectorAll('[data-theme-set]').forEach((btn) => {
+    btn.setAttribute('aria-pressed', btn.dataset.themeSet === cur ? 'true' : 'false');
+  });
+}
+
+function syncHead(ddays) {
+  const headEl = $('#head');
+  if (!headEl) return;
+  const ddKey = JSON.stringify(ddays);
+  if (
+    headEl.dataset.built === '1' &&
+    headEl.dataset.today === state.REAL &&
+    headEl.dataset.ddkey === ddKey
+  ) {
+    syncThemeSwitchInPlace(headEl);
+    return;
+  }
+  headEl.dataset.built = '1';
+  headEl.dataset.today = state.REAL;
+  headEl.dataset.ddkey = ddKey;
+  headEl.innerHTML = `
+    <div class="head-top">
+      <span class="today-pill">오늘 ${lab(state.REAL)}</span>
+      ${themeSwitchHtml()}
+    </div>
+    <div class="ddrow">
+      ${ddays
+        .map(
+          (x) => `
+        <div class="ddc">
+          <span>${esc(x.n)}</span>
+          <b>${ddayLabel(x.d, state.REAL)}</b>
+          <em>${esc(String(x.d || '').replace(/-/g, '/'))}</em>
+        </div>
+      `
+        )
+        .join('')}
+    </div>
+  `;
+}
+
+function syncNav() {
+  const navEl = $('#nav');
+  if (!navEl) return;
+  const tabs = [
+    ['today', '📅 오늘'],
+    ['week', '📊 주간'],
+    ['all', '🗓️ 전체'],
+    ['matrix', '🧭 매트릭스'],
+    ['hub', '🔗 허브'],
+    ['set', '⚙️ 설정'],
+  ];
+  if (navEl.dataset.built !== '1') {
+    navEl.dataset.built = '1';
+    navEl.innerHTML = tabs
+      .map(
+        ([k, t]) =>
+          `<button type="button" class="${
+            state.view === k ? 'on' : ''
+          }" data-v="${k}" aria-selected="${
+            state.view === k ? 'true' : 'false'
+          }">${t}</button>`
+      )
+      .join('');
+    registerPill(navEl, () => navEl.querySelector('button.on'));
+    return;
+  }
+  let activeBtn = null;
+  navEl.querySelectorAll('button[data-v]').forEach((btn) => {
+    const on = btn.dataset.v === state.view;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    if (on) activeBtn = btn;
+  });
+  if (activeBtn) syncPill(navEl, activeBtn);
+}
+
+function syncBookModal() {
+  const modalSlot = $('#modal-root');
+  if (!modalSlot) return;
+  if (!state.bookModalId) {
+    const existing = modalSlot.querySelector('.modal-backdrop');
+    if (existing && existing.classList.contains('out')) return;
+    modalSlot.innerHTML = '';
+    delete modalSlot.dataset.bookId;
+    return;
+  }
+  const html = renderBookModal(state);
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  const curBackdrop = modalSlot.querySelector('.modal-backdrop');
+  const curCard = curBackdrop && curBackdrop.querySelector('.modal-card');
+  const nextCard = tpl.content.querySelector('.modal-card');
+  if (
+    curBackdrop &&
+    !curBackdrop.classList.contains('out') &&
+    curCard &&
+    nextCard &&
+    modalSlot.dataset.bookId === String(state.bookModalId)
+  ) {
+    const curChips = curCard.querySelector('.chips');
+    const nextChips = nextCard.querySelector('.chips');
+    if (curChips && nextChips) curChips.innerHTML = nextChips.innerHTML;
+    const curList = curCard.querySelector('.modal-list');
+    const nextList = nextCard.querySelector('.modal-list');
+    if (curList && nextList) {
+      curList.innerHTML = nextList.innerHTML;
+      animateSwap(curList, '');
+    }
+  } else {
+    modalSlot.innerHTML = html;
+    modalSlot.dataset.bookId = String(state.bookModalId);
+  }
+}
+
+function closeBookModal() {
+  const modalSlot = $('#modal-root');
+  const backdrop = modalSlot && modalSlot.querySelector('.modal-backdrop');
+  state.bookModalId = null;
+  if (!backdrop || reduceMotion()) {
+    if (modalSlot) {
+      modalSlot.innerHTML = '';
+      delete modalSlot.dataset.bookId;
+    }
+    return;
+  }
+  if (backdrop.classList.contains('out')) return;
+  backdrop.classList.add('out');
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    if (!state.bookModalId && modalSlot) {
+      modalSlot.innerHTML = '';
+      delete modalSlot.dataset.bookId;
+    }
+  };
+  backdrop.addEventListener('transitionend', finish, { once: true });
+  setTimeout(finish, 240);
+}
+
+function render(opts = {}) {
   const realToday = todayKst();
   if (realToday !== state.REAL) {
     if (state.cur === state.REAL) state.cur = realToday;
@@ -211,49 +473,8 @@ function render() {
   }
 
   const ddays = state.cfg.ddays || DEF_DD;
-  const headEl = $('#head');
-  if (headEl) {
-    headEl.innerHTML = `
-      <div class="head-top">
-        <span class="today-pill">오늘 ${lab(state.REAL)}</span>
-        ${themeSwitchHtml()}
-      </div>
-      <div class="ddrow">
-        ${ddays
-          .map(
-            (x) => `
-          <div class="ddc">
-            <span>${esc(x.n)}</span>
-            <b>${ddayLabel(x.d, state.REAL)}</b>
-            <em>${esc(String(x.d || '').replace(/-/g, '/'))}</em>
-          </div>
-        `
-          )
-          .join('')}
-      </div>
-    `;
-  }
-
-  const navEl = $('#nav');
-  if (navEl) {
-    const tabs = [
-      ['today', '📅 오늘'],
-      ['week', '📊 주간'],
-      ['all', '🗓️ 전체'],
-      ['matrix', '🧭 매트릭스'],
-      ['hub', '🔗 허브'],
-      ['set', '⚙️ 설정'],
-    ];
-    navEl.innerHTML = tabs
-      .map(
-        ([k, t]) =>
-          `<button type="button" class="${
-            state.view === k ? 'on' : ''
-          }" data-v="${k}">${t}</button>`
-      )
-      .join('');
-  }
-
+  syncHead(ddays);
+  syncNav();
   renderSyncBanner();
 
   const appEl = $('#app');
@@ -261,6 +482,7 @@ function render() {
 
   if (state.authNeeded) {
     appEl.innerHTML = renderAuthCard();
+    if (opts.motion) triggerViewTransition(appEl, opts.motion);
     setTimeout(() => {
       const inp = $('#tok-in');
       if (inp) inp.focus();
@@ -280,9 +502,13 @@ function render() {
   else if (state.view === 'hub') appEl.innerHTML = renderHub(state);
   else appEl.innerHTML = renderSettings(state);
 
-  const modalSlot = $('#modal-root');
-  if (modalSlot) {
-    modalSlot.innerHTML = renderBookModal(state);
+  if (opts.motion) {
+    triggerViewTransition(appEl, opts.motion);
+  }
+
+  syncBookModal();
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(refreshAllPills);
   }
 
   if (state.asking) {
@@ -323,18 +549,27 @@ function runAutoCarryOnBoot() {
   }
 }
 
+function triggerInitialEnter() {
+  if (hasEnteredOnce || reduceMotion() || typeof document === 'undefined') return;
+  hasEnteredOnce = true;
+  document.body.classList.add('enter');
+  setTimeout(() => document.body.classList.remove('enter'), 950);
+}
+
 async function boot() {
   const token = getToken();
   if (!token) {
     state.authNeeded = true;
     state.ready = false;
-    render();
+    render({ motion: 'soft' });
+    triggerInitialEnter();
     return;
   }
   state.authNeeded = false;
   state.authMsg = '';
   state.ready = false;
   render();
+  triggerInitialEnter();
 
   try {
     const data = await store.boot();
@@ -345,13 +580,13 @@ async function boot() {
     state.matrix = data.matrix;
     state.ready = true;
     runAutoCarryOnBoot();
-    render();
+    render({ motion: 'soft' });
   } catch (err) {
     if (err && err.code === 'auth') {
       state.authNeeded = true;
       state.authMsg = err.message || '접속 토큰을 다시 확인해 주세요.';
       state.ready = false;
-      render();
+      render({ motion: 'soft' });
       return;
     }
     // 오프라인 또는 일시 오류 시 로컬 캐시가 있으면 화면을 멈추지 않고 열기
@@ -367,7 +602,7 @@ async function boot() {
       lastError: (err && err.message) || '서버 연결 실패 (임시 데이터 표시 중)',
     };
     state.ready = true;
-    render();
+    render({ motion: 'soft' });
   }
 }
 
@@ -379,8 +614,7 @@ function pushMatrixUndo(undoEntry) {
 function handleClick(e) {
   const themeBtn = e.target.closest('[data-theme-set]');
   if (themeBtn) {
-    setTheme(themeBtn.dataset.themeSet);
-    render();
+    applyTheme(themeBtn.dataset.themeSet);
     return;
   }
 
@@ -388,9 +622,12 @@ function handleClick(e) {
   if (!t) return;
 
   if (t.dataset.v) {
-    state.view = t.dataset.v;
-    state.bookModalId = null;
-    render();
+    const nextView = t.dataset.v;
+    const motion =
+      nextView !== state.view ? tabDirection(state.view, nextView) : '';
+    state.view = nextView;
+    closeBookModal();
+    render({ motion });
     return;
   }
 
@@ -442,27 +679,37 @@ function handleClick(e) {
 
   if (a === 'bookpopbg' && e.target !== t) return;
   if (a === 'bookpopbg' || a === 'bookpopclose') {
-    state.bookModalId = null;
-    render();
+    closeBookModal();
     return;
   }
 
   if (a === 'bookpopfilter') {
     state.bookModalFilter = t.dataset.f || 'all';
-    render();
+    syncBookModal();
     return;
   }
 
   if (a === 'day') {
-    state.cur = addDay(state.cur, Number(t.dataset.n));
+    const n = Number(t.dataset.n);
+    state.cur = addDay(state.cur, n);
     state.moving = null;
-    render();
+    render({ motion: n > 0 ? 'right' : n < 0 ? 'left' : 'soft' });
   } else if (a === 'goto') {
+    const prevView = state.view;
+    const prevCur = state.cur;
     state.cur = d;
     if (t.dataset.v2) state.view = t.dataset.v2;
-    if (t.dataset.closepop) state.bookModalId = null;
+    if (t.dataset.closepop) closeBookModal();
     state.moving = null;
-    render();
+    const motion =
+      state.view !== prevView
+        ? tabDirection(prevView, state.view)
+        : d !== prevCur
+          ? d > prevCur
+            ? 'right'
+            : 'left'
+          : 'soft';
+    render({ motion });
   } else if (a === 'askok') {
     const v = ($('#ak') || {}).value || '';
     const targetItem = findItem(state.asking.d, state.asking.id);
@@ -551,8 +798,9 @@ function handleClick(e) {
     state.closeFeel = null;
     render();
   } else if (a === 'cm') {
-    state.calM = addMonth(state.calM, Number(t.dataset.n));
-    render();
+    const n = Number(t.dataset.n);
+    state.calM = addMonth(state.calM, n);
+    render({ motion: n > 0 ? 'right' : n < 0 ? 'left' : 'soft' });
   } else if (a === 'selb') {
     const b = t.dataset.b;
     if (state.selB.has(b)) state.selB.delete(b);
@@ -562,8 +810,9 @@ function handleClick(e) {
     state.selB.clear();
     render();
   } else if (a === 'wk') {
-    state.cur = addDay(state.cur, Number(t.dataset.n));
-    render();
+    const n = Number(t.dataset.n);
+    state.cur = addDay(state.cur, n);
+    render({ motion: n > 0 ? 'right' : n < 0 ? 'left' : 'soft' });
   } else if (a === 'cx') {
     const k = t.dataset.k;
     if (state.openC.has(k)) state.openC.delete(k);
@@ -1054,8 +1303,7 @@ function handleInput(e) {
 
 function handleKeydown(e) {
   if (e.key === 'Escape' && state.bookModalId) {
-    state.bookModalId = null;
-    render();
+    closeBookModal();
     return;
   }
   if (e.key === 'Enter') {

@@ -39,6 +39,9 @@
   --warn-bg: rgba(244, 185, 66, 0.28);
   --high-bg: rgba(224, 98, 58, 0.42);
   --blur: blur(18px) saturate(165%);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --sh-hover: 0 14px 34px rgba(27, 34, 48, 0.13), 0 2px 6px rgba(27, 34, 48, 0.07);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -65,6 +68,7 @@
     --bad: #ff6b5e;
     --badbg: rgba(66, 33, 31, 0.9);
     --sh: 0 10px 30px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.35);
+    --sh-hover: 0 14px 36px rgba(0, 0, 0, 0.52), 0 2px 6px rgba(0, 0, 0, 0.4);
 
     --kor: #ef7f7a;
     --kor-bg: rgba(58, 37, 35, 0.78);
@@ -104,6 +108,7 @@
   --bad: #ff6b5e;
   --badbg: rgba(66, 33, 31, 0.9);
   --sh: 0 10px 30px rgba(0, 0, 0, 0.42), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --sh-hover: 0 14px 36px rgba(0, 0, 0, 0.52), 0 2px 6px rgba(0, 0, 0, 0.4);
 
   --kor: #ef7f7a;
   --kor-bg: rgba(58, 37, 35, 0.78);
@@ -121,6 +126,8 @@
 
 * {
   box-sizing: border-box;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -222,7 +229,8 @@ h1 {
   width: calc((100% - 6px) / 3);
   border-radius: 99px;
   background: var(--acc);
-  transition: transform 0.22s ease;
+  transition: transform 0.38s var(--spring);
+  will-change: transform;
   z-index: 0;
 }
 .themesw button {
@@ -280,6 +288,7 @@ nav {
   margin: 14px 0;
   position: sticky;
   top: 8px;
+  isolation: isolate;
   padding: 7px;
   border-radius: 18px;
   background: var(--card);
@@ -287,10 +296,30 @@ nav {
   -webkit-backdrop-filter: var(--blur);
   border: 1px solid var(--line);
   box-shadow: var(--sh), inset 0 1px 0 var(--glass-hi);
+  transform: translateZ(0);
   z-index: 15;
+}
+nav[data-pill='ready']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--pill-w, 0px);
+  height: var(--pill-h, 0px);
+  transform: translate3d(var(--pill-x, 0px), var(--pill-y, 0px), 0);
+  border-radius: 12px;
+  background: var(--acc);
+  box-shadow: 0 4px 14px rgba(196, 80, 47, 0.28);
+  transition: transform 0.34s var(--ease), width 0.34s var(--ease),
+    height 0.34s var(--ease);
+  will-change: transform, width;
+  pointer-events: none;
+  z-index: 0;
 }
 
 nav button {
+  position: relative;
+  z-index: 1;
   flex: 1 1 auto;
   min-width: 72px;
   border: 1px solid transparent;
@@ -301,17 +330,29 @@ nav button {
   font-family: 'Jua', sans-serif;
   font-size: 14px;
   cursor: pointer;
-  transition: background 0.16s ease, color 0.16s ease, transform 0.12s ease;
+  transition: background-color 0.22s var(--ease), color 0.22s var(--ease),
+    transform 0.2s var(--spring);
   white-space: nowrap;
 }
 nav button:hover {
   background: var(--field);
+}
+nav[data-pill='ready'] button:hover {
+  background: transparent;
+  color: var(--ink);
 }
 nav button.on {
   background: var(--acc);
   border-color: var(--acc);
   color: var(--onacc);
   box-shadow: 0 4px 14px rgba(196, 80, 47, 0.25);
+}
+nav[data-pill='ready'] button.on,
+nav[data-pill='ready'] button.on:hover {
+  background: transparent;
+  border-color: transparent;
+  color: var(--onacc);
+  box-shadow: none;
 }
 
 /* Sync Error / Offline Banner */
@@ -363,13 +404,16 @@ nav button.on {
   font-family: 'Jua', sans-serif;
   font-size: 14px;
   cursor: pointer;
-  transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.2s var(--spring), background-color 0.24s var(--ease),
+    border-color 0.24s var(--ease), color 0.22s var(--ease),
+    box-shadow 0.26s var(--ease), opacity 0.2s var(--ease);
 }
 .btn:hover:not(:disabled) {
   border-color: var(--acc);
 }
 .btn:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale3d(0.96, 0.96, 1);
+  transition-duration: 0.1s;
 }
 .btn:disabled {
   opacity: 0.45;
@@ -460,7 +504,8 @@ nav button.on {
   display: block;
   height: 100%;
   background: var(--ok);
-  transition: width 0.25s ease;
+  transform-origin: left center;
+  transition: width 0.42s var(--ease), background-color 0.28s var(--ease);
 }
 .gauge.warn i {
   background: var(--warn);
@@ -653,6 +698,8 @@ input[type='number'] {
   display: block;
   height: 100%;
   background: var(--ok);
+  transform-origin: left center;
+  transition: width 0.42s var(--ease), background-color 0.28s var(--ease);
 }
 .bar.warn i {
   background: var(--warn);
@@ -763,6 +810,8 @@ table.tbl th.r {
   overflow: hidden;
   display: flex;
   flex-direction: column-reverse;
+  transform-origin: bottom center;
+  transition: height 0.38s var(--ease);
 }
 .wbar.donebar {
   height: 6px;
@@ -930,6 +979,8 @@ table.tbl th.r {
 .pg .t i {
   display: block;
   height: 100%;
+  transform-origin: left center;
+  transition: width 0.42s var(--ease);
 }
 .pg em {
   font-style: normal;
@@ -1091,13 +1142,19 @@ table.tbl th.r {
   position: fixed;
   inset: 0;
   background: rgba(15, 20, 30, 0.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 12px;
   z-index: 50;
+  animation: fade 0.25s var(--ease) both;
+  transition: opacity 0.22s var(--ease);
+}
+.modal-backdrop.out {
+  opacity: 0;
+  pointer-events: none;
 }
 .modal-card {
   width: 100%;
@@ -1112,6 +1169,12 @@ table.tbl th.r {
   border-radius: 22px;
   padding: 18px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25), inset 0 1px 0 var(--glass-hi);
+  animation: softRise 0.36s var(--spring) both;
+  transition: transform 0.22s var(--ease), opacity 0.22s var(--ease);
+}
+.modal-backdrop.out .modal-card {
+  opacity: 0;
+  transform: translate3d(0, 12px, 0) scale(0.97);
 }
 .modal-title {
   font: 400 19px 'Jua', sans-serif;
@@ -1185,11 +1248,15 @@ table.tbl th.r {
   border: 1px solid var(--line);
   color: var(--ink);
   text-decoration: none;
-  transition: transform 0.14s ease, border-color 0.14s ease;
+  transition: transform 0.22s var(--spring), border-color 0.24s var(--ease),
+    box-shadow 0.26s var(--ease), background-color 0.24s var(--ease);
 }
-.hub-app-tile:hover {
-  transform: translateY(-2px);
-  border-color: var(--acc);
+@media (hover: hover) {
+  .hub-app-tile:hover {
+    transform: translate3d(0, -3px, 0);
+    border-color: var(--acc);
+    box-shadow: var(--sh-hover);
+  }
 }
 .hub-app-ico {
   font-size: 22px;
@@ -1351,11 +1418,12 @@ table.tbl th.r {
   background: var(--field);
   border: 1px solid var(--line);
   cursor: grab;
-  transition: transform 0.12s ease, opacity 0.12s ease;
+  transition: transform 0.22s var(--spring), opacity 0.18s var(--ease),
+    border-color 0.24s var(--ease), box-shadow 0.24s var(--ease);
 }
 .mx-item.dragging {
   opacity: 0.45;
-  transform: scale(0.98);
+  transform: scale3d(0.97, 0.97, 1);
 }
 .mx-item.is-manual {
   border-color: var(--acc);
@@ -1385,9 +1453,11 @@ table.tbl th.r {
   cursor: pointer;
   padding: 0 2px;
   line-height: 1;
+  transition: transform 0.22s var(--spring), color 0.2s var(--ease);
 }
 .star-btn.on {
   color: var(--today);
+  animation: badgePop 0.32s var(--spring);
 }
 .mx-tags {
   display: flex;
@@ -1450,5 +1520,254 @@ table.tbl th.r {
   }
   .hub-apps {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ===== 모션 시스템 (2-6 smooth-motion 기반 120fps GPU 합성 · 슬라이딩 인디케이터 · 방향성 전환) ===== */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes softRise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+@keyframes dropIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes badgePop {
+  0% {
+    transform: scale3d(0.76, 0.76, 1);
+  }
+  60% {
+    transform: scale3d(1.12, 1.12, 1);
+  }
+  100% {
+    transform: scale3d(1, 1, 1);
+  }
+}
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translate3d(18px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translate3d(-18px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes growX {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes growY {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* 첫 진입 스태거 애니메이션 */
+body.enter .app-header {
+  animation: dropIn 0.52s var(--ease) both;
+}
+body.enter .ddrow .ddc {
+  animation: rise 0.52s var(--ease) both;
+}
+body.enter .ddrow .ddc:nth-child(1) {
+  animation-delay: 0.06s;
+}
+body.enter .ddrow .ddc:nth-child(2) {
+  animation-delay: 0.12s;
+}
+body.enter .ddrow .ddc:nth-child(3) {
+  animation-delay: 0.18s;
+}
+body.enter nav {
+  animation: dropIn 0.54s var(--ease) 0.08s both;
+}
+
+/* 탭 및 날짜/주간/월간 방향성 전환 */
+#app.view-enter {
+  animation: softRise 0.3s var(--ease) both;
+}
+#app[data-dir='right'].view-enter {
+  animation: slideInRight 0.3s var(--ease) both;
+}
+#app[data-dir='left'].view-enter {
+  animation: slideInLeft 0.3s var(--ease) both;
+}
+#app.view-enter > .card,
+#app.view-enter > .two,
+#app.view-enter > .wgrid,
+#app.view-enter > .mx-grid {
+  animation: softRise 0.34s var(--ease) both;
+}
+#app.view-enter > :nth-child(2) {
+  animation-delay: 0.03s;
+}
+#app.view-enter > :nth-child(3) {
+  animation-delay: 0.06s;
+}
+#app.view-enter > :nth-child(4) {
+  animation-delay: 0.09s;
+}
+#app.view-enter > :nth-child(5) {
+  animation-delay: 0.12s;
+}
+#app.view-enter > :nth-child(6) {
+  animation-delay: 0.15s;
+}
+#app.view-enter .wgrid > .day,
+#app.view-enter .mx-grid > .mx-quad {
+  animation: softRise 0.34s var(--ease) both;
+}
+#app.view-enter .wgrid > .day:nth-child(2),
+#app.view-enter .mx-grid > .mx-quad:nth-child(2) {
+  animation-delay: 0.04s;
+}
+#app.view-enter .wgrid > .day:nth-child(3),
+#app.view-enter .mx-grid > .mx-quad:nth-child(3) {
+  animation-delay: 0.08s;
+}
+#app.view-enter .wgrid > .day:nth-child(4),
+#app.view-enter .mx-grid > .mx-quad:nth-child(4) {
+  animation-delay: 0.12s;
+}
+#app.view-enter .wgrid > .day:nth-child(n + 5) {
+  animation-delay: 0.15s;
+}
+
+/* 막대·게이지 진입 애니메이션 */
+#app.view-enter .gauge i,
+#app.view-enter .bar i,
+#app.view-enter .pg .t i,
+#app.view-enter .cc .ld i,
+.modal-card .pg .t i {
+  animation: growX 0.52s var(--ease) 0.08s both;
+}
+#app.view-enter .wbar {
+  animation: growY 0.48s var(--ease) 0.08s both;
+}
+
+/* 인라인 패널·상세 확장 스무스 등장 */
+.ask-box,
+.item-menu,
+.add-panel,
+.cal-setup,
+.hub-form,
+.cdet,
+.sync-banner {
+  animation: softRise 0.26s var(--ease) both;
+}
+
+/* 카드·칩·버튼·달력 셀 인터랙션 트랜지션 */
+.card,
+.ddc,
+.chip,
+.tg,
+.cc,
+.hub-bm-row,
+.book-link,
+.themesw button,
+.modal-row {
+  transition: background-color 0.24s var(--ease), color 0.22s var(--ease),
+    border-color 0.24s var(--ease), box-shadow 0.26s var(--ease),
+    transform 0.22s var(--spring), opacity 0.22s var(--ease);
+}
+
+@media (hover: hover) {
+  .ddc:hover,
+  .hub-bm-row:hover {
+    transform: translate3d(0, -2px, 0);
+    box-shadow: var(--sh-hover);
+  }
+  .mx-item:hover:not(.dragging) {
+    transform: translate3d(0, -2px, 0);
+    box-shadow: var(--sh);
+  }
+  .btn:hover:not(:disabled),
+  .chip:hover,
+  .tg:hover {
+    transform: translate3d(0, -1.5px, 0);
+  }
+  .cc:hover:not(.dim) {
+    transform: translate3d(0, -2px, 0);
+    box-shadow: var(--sh);
+  }
+}
+
+nav button:active,
+.chip:active,
+.tg:active,
+.cc:active,
+.themesw button:active,
+.hub-app-tile:active,
+.star-btn:active {
+  transform: scale3d(0.95, 0.95, 1);
+  transition-duration: 0.1s;
+}
+
+.book-link:active {
+  transform: scale3d(0.97, 0.97, 1);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.36s;
+  animation-timing-function: var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
