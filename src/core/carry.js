@@ -1,5 +1,5 @@
 import { addDay, dayOfWeek } from './date.js';
-import { CL, capOf, fmt, itemP, planDates, sumP } from './units.js';
+import { CL, capOf, fmt, itemP, parseUnits, planDates, sumP, unitsText } from './units.js';
 
 /**
  * 항목의 이월 규칙을 반환합니다 ('ask' | 'auto' | 'drop').
@@ -51,6 +51,76 @@ export function movePlanItem(plans, fromDate, id, toDate) {
   next[fromDate] = src;
   next[toDate] = next[toDate] || [];
   next[toDate].push(item);
+  return { changed: true, plans: next };
+}
+
+/**
+ * 문제집/범위형 항목의 일부(startIdx~endIdx) 또는 전체를 다른 날짜로 이동합니다.
+ */
+export function movePlanSlice(plans, fromDate, id, toDate, startIdx = 0, endIdx = null) {
+  if (!fromDate || !toDate || fromDate === toDate) {
+    return { changed: false, plans: CL(plans) };
+  }
+  const srcList = (plans && plans[fromDate]) || [];
+  const orig = srcList.find((i) => i.id === id);
+  if (!orig) return { changed: false, plans: CL(plans) };
+
+  const units = parseUnits(orig);
+  if (!units || units.length <= 1) {
+    return movePlanItem(plans, fromDate, id, toDate);
+  }
+  const s = Math.max(0, Math.min(units.length - 1, Number(startIdx) || 0));
+  const e =
+    endIdx == null
+      ? units.length - 1
+      : Math.max(s, Math.min(units.length - 1, Number(endIdx)));
+  if (s === 0 && e === units.length - 1) {
+    return movePlanItem(plans, fromDate, id, toDate);
+  }
+
+  const next = CL(plans);
+  const nextSrc = next[fromDate] || [];
+  const idx = nextSrc.findIndex((i) => i.id === id);
+  if (idx < 0) return { changed: false, plans: next };
+
+  const beforeU = units.slice(0, s);
+  const movedU = units.slice(s, e + 1);
+  const afterU = units.slice(e + 1);
+
+  const stamp = Date.now().toString(36);
+  const replacements = [];
+  if (beforeU.length) {
+    replacements.push({
+      ...CL(orig),
+      t: unitsText(beforeU),
+      n: beforeU.length,
+    });
+  }
+  if (afterU.length) {
+    replacements.push({
+      ...CL(orig),
+      id: beforeU.length ? `${orig.id}r${stamp}` : orig.id,
+      t: unitsText(afterU),
+      n: afterU.length,
+    });
+  }
+  nextSrc.splice(idx, 1, ...replacements);
+  next[fromDate] = nextSrc;
+
+  const movedPart = {
+    ...CL(orig),
+    id: `${orig.id}m${stamp}`,
+    t: unitsText(movedU),
+    n: movedU.length,
+  };
+  if (fromDate < toDate) {
+    if (!movedPart.from) movedPart.from = fromDate;
+  } else if (movedPart.from && toDate <= movedPart.from) {
+    delete movedPart.from;
+  }
+  next[toDate] = next[toDate] || [];
+  next[toDate].push(movedPart);
+
   return { changed: true, plans: next };
 }
 

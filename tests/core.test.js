@@ -829,3 +829,53 @@ test('Google Calendar events: KST dates, all-day exclusive end, multi-day groupi
   assert.match(modalHtml, /면담/);
   assert.match(modalHtml, /집중 잘됨/);
 });
+
+test('Weekly drag/context-menu move and partial workbook range move modal', async () => {
+  const { movePlanSlice } = await import('../src/core/carry.js');
+  const { renderWeek, renderMoveCalModal } = await import('../src/views/schedule.js');
+
+  const plans = {
+    '2026-11-15': [
+      { id: 'w1', s: '수학', b: '쎈', t: '#1~10', n: 10, done: false },
+    ],
+  };
+
+  // Partial range move: #4~7 (indices 3..6)
+  const partial = movePlanSlice(plans, '2026-11-15', 'w1', '2026-11-18', 3, 6);
+  assert.equal(partial.changed, true);
+  assert.equal(partial.plans['2026-11-15'].length, 2);
+  assert.equal(partial.plans['2026-11-15'][0].t, '#1~3');
+  assert.equal(partial.plans['2026-11-15'][1].t, '#8~10');
+  assert.equal(partial.plans['2026-11-18'].length, 1);
+  assert.equal(partial.plans['2026-11-18'][0].t, '#4~7');
+  assert.equal(partial.plans['2026-11-18'][0].n, 4);
+  assert.equal(partial.plans['2026-11-18'][0].from, '2026-11-15');
+
+  // Weekly view renders draggable rows and droppable day cards
+  const weekHtml = renderWeek({
+    REAL: '2026-11-15',
+    cur: '2026-11-15',
+    plans,
+    cfg: defaultConfig(),
+    openC: new Set(),
+    rulesOpen: false,
+  });
+  assert.match(weekHtml, /draggable="true" data-wdrag-d="2026-11-15" data-wdrag-id="w1"/);
+  assert.match(weekHtml, /data-wdrop-d="2026-11-18"/);
+
+  // Move calendar modal renders plans-only calendar + range selectors
+  const moveHtml = renderMoveCalModal({
+    REAL: '2026-11-15',
+    plans,
+    cfg: defaultConfig(),
+    moveModal: { fromDate: '2026-11-15', id: 'w1', ym: '2026-11', startIdx: 2, endIdx: 5 },
+    gcalByMonth: { '2026-11': [{ id: 'g1', title: '숨겨져야함', startDate: '2026-11-15', endDate: '2026-11-15', allDay: true, color: '#4285f4' }] },
+  });
+  assert.match(moveHtml, /movepop-cal/);
+  assert.match(moveHtml, /data-mpop-drag="1"/);
+  assert.match(moveHtml, /data-mpop-drop="2026-11-18"/);
+  assert.match(moveHtml, /data-act="movepop-start"/);
+  assert.match(moveHtml, /data-act="movepop-end"/);
+  assert.match(moveHtml, /#3~6/);
+  assert.equal(/숨겨져야함/.test(moveHtml), false);
+});

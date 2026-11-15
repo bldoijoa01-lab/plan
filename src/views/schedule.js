@@ -35,6 +35,7 @@ import {
   planDates,
   remainByBook,
   sumP,
+  unitsText,
   weightOf,
 } from '../core/units.js';
 import { carryRuleOf, getOverdueItems, planClose } from '../core/carry.js';
@@ -1169,7 +1170,11 @@ export function renderWeek(state) {
                 )}P</span></div>
                 ${L.map(
                   (x) => `
-                  <div class="wrow ${x.done ? 'done' : ''}">
+                  <div class="wrow ${x.done ? 'done' : ''}" draggable="true" data-wdrag-d="${esc(
+                    d
+                  )}" data-wdrag-id="${esc(
+                    x.id
+                  )}" title="드래그로 요일 이동 · 우클릭으로 월간 달력 이동">
                     <input type="checkbox" data-act="tog" data-d="${esc(
                       d
                     )}" data-id="${esc(x.id)}" ${x.done ? 'checked' : ''}>
@@ -1185,7 +1190,9 @@ export function renderWeek(state) {
           .join('') || '<div class="note">계획 없음</div>';
 
       return `
-        <div class="card day ${td ? 'today' : ''} ${past ? 'past' : ''}">
+        <div class="card day ${td ? 'today' : ''} ${past ? 'past' : ''}" data-wdrop-d="${esc(
+          d
+        )}">
           <div class="dh">
             <span class="dw">${WD_EN[i]}</span>
             <span class="dd">${d.slice(5).replace('-', '/')}</span>
@@ -2105,6 +2112,167 @@ export function renderCalDayModal(state) {
           <button type="button" class="btn p sm" data-act="calpop-goto" data-d="${esc(
             ds
           )}">더보기 (일간계획) →</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+export function renderMoveCalModal(state) {
+  const { moveModal, plans, cfg, REAL } = state;
+  if (!moveModal || !moveModal.fromDate || !moveModal.id) return '';
+
+  const { fromDate, id } = moveModal;
+  const srcList = liveItems(plans[fromDate]);
+  const item = srcList.find((x) => x.id === id);
+  if (!item) return '';
+
+  const ym = moveModal.ym || fromDate.slice(0, 7);
+  const { year: Y, month: M, pad, dates: monthDates } = monthInfo(ym);
+
+  const units = parseUnits(item);
+  const hasRange = Boolean(units && units.length > 1);
+  const sIdx = hasRange
+    ? Math.max(0, Math.min(units.length - 1, Number(moveModal.startIdx) || 0))
+    : 0;
+  const eIdx = hasRange
+    ? Math.max(
+        sIdx,
+        Math.min(
+          units.length - 1,
+          moveModal.endIdx == null ? units.length - 1 : Number(moveModal.endIdx)
+        )
+      )
+    : 0;
+  const selectedUnits = hasRange ? units.slice(sIdx, eIdx + 1) : null;
+  const selectedText = selectedUnits ? unitsText(selectedUnits) : item.t || '';
+  const selectedN = selectedUnits ? selectedUnits.length : item.n || 1;
+  const selectedP = hasRange
+    ? fmt(selectedN * weightOf(item.b, cfg))
+    : fmt(itemP(item, cfg));
+  const isPartial = hasRange && (sIdx > 0 || eIdx < units.length - 1);
+  const cVar = SC[item.s] ? SC[item.s][0] : '--acc';
+
+  return `
+    <div class="modal-backdrop" data-act="movepopbg">
+      <div class="modal-card move-cal-modal" role="dialog" aria-modal="true" aria-label="월간 달력으로 계획 이동">
+        <div class="row wrap-row">
+          <b class="modal-title">📅 계획 이동 (월간 달력)</b>
+          <span class="sp"></span>
+          <button type="button" class="btn sm" data-act="movepopclose">닫기</button>
+        </div>
+
+        <div class="movepop-source">
+          <div class="movepop-drag-chip" draggable="true" data-mpop-drag="1">
+            <span class="subj-dot" style="background:var(${cVar})"></span>
+            <span class="bdg">${esc(item.s || '일반')}</span>
+            <b>${esc(itemLabelPrefix(item))}</b>
+            <span class="mono">${esc(selectedText)}</span>
+            <span class="note mono">(${selectedN}${esc(UNIT[item.b] || '개')} · ${selectedP}P)</span>
+            <span class="sp"></span>
+            <span class="mini-pill">출발: ${esc(lab(fromDate))}</span>
+          </div>
+          ${
+            hasRange
+              ? `
+                <div class="row wrap-row movepop-range-row">
+                  <span class="note"><b>이동할 범위:</b></span>
+                  <select id="mpop-start" data-act="movepop-start" aria-label="시작 번호">
+                    ${units
+                      .map(
+                        (u, idx) =>
+                          `<option value="${idx}" ${idx === sIdx ? 'selected' : ''}>${esc(
+                            u.p + u.n
+                          )}</option>`
+                      )
+                      .join('')}
+                  </select>
+                  <span class="note">부터</span>
+                  <select id="mpop-end" data-act="movepop-end" aria-label="끝 번호">
+                    ${units
+                      .map((u, idx) =>
+                        idx < sIdx
+                          ? ''
+                          : `<option value="${idx}" ${idx === eIdx ? 'selected' : ''}>${esc(
+                              u.p + u.n
+                            )}</option>`
+                      )
+                      .join('')}
+                  </select>
+                  <span class="note">까지</span>
+                  ${
+                    isPartial
+                      ? '<button type="button" class="btn sm" data-act="movepop-full">전체 선택</button>'
+                      : ''
+                  }
+                </div>
+              `
+              : ''
+          }
+          <div class="note" style="margin-top:6px">
+            위 카드를 원하는 날짜 칸으로 <b>드래그</b>하거나, 이동할 날짜 칸을 <b>클릭</b>하세요.
+          </div>
+        </div>
+
+        <div class="datebar" style="margin-top:10px">
+          <button type="button" class="btn sm" data-act="movepop-m" data-n="-1">◀</button>
+          <b>${Y}년 ${M}월</b>
+          <button type="button" class="btn sm" data-act="movepop-m" data-n="1">▶</button>
+        </div>
+
+        <div class="cal movepop-cal">
+          ${WD_KO.map((x) => `<div class="h">${x}</div>`).join('')}
+          ${'<div></div>'.repeat(pad)}
+          ${monthDates
+            .map((ds, idx) => {
+              const day = idx + 1;
+              const all = liveItems(plans[ds]);
+              const p = sumP(all, cfg);
+              const cap = capOf(ds, plans, cfg);
+              const cls =
+                p > 100 ? 'var(--bad)' : p > cap ? 'var(--warn)' : 'var(--ok)';
+              const isSrc = ds === fromDate;
+              const g = {};
+              all.forEach((x) => {
+                const o = (g[x.b] = g[x.b] || { n: 0, dn: 0, s: x.s });
+                o.n += Number(x.n) || 0;
+                if (x.done) o.dn += Number(x.n) || 0;
+              });
+              return `
+                <div class="cc ${ds === REAL ? 'td' : ''} ${
+                isSrc ? 'mpop-src' : ''
+              }" data-mpop-drop="${esc(ds)}" data-act="${
+                isSrc ? '' : 'movepop-pick'
+              }" data-d="${esc(ds)}">
+                  <div class="dn">
+                    <span>${day}</span>
+                    <span style="color:var(--mute);font-weight:400">${
+                      p ? Math.round(p) : ''
+                    }</span>
+                  </div>
+                  ${
+                    all.length
+                      ? `<div class="ld"><i style="width:${Math.min(
+                          100,
+                          (p / Math.max(cap, 1)) * 100
+                        )}%;background:${cls}"></i></div>`
+                      : ''
+                  }
+                  ${Object.keys(g)
+                    .map((b) => {
+                      const o = g[b];
+                      const c = SC[o.s] ? SC[o.s][0] : '--mute';
+                      return `<span class="ch ${
+                        o.dn === o.n ? 'dn2' : ''
+                      }" style="--c:var(${c})">${esc(SH[b] || b)} ${
+                        o.dn && o.dn < o.n ? `${o.dn}/` : ''
+                      }${o.n}</span>`;
+                    })
+                    .join('')}
+                </div>
+              `;
+            })
+            .join('')}
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-16';
+} from './core/date.js?v=20261115-17';
 import {
   BNAME,
   BOOKS,
@@ -16,28 +16,29 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-16';
+} from './core/units.js?v=20261115-17';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
-} from './core/carry.js?v=20261115-16';
+  movePlanSlice,
+} from './core/carry.js?v=20261115-17';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-16';
+} from './core/matrix.js?v=20261115-17';
 import {
   DEFAULT_ONENOTE_CLIENT_ID,
   defaultOneNoteConfig,
   normalizeNotesState,
-} from './core/onenote.js?v=20261115-16';
+} from './core/onenote.js?v=20261115-17';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261115-16';
-import { esc } from './core/html.js?v=20261115-16';
+} from './core/hub.js?v=20261115-17';
+import { esc } from './core/html.js?v=20261115-17';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -47,7 +48,7 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-16';
+} from './services/store.js?v=20261115-17';
 import {
   clearOneNoteAuth,
   completeOneNoteAuthRedirectIfPresent,
@@ -62,26 +63,27 @@ import {
   startOneNotePkceLogin,
   syncNotesBidirectional,
   verifyDirectToken,
-} from './services/onenote.js?v=20261115-16';
+} from './services/onenote.js?v=20261115-17';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261115-16';
+} from './services/gcal.js?v=20261115-17';
 import {
   renderAll,
   renderBookModal,
   renderBooksView,
   renderCalDayModal,
   renderHome,
+  renderMoveCalModal,
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-16';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-16';
-import { renderMatrix } from './views/matrix.js?v=20261115-16';
-import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-16';
+} from './views/schedule.js?v=20261115-17';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-17';
+import { renderMatrix } from './views/matrix.js?v=20261115-17';
+import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-17';
 
 const $ = (s) => document.querySelector(s);
 
@@ -288,6 +290,7 @@ const state = {
   bookModalId: null,
   bookModalFilter: 'all',
   calModalDate: null,
+  moveModal: null,
 
   // Hub transient UI state
   hubAdding: false,
@@ -559,21 +562,31 @@ function syncNav() {
 function syncBookModal() {
   const modalSlot = $('#modal-root');
   if (!modalSlot) return;
-  if (!state.bookModalId && !state.calModalDate) {
+  if (!state.bookModalId && !state.calModalDate && !state.moveModal) {
     const existing = modalSlot.querySelector('.modal-backdrop');
     if (existing && existing.classList.contains('out')) return;
     modalSlot.innerHTML = '';
     delete modalSlot.dataset.bookId;
     delete modalSlot.dataset.calDate;
+    delete modalSlot.dataset.movePop;
+    return;
+  }
+  if (!state.bookModalId && state.moveModal) {
+    delete modalSlot.dataset.bookId;
+    delete modalSlot.dataset.calDate;
+    modalSlot.innerHTML = renderMoveCalModal(state);
+    modalSlot.dataset.movePop = '1';
     return;
   }
   if (!state.bookModalId && state.calModalDate) {
     delete modalSlot.dataset.bookId;
+    delete modalSlot.dataset.movePop;
     modalSlot.innerHTML = renderCalDayModal(state);
     modalSlot.dataset.calDate = String(state.calModalDate);
     return;
   }
   delete modalSlot.dataset.calDate;
+  delete modalSlot.dataset.movePop;
   const html = renderBookModal(state);
   const tpl = document.createElement('template');
   tpl.innerHTML = html;
@@ -648,6 +661,32 @@ function closeCalModal() {
     if (!state.calModalDate && !state.bookModalId && modalSlot) {
       modalSlot.innerHTML = '';
       delete modalSlot.dataset.calDate;
+    }
+  };
+  backdrop.addEventListener('transitionend', finish, { once: true });
+  setTimeout(finish, 240);
+}
+
+function closeMoveModal() {
+  const modalSlot = $('#modal-root');
+  const backdrop = modalSlot && modalSlot.querySelector('.modal-backdrop');
+  state.moveModal = null;
+  if (!backdrop || reduceMotion()) {
+    if (modalSlot) {
+      modalSlot.innerHTML = '';
+      delete modalSlot.dataset.movePop;
+    }
+    return;
+  }
+  if (backdrop.classList.contains('out')) return;
+  backdrop.classList.add('out');
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    if (!state.moveModal && !state.calModalDate && !state.bookModalId && modalSlot) {
+      modalSlot.innerHTML = '';
+      delete modalSlot.dataset.movePop;
     }
   };
   backdrop.addEventListener('transitionend', finish, { once: true });
@@ -766,6 +805,22 @@ function doMove(from, id, to, quiet) {
   store.savePlan(to, state.plans[to] || []);
   state.moving = null;
   if (!quiet) render();
+}
+
+function doMoveSlice(from, id, to, startIdx = 0, endIdx = null) {
+  const res = movePlanSlice(state.plans, from, id, to, startIdx, endIdx);
+  if (!res.changed) return;
+  state.plans = res.plans;
+  store.savePlan(from, state.plans[from] || []);
+  store.savePlan(to, state.plans[to] || []);
+  state.moving = null;
+  state.moveModal = null;
+  const modalSlot = $('#modal-root');
+  if (modalSlot) {
+    modalSlot.innerHTML = '';
+    delete modalSlot.dataset.movePop;
+  }
+  render();
 }
 
 function runAutoCarryOnBoot() {
@@ -1095,6 +1150,7 @@ function handleClick(e) {
       nextView !== prevView ? tabDirection(prevView, nextView) : 'soft';
     closeBookModal();
     closeCalModal();
+    closeMoveModal();
     render({ motion });
     return;
   }
@@ -1115,6 +1171,7 @@ function handleClick(e) {
       nextView !== prevView ? tabDirection(prevView, nextView) : '';
     closeBookModal();
     closeCalModal();
+    closeMoveModal();
     render({ motion });
     return;
   }
@@ -1206,6 +1263,80 @@ function handleClick(e) {
     state.lastSub[state.sec] = 'today';
     state.moving = null;
     render({ motion: tabDirection(prevView, 'today') });
+    return;
+  }
+
+  if (a === 'ctx-move') {
+    closePlanContextMenu();
+    if (!d || !id) return;
+    state.bookModalId = null;
+    state.calModalDate = null;
+    state.moveModal = {
+      fromDate: d,
+      id,
+      ym: d.slice(0, 7),
+      startIdx: 0,
+      endIdx: null,
+    };
+    syncBookModal();
+    return;
+  }
+
+  if (a === 'ctx-tog') {
+    closePlanContextMenu();
+    if (!d || !id) return;
+    updatePlanDate(d, (list) =>
+      list.map((x) => {
+        if (x.id !== id) return x;
+        const nextDone = !x.done;
+        const copy = { ...x, done: nextDone };
+        if (nextDone) {
+          copy.done_date = state.REAL;
+          copy.d = state.REAL;
+        } else {
+          delete copy.done_date;
+          delete copy.d;
+        }
+        return copy;
+      })
+    );
+    render();
+    return;
+  }
+
+  if (a === 'movepopbg' && e.target !== t) return;
+  if (a === 'movepopbg' || a === 'movepopclose') {
+    closeMoveModal();
+    return;
+  }
+
+  if (a === 'movepop-m') {
+    if (!state.moveModal) return;
+    const curYm = state.moveModal.ym || state.moveModal.fromDate.slice(0, 7);
+    state.moveModal = {
+      ...state.moveModal,
+      ym: addMonth(curYm, Number(t.dataset.n)),
+    };
+    syncBookModal();
+    return;
+  }
+
+  if (a === 'movepop-full') {
+    if (!state.moveModal) return;
+    state.moveModal = { ...state.moveModal, startIdx: 0, endIdx: null };
+    syncBookModal();
+    return;
+  }
+
+  if (a === 'movepop-pick') {
+    if (!d || !state.moveModal || d === state.moveModal.fromDate) return;
+    doMoveSlice(
+      state.moveModal.fromDate,
+      state.moveModal.id,
+      d,
+      state.moveModal.startIdx,
+      state.moveModal.endIdx
+    );
     return;
   }
 
@@ -2341,6 +2472,24 @@ function handleChange(e) {
       autoSync: Boolean(t.checked),
     };
     store.saveCfg(state.cfg);
+  } else if (a === 'movepop-start') {
+    if (!state.moveModal) return;
+    const nextStart = Math.max(0, Number(t.value) || 0);
+    const curEnd = state.moveModal.endIdx;
+    state.moveModal = {
+      ...state.moveModal,
+      startIdx: nextStart,
+      endIdx: curEnd != null && curEnd < nextStart ? nextStart : curEnd,
+    };
+    syncBookModal();
+  } else if (a === 'movepop-end') {
+    if (!state.moveModal) return;
+    const nextEnd = Math.max(state.moveModal.startIdx || 0, Number(t.value) || 0);
+    state.moveModal = {
+      ...state.moveModal,
+      endIdx: nextEnd,
+    };
+    syncBookModal();
   }
 }
 
@@ -2387,6 +2536,13 @@ function handleInput(e) {
 }
 
 function handleKeydown(e) {
+  if (e.key === 'Escape') {
+    closePlanContextMenu();
+  }
+  if (e.key === 'Escape' && state.moveModal) {
+    closeMoveModal();
+    return;
+  }
   if (e.key === 'Escape' && state.bookModalId) {
     closeBookModal();
     return;
@@ -2412,10 +2568,69 @@ function handleKeydown(e) {
   }
 }
 
-// Drag & drop support for Eisenhower Matrix
+// Context menu & drag-and-drop support (Eisenhower Matrix, Weekly Plan, Move Modal)
 let draggedMatrixKey = null;
+let draggedWeekItem = null;
+let draggedMoveModal = false;
+
+function closePlanContextMenu() {
+  const existing = $('#plan-ctx-menu');
+  if (existing) existing.remove();
+}
+
+function openPlanContextMenu(fromDate, id, clientX, clientY) {
+  closePlanContextMenu();
+  const item = findItem(fromDate, id);
+  if (!item) return;
+  const menu = document.createElement('div');
+  menu.id = 'plan-ctx-menu';
+  menu.className = 'plan-ctx-menu';
+  menu.innerHTML = `
+    <div class="plan-ctx-head">${esc(item.t || '')}</div>
+    <button type="button" data-act="ctx-move" data-d="${esc(fromDate)}" data-id="${esc(id)}">📅 계획 이동 (월간 달력)</button>
+    <button type="button" data-act="ctx-tog" data-d="${esc(fromDate)}" data-id="${esc(id)}">${
+      item.done ? '↩ 미완료로 되돌리기' : '✓ 완료 처리'
+    }</button>
+  `;
+  document.body.appendChild(menu);
+  const vw = window.innerWidth || 360;
+  const vh = window.innerHeight || 640;
+  const rect = menu.getBoundingClientRect();
+  const left = Math.max(8, Math.min(clientX, vw - rect.width - 8));
+  const top = Math.max(8, Math.min(clientY, vh - rect.height - 8));
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
+document.addEventListener('contextmenu', (e) => {
+  const wrow = e.target.closest('[data-wdrag-id]');
+  if (!wrow) return;
+  e.preventDefault();
+  openPlanContextMenu(wrow.dataset.wdragD, wrow.dataset.wdragId, e.clientX, e.clientY);
+});
 
 document.addEventListener('dragstart', (e) => {
+  const mpopChip = e.target.closest('[data-mpop-drag]');
+  if (mpopChip && state.moveModal) {
+    draggedMoveModal = true;
+    mpopChip.classList.add('dragging');
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', 'movepop');
+    }
+    return;
+  }
+  const wrow = e.target.closest('[data-wdrag-id]');
+  if (wrow) {
+    closePlanContextMenu();
+    draggedWeekItem = { fromDate: wrow.dataset.wdragD, id: wrow.dataset.wdragId };
+    wrow.classList.add('dragging');
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', wrow.dataset.wdragId);
+    }
+    return;
+  }
   const card = e.target.closest('[data-mxkey]');
   if (!card) return;
   draggedMatrixKey = card.dataset.mxkey;
@@ -2427,15 +2642,33 @@ document.addEventListener('dragstart', (e) => {
 });
 
 document.addEventListener('dragend', (e) => {
-  const card = e.target.closest('[data-mxkey]');
+  const card = e.target.closest('[data-mxkey], [data-wdrag-id], [data-mpop-drag]');
   if (card) card.classList.remove('dragging');
   document
-    .querySelectorAll('.mx-quad.drag-over')
+    .querySelectorAll('.mx-quad.drag-over, [data-wdrop-d].drag-over, [data-mpop-drop].drag-over')
     .forEach((el) => el.classList.remove('drag-over'));
   draggedMatrixKey = null;
+  draggedWeekItem = null;
+  draggedMoveModal = false;
 });
 
 document.addEventListener('dragover', (e) => {
+  if (draggedMoveModal) {
+    const mzone = e.target.closest('[data-mpop-drop]');
+    if (!mzone || (state.moveModal && mzone.dataset.mpopDrop === state.moveModal.fromDate)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    mzone.classList.add('drag-over');
+    return;
+  }
+  if (draggedWeekItem) {
+    const wzone = e.target.closest('[data-wdrop-d]');
+    if (!wzone || wzone.dataset.wdropD === draggedWeekItem.fromDate) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    wzone.classList.add('drag-over');
+    return;
+  }
   const zone = e.target.closest('[data-qdrop]');
   if (!zone || !draggedMatrixKey) return;
   e.preventDefault();
@@ -2444,7 +2677,7 @@ document.addEventListener('dragover', (e) => {
 });
 
 document.addEventListener('dragleave', (e) => {
-  const zone = e.target.closest('[data-qdrop]');
+  const zone = e.target.closest('[data-qdrop], [data-wdrop-d], [data-mpop-drop]');
   if (!zone) return;
   if (!zone.contains(e.relatedTarget)) {
     zone.classList.remove('drag-over');
@@ -2452,6 +2685,37 @@ document.addEventListener('dragleave', (e) => {
 });
 
 document.addEventListener('drop', (e) => {
+  if (draggedMoveModal && state.moveModal) {
+    const mzone = e.target.closest('[data-mpop-drop]');
+    if (!mzone) return;
+    e.preventDefault();
+    mzone.classList.remove('drag-over');
+    const toDate = mzone.dataset.mpopDrop;
+    draggedMoveModal = false;
+    if (toDate && toDate !== state.moveModal.fromDate) {
+      doMoveSlice(
+        state.moveModal.fromDate,
+        state.moveModal.id,
+        toDate,
+        state.moveModal.startIdx,
+        state.moveModal.endIdx
+      );
+    }
+    return;
+  }
+  if (draggedWeekItem) {
+    const wzone = e.target.closest('[data-wdrop-d]');
+    if (!wzone) return;
+    e.preventDefault();
+    wzone.classList.remove('drag-over');
+    const { fromDate, id } = draggedWeekItem;
+    const toDate = wzone.dataset.wdropD;
+    draggedWeekItem = null;
+    if (fromDate && id && toDate && fromDate !== toDate) {
+      doMove(fromDate, id, toDate);
+    }
+    return;
+  }
   const zone = e.target.closest('[data-qdrop]');
   if (!zone) return;
   e.preventDefault();
@@ -2470,7 +2734,12 @@ document.addEventListener('drop', (e) => {
   }
 });
 
-document.addEventListener('click', handleClick);
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#plan-ctx-menu')) {
+    closePlanContextMenu();
+  }
+  handleClick(e);
+});
 document.addEventListener('change', handleChange);
 document.addEventListener('input', handleInput);
 document.addEventListener('keydown', handleKeydown);
