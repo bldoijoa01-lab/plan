@@ -896,3 +896,40 @@ test('Weekly drag/context-menu move and partial workbook range move modal', asyn
   assert.match(moveHtml, /#3~6/);
   assert.equal(/숨겨져야함/.test(moveHtml), false);
 });
+
+test('planClose & applyClosePlan (spread) preserves workbook unit order across the week', () => {
+  const cfg = defaultConfig();
+  cfg.caps = { study: 30, off: 30 };
+  const plans = {
+    '2026-11-16': [
+      { id: 's1', s: '수학', b: '쎈', t: '#1~5', n: 5, done: false },
+    ],
+    '2026-11-17': [
+      { id: 'heavy', s: '수학', b: '원솔', t: '#1~30', n: 30, done: false },
+      { id: 's2', s: '수학', b: '쎈', t: '#6~10', n: 5, done: false },
+    ],
+    '2026-11-18': [
+      { id: 'heavy2', s: '수학', b: '원솔', t: '#31~60', n: 30, done: false },
+      { id: 's3', s: '수학', b: '쎈', t: '#11~15', n: 5, done: false },
+    ],
+    '2026-11-19': [],
+  };
+
+  const closePlan = planClose({ plans, cfg, todayIso: '2026-11-16', mode: 'spread' });
+  assert.equal(closePlan.dest.s1, '2026-11-17');
+
+  const applied = applyClosePlan({ plans, cfg, todayIso: '2026-11-16', mode: 'spread' });
+  assert.equal((applied.plans['2026-11-16'] || []).length, 0);
+  assert.deepEqual(
+    applied.plans['2026-11-17'].filter((x) => x.b === '쎈').map((x) => x.t),
+    ['#1~5']
+  );
+  assert.deepEqual(
+    applied.plans['2026-11-18'].filter((x) => x.b === '쎈').map((x) => x.t),
+    ['#6~10']
+  );
+  assert.deepEqual(
+    applied.plans['2026-11-19'].filter((x) => x.b === '쎈').map((x) => x.t),
+    ['#11~15']
+  );
+});

@@ -196,6 +196,8 @@ export function planClose({ plans, cfg, todayIso, mode = 'next', keepIds = new S
   }
 
   const dest = {};
+  let simulatedPlans = null;
+  let spreadTouched = null;
   if (mode === 'next') {
     for (const i of moves) {
       dest[i.id] = days[0];
@@ -222,6 +224,70 @@ export function planClose({ plans, cfg, todayIso, mode = 'next', keepIds = new S
       dest[i.id] = target;
       after[target] = fmt(after[target] + p);
     }
+
+    // 이번주 안에서 나눠서 이동 시 같은 교재의 미완료 항목을 교재 순서(번호/단원 순)에 맞춰 재정렬
+    const sim = CL(plans);
+    const touched = new Set();
+    for (const it of moves) {
+      const target = dest[it.id];
+      const res = movePlanItem(sim, todayIso, it.id, target);
+      if (res.changed) {
+        sim[todayIso] = res.plans[todayIso];
+        sim[target] = res.plans[target];
+        touched.add(todayIso);
+        touched.add(target);
+      }
+    }
+
+    const compareBookOrder = (a, b) => {
+      const ua = parseUnits(a);
+      const ub = parseUnits(b);
+      if (ua && ua.length && ub && ub.length) {
+        const pCmp = String(ua[0].p || '').localeCompare(String(ub[0].p || ''), 'ko', {
+          numeric: true,
+        });
+        if (pCmp !== 0) return pCmp;
+        return ua[0].n - ub[0].n;
+      }
+      return 0;
+    };
+
+    const movedIds = new Set(moves.map((m) => m.id));
+    const movedBooks = new Set(moves.map((m) => m.b).filter(Boolean));
+    for (const book of movedBooks) {
+      const entries = [];
+      for (const d of pool) {
+        const list = sim[d] || [];
+        list.forEach((it, idx) => {
+          if (!it.done && !it.x && it.b === book) {
+            entries.push({ date: d, idx, item: it });
+          }
+        });
+      }
+      if (entries.length <= 1) continue;
+      const slots = entries.map((e) => ({ date: e.date, idx: e.idx }));
+      const ordered = entries
+        .map((e, origPos) => ({ item: e.item, origPos }))
+        .sort((a, b) => compareBookOrder(a.item, b.item) || a.origPos - b.origPos)
+        .map((x) => x.item);
+
+      slots.forEach((slot, k) => {
+        const nextItem = ordered[k];
+        if (sim[slot.date][slot.idx] !== nextItem) {
+          sim[slot.date][slot.idx] = nextItem;
+          touched.add(slot.date);
+        }
+        if (movedIds.has(nextItem.id)) {
+          dest[nextItem.id] = slot.date;
+        }
+      });
+    }
+
+    for (const d of days) {
+      after[d] = sumP(sim[d] || [], cfg);
+    }
+    simulatedPlans = sim;
+    spreadTouched = [...touched].sort();
   }
 
   const moveP = fmt(moves.reduce((a, i) => a + itemP(i, cfg), 0));
@@ -246,6 +312,8 @@ export function planClose({ plans, cfg, todayIso, mode = 'next', keepIds = new S
     keepP,
     freeBefore: freeSum(before),
     freeAfter: freeSum(after),
+    simulatedPlans,
+    spreadTouched,
   };
 }
 
@@ -254,6 +322,13 @@ export function planClose({ plans, cfg, todayIso, mode = 'next', keepIds = new S
  */
 export function applyClosePlan({ plans, cfg, todayIso, mode = 'next', keepIds = new Set() }) {
   const summary = planClose({ plans, cfg, todayIso, mode, keepIds });
+  if (mode === 'spread' && summary.simulatedPlans) {
+    return {
+      plans: summary.simulatedPlans,
+      touchedDates: summary.spreadTouched || [],
+      summary,
+    };
+  }
   let next = CL(plans);
   const touched = new Set();
   for (const it of summary.moves) {
