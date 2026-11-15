@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js';
+} from './core/date.js?v=20261115-3';
 import {
   BNAME,
   BOOKS,
@@ -16,19 +16,19 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js';
+} from './core/units.js?v=20261115-3';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
-} from './core/carry.js';
+} from './core/carry.js?v=20261115-3';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js';
-import { esc } from './core/html.js';
+} from './core/matrix.js?v=20261115-3';
+import { esc } from './core/html.js?v=20261115-3';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -38,7 +38,7 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js';
+} from './services/store.js?v=20261115-3';
 import {
   renderAll,
   renderBookModal,
@@ -47,9 +47,9 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js';
-import { detectBookmarkKind, renderHub } from './views/hub.js';
-import { renderMatrix } from './views/matrix.js';
+} from './views/schedule.js?v=20261115-3';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-3';
+import { renderMatrix } from './views/matrix.js?v=20261115-3';
 
 const $ = (s) => document.querySelector(s);
 

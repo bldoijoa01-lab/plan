@@ -248,8 +248,8 @@ body {
 }
 
 .wrap {
-  width: 100%;
-  max-width: 1380px;
+  width: min(1140px, 100%);
+  max-width: 1140px;
   margin: 0 auto;
 }
 
@@ -858,10 +858,21 @@ nav[data-pill='ready'] button.on:hover {
   display: flex;
   flex-direction: column;
 }
-@media (min-width: 860px) {
+.home-col-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.home-col-stack > .card {
+  margin: 0;
+  min-width: 0;
+}
+@media (min-width: 920px) {
   .home-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
   }
 }
 .home-list {
@@ -1419,18 +1430,10 @@ table.tbl th.r {
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 12px;
 }
-@media (min-width: 760px) {
+@media (min-width: 820px) {
   .wgrid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-@media (min-width: 1180px) {
-  .wgrid {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 10px;
-  }
-  .wgrid .card {
-    padding: 12px 10px;
+    gap: 12px;
   }
 }
 .wgrid .card {
@@ -2124,10 +2127,10 @@ table.tbl th.r {
   gap: 8px;
   flex: 1;
 }
-@media (min-width: 1360px) {
+@media (min-width: 920px) {
   .mx-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
     align-content: start;
   }
   .mx-list .mx-empty {

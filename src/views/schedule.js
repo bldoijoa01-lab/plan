@@ -578,6 +578,7 @@ export function renderHome(state) {
         </div>
       </div>
 
+      <div class="home-col-stack">
       <div class="card glass-tint-amber">
         <div class="row wrap-row">
           <b class="card-title-md">⏳ 밀린 항목 &amp; 이월 관리</b>
@@ -699,6 +700,7 @@ export function renderHome(state) {
           <span class="sp"></span>
           <button type="button" class="btn sm pri" data-v="hub">허브 열기</button>
         </div>
+      </div>
       </div>
     </div>
   `;
