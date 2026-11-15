@@ -195,6 +195,15 @@ export function createStore({ onStatusChange } = {}) {
   const failedSaves = new Map();
   let lastError = '';
   let offline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
+  let cacheMem = null;
+
+  function getCacheMap() {
+    if (!cacheMem || typeof cacheMem !== 'object') {
+      const loaded = readLocalJson(CACHE_KEY, {});
+      cacheMem = loaded && typeof loaded === 'object' ? loaded : {};
+    }
+    return cacheMem;
+  }
 
   // Load persisted failed writes if any
   const savedPending = readLocalJson(PENDING_KEY, {});
@@ -270,8 +279,8 @@ export function createStore({ onStatusChange } = {}) {
   }
 
   function updateCacheDoc(path, data) {
-    const cache = readLocalJson(CACHE_KEY, {});
-    cache[path] = CL(data);
+    const cache = getCacheMap();
+    cache[path] = data;
     writeLocalJson(CACHE_KEY, cache);
   }
 
@@ -328,12 +337,13 @@ export function createStore({ onStatusChange } = {}) {
 
     // Also merge any locally cached pending saves that failed earlier? No — keep server as source of truth unless retry clicked,
     // just persist latest server docs to local offline cache.
-    writeLocalJson(CACHE_KEY, CL(docs));
+    cacheMem = CL(docs);
+    writeLocalJson(CACHE_KEY, cacheMem);
     return hydrateFromDocsMap(docs);
   }
 
   function loadOfflineSnapshot() {
-    const cache = readLocalJson(CACHE_KEY, {});
+    const cache = getCacheMap();
     return hydrateFromDocsMap(cache);
   }
 
@@ -371,7 +381,7 @@ export function createStore({ onStatusChange } = {}) {
 
   async function batchSetDocs(docsMap) {
     const cloned = CL(docsMap);
-    const cache = readLocalJson(CACHE_KEY, {});
+    const cache = getCacheMap();
     for (const [k, v] of Object.entries(cloned)) {
       cache[k] = v;
     }

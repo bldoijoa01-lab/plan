@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-10';
+} from './core/date.js?v=20261115-11';
 import {
   BNAME,
   BOOKS,
@@ -16,29 +16,29 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-10';
+} from './core/units.js?v=20261115-11';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
-} from './core/carry.js?v=20261115-10';
+} from './core/carry.js?v=20261115-11';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-10';
+} from './core/matrix.js?v=20261115-11';
 import {
   DEFAULT_ONENOTE_CLIENT_ID,
   defaultOneNoteConfig,
   normalizeNotesState,
   normalizeStickyColor,
-} from './core/onenote.js?v=20261115-10';
+} from './core/onenote.js?v=20261115-11';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261115-10';
-import { esc } from './core/html.js?v=20261115-10';
+} from './core/hub.js?v=20261115-11';
+import { esc } from './core/html.js?v=20261115-11';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -48,7 +48,7 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-10';
+} from './services/store.js?v=20261115-11';
 import {
   clearOneNoteAuth,
   completeOneNoteAuthRedirectIfPresent,
@@ -63,13 +63,13 @@ import {
   startOneNotePkceLogin,
   syncNotesBidirectional,
   verifyDirectToken,
-} from './services/onenote.js?v=20261115-10';
+} from './services/onenote.js?v=20261115-11';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261115-10';
+} from './services/gcal.js?v=20261115-11';
 import {
   renderAll,
   renderBookModal,
@@ -78,10 +78,10 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-10';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-10';
-import { renderMatrix } from './views/matrix.js?v=20261115-10';
-import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-10';
+} from './views/schedule.js?v=20261115-11';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-11';
+import { renderMatrix } from './views/matrix.js?v=20261115-11';
+import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-11';
 
 const $ = (s) => document.querySelector(s);
 
@@ -752,6 +752,7 @@ function triggerInitialEnter() {
 }
 
 function captureActiveNoteDraft({ forceDirty = false } = {}) {
+  flushNotesSave();
   if (state.view !== 'notes') return null;
   const subjEl = $('#note-subj');
   const saveBtn = document.querySelector('[data-act="note-save"]');
@@ -861,6 +862,7 @@ async function loadOneNoteContainers({ silent = false } = {}) {
 }
 
 async function runOneNoteSync({ silent = false } = {}) {
+  flushNotesSave();
   if (state.notesSyncing) return;
   if (!isOneNoteConnected()) {
     if (!silent) {
@@ -932,8 +934,21 @@ async function boot() {
   }
   state.authNeeded = false;
   state.authMsg = '';
-  state.ready = false;
-  render();
+  const cached = store.loadOfflineSnapshot();
+  const hasCachedPlans = cached && cached.plans && Object.keys(cached.plans).length > 0;
+  if (hasCachedPlans) {
+    state.plans = cached.plans;
+    state.cfg = cached.cfg;
+    state.logs = cached.logs;
+    state.hub = cached.hub;
+    state.matrix = cached.matrix;
+    state.notes = cached.notes || normalizeNotesState({});
+    state.ready = true;
+    render({ motion: 'soft' });
+  } else {
+    state.ready = false;
+    render();
+  }
   triggerInitialEnter();
 
   try {
@@ -2335,6 +2350,31 @@ function handleChange(e) {
   }
 }
 
+let notesSaveTimer = null;
+let notesSaveDirty = false;
+
+function scheduleNotesSave(delayMs = 450) {
+  notesSaveDirty = true;
+  if (notesSaveTimer) clearTimeout(notesSaveTimer);
+  notesSaveTimer = setTimeout(() => {
+    notesSaveTimer = null;
+    if (!notesSaveDirty) return;
+    notesSaveDirty = false;
+    store.saveNotes(state.notes);
+  }, delayMs);
+}
+
+function flushNotesSave() {
+  if (notesSaveTimer) {
+    clearTimeout(notesSaveTimer);
+    notesSaveTimer = null;
+  }
+  if (notesSaveDirty) {
+    notesSaveDirty = false;
+    store.saveNotes(state.notes);
+  }
+}
+
 function updateStickyFieldInPlace(noteId, field, value) {
   if (!noteId) return;
   const curNotes = normalizeNotesState(state.notes);
@@ -2351,7 +2391,7 @@ function updateStickyFieldInPlace(noteId, field, value) {
     dirty: true,
   };
   state.notes = curNotes;
-  store.saveNotes(state.notes);
+  scheduleNotesSave();
 }
 
 function handleInput(e) {
@@ -2500,7 +2540,9 @@ document.addEventListener('keydown', handleKeydown);
 
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
+    if (document.hidden) {
+      flushNotesSave();
+    } else {
       const nowToday = todayKst();
       if (nowToday !== state.REAL) {
         if (state.cur === state.REAL) state.cur = nowToday;
@@ -2509,6 +2551,12 @@ if (typeof document !== 'undefined') {
         render();
       }
     }
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => {
+    flushNotesSave();
   });
 }
 
