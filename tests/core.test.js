@@ -44,8 +44,10 @@ import {
   mergeConfig,
 } from '../src/services/store.js';
 import {
+  STICKY_COLORS,
   defaultOneNoteConfig,
   normalizeNotesState,
+  normalizeStickyColor,
   noteToOneNoteHtml,
   parseOneNotePageHtml,
   planBidirectionalSync,
@@ -69,7 +71,11 @@ import {
   toggleHubStar,
 } from '../src/views/hub.js';
 import { renderMatrix } from '../src/views/matrix.js';
-import { renderNotesView } from '../src/views/notes.js';
+import {
+  renderHomeStickyWidget,
+  renderNotesView,
+  renderTodayNoteWidget,
+} from '../src/views/notes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXPORT_PATH = path.resolve(__dirname, '../data/plan-data-export.json');
@@ -708,6 +714,100 @@ test('Hub document catalog, OneNote memo integration, star toggle persistence, a
     matrix: { tasks: [], overrides: {} },
     notes: notesState,
   });
+  assert.equal(renderHomeHtmlCheck(renderedHome), true);
   assert.match(renderedHome, /data-act="go-hub"/);
   assert.match(renderedHome, /data-act="note-open" data-id="n_hub_1"/);
+  assert.match(renderedHome, /빠른 스티커 메모 보드/);
+});
+
+function renderHomeHtmlCheck(html) {
+  return typeof html === 'string' && html.length > 0;
+}
+
+test('Sticky Notes colors, OneNote metadata color round-trip, and AADSTS700016 login fix UI', () => {
+  assert.equal(STICKY_COLORS.length, 7);
+  assert.equal(normalizeStickyColor('pink'), 'pink');
+  assert.equal(normalizeStickyColor('invalid-color'), 'yellow');
+  assert.equal(defaultOneNoteConfig().tenant, 'consumers');
+
+  const stickyNote = {
+    id: 'n_sticky_1',
+    title: '물리 세특 아이디어',
+    subject: '물리',
+    date: '2026-11-15',
+    color: 'blue',
+    pinned: true,
+    createdAt: '2026-11-15T01:00:00.000Z',
+    updatedAt: '2026-11-15T02:00:00.000Z',
+    content: '간섭 무늬 실험 정리\n- [ ] 자료 찾기',
+  };
+  const html = noteToOneNoteHtml(stickyNote);
+  assert.match(html, /data-plan-color="blue"/);
+  assert.match(html, /\[색상: blue\]/);
+
+  const parsed = parseOneNotePageHtml(html);
+  assert.equal(parsed.color, 'blue');
+  assert.equal(parsed.content, stickyNote.content);
+
+  const notesState = normalizeNotesState({
+    items: [
+      {
+        ...stickyNote,
+        onenotePageId: 'pg-sticky',
+        onenoteWebUrl: 'https://onedrive.live.com/edit.aspx?resid=999',
+        onenoteClientUrl: 'onenote:https://d.docs.live.net/999',
+      },
+    ],
+  });
+
+  const stickyBoardHtml = renderNotesView({
+    REAL: '2026-11-15',
+    cur: '2026-11-15',
+    cfg: { onenote: defaultOneNoteConfig() },
+    notes: notesState,
+    oneNoteAuth: { accessToken: 'tok', userName: '테스트', mode: 'pkce' },
+    notesViewMode: 'sticky',
+    stickyNewColor: 'green',
+    notesConnectOpen: true,
+    notesAuthTab: 'pkce',
+  });
+  assert.match(stickyBoardHtml, /sticky-board-grid/);
+  assert.match(stickyBoardHtml, /sticky-card sticky-blue/);
+  assert.match(stickyBoardHtml, /data-act="sticky-quick-add"/);
+  assert.match(stickyBoardHtml, /data-act="on-pkce-consumers"/);
+  assert.match(stickyBoardHtml, /data-act="on-tenant-preset"/);
+  assert.match(stickyBoardHtml, /AADSTS700016/);
+  assert.match(stickyBoardHtml, /data-act="note-chk-tog"/);
+
+  const splitHtml = renderNotesView({
+    REAL: '2026-11-15',
+    cur: '2026-11-15',
+    cfg: { onenote: defaultOneNoteConfig() },
+    notes: notesState,
+    oneNoteAuth: null,
+    notesViewMode: 'split',
+    notesSelectedId: 'n_sticky_1',
+    notesConnectOpen: false,
+  });
+  assert.match(splitHtml, /notes-layout/);
+  assert.match(splitHtml, /sticky-editor-tint-blue/);
+
+  const todayStickyHtml = renderTodayNoteWidget({
+    REAL: '2026-11-15',
+    cur: '2026-11-15',
+    notes: notesState,
+    oneNoteAuth: null,
+    stickyNewColor: 'pink',
+  });
+  assert.match(todayStickyHtml, /today-sticky-grid/);
+  assert.match(todayStickyHtml, /mini-sticky-card sticky-blue/);
+
+  const homeStickyHtml = renderHomeStickyWidget({
+    REAL: '2026-11-15',
+    cur: '2026-11-15',
+    notes: notesState,
+    stickyNewColor: 'purple',
+  });
+  assert.match(homeStickyHtml, /home-sticky-grid/);
+  assert.match(homeStickyHtml, /mini-sticky-card sticky-blue/);
 });

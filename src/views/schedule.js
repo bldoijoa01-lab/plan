@@ -43,7 +43,7 @@ import { buildMatrixBoard, resolveMatrixRules } from '../core/matrix.js';
 import { defaultOneNoteConfig, normalizeNotesState } from '../core/onenote.js';
 import { KIND_MAP, normalizeHubState } from '../core/hub.js';
 import { getOneNoteAuth } from '../services/onenote.js';
-import { renderTodayNoteWidget } from './notes.js';
+import { renderHomeStickyWidget, renderTodayNoteWidget } from './notes.js';
 
 const WARN_P = 80;
 const HIGH_P = 100;
@@ -685,6 +685,8 @@ export function renderHome(state) {
         </div>
       </div>
     </div>
+
+    ${renderHomeStickyWidget(state)}
   `;
 }
 

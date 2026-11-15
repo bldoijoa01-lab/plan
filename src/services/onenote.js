@@ -171,9 +171,13 @@ async function exchangeTokenEndpoint(tenant, paramsObj) {
 /**
  * Azure SPA Client ID를 이용해 OAuth 2.0 PKCE 로그인 페이지로 이동합니다.
  */
-export async function startOneNotePkceLogin({ clientId, tenant = 'common' }) {
+export async function startOneNotePkceLogin({
+  clientId,
+  tenant = 'consumers',
+  prompt = 'select_account',
+}) {
   const cleanClientId = String(clientId || '').trim();
-  const cleanTenant = String(tenant || 'common').trim() || 'common';
+  const cleanTenant = String(tenant || 'consumers').trim() || 'consumers';
   if (!cleanClientId) {
     throw new Error('Azure 앱 등록 클라이언트 ID(Client ID)를 입력해 주세요.');
   }
@@ -203,7 +207,7 @@ export async function startOneNotePkceLogin({ clientId, tenant = 'common' }) {
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
-    prompt: 'select_account',
+    prompt: prompt || 'select_account',
   });
 
   window.location.assign(
@@ -236,6 +240,14 @@ export async function completeOneNoteAuthRedirectIfPresent() {
 
   if (oauthErr) {
     const desc = params.get('error_description') || oauthErr;
+    if (/AADSTS700016|not found in the directory/i.test(desc)) {
+      return {
+        handled: true,
+        ok: false,
+        error:
+          'Microsoft 로그인 오류 (AADSTS700016): 현재 선택한 테넌트(학교·조직 디렉터리)에 이 Azure 앱이 등록되어 있지 않아요. 개인 Microsoft 계정용 앱이라면 아래 [👤 개인 계정 전용(consumers)으로 바로 로그인]을 눌러 주세요. (자세한 해결법은 아래 안내 참고)',
+      };
+    }
     return { handled: true, ok: false, error: `Microsoft 로그인 실패: ${desc}` };
   }
 
@@ -632,6 +644,7 @@ export async function syncNotesBidirectional({ notesState, cfgOneNote = {} }) {
           content: parsed.content,
           subject: parsed.subject || working.items[idx].subject || '일반',
           date: parsed.date || working.items[idx].date || '',
+          color: parsed.color || working.items[idx].color || 'yellow',
           onenotePageId: remote.id,
           onenoteSectionId: target.sectionId,
           onenoteSectionName: target.sectionName,
@@ -654,6 +667,7 @@ export async function syncNotesBidirectional({ notesState, cfgOneNote = {} }) {
           content: parsed.content,
           subject: parsed.subject || working.items[embeddedIdx].subject || '일반',
           date: parsed.date || working.items[embeddedIdx].date || '',
+          color: parsed.color || working.items[embeddedIdx].color || 'yellow',
           onenotePageId: remote.id,
           onenoteSectionId: target.sectionId,
           onenoteSectionName: target.sectionName,
@@ -673,6 +687,7 @@ export async function syncNotesBidirectional({ notesState, cfgOneNote = {} }) {
           content: parsed.content,
           subject: parsed.subject || '일반',
           date: parsed.date || '',
+          color: parsed.color || 'yellow',
           pinned: false,
           createdAt: remote.createdDateTime || remoteMod,
           updatedAt: remoteMod,

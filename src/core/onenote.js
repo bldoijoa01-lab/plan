@@ -1,13 +1,35 @@
 import { esc } from './html.js';
 import { isValidIso } from './date.js';
 
+export const DEFAULT_ONENOTE_CLIENT_ID = '328438b7-4c01-4c07-a840-e625a749bb89';
+
+export const STICKY_COLORS = [
+  { id: 'yellow', label: '노랑', hex: '#fff7b1', accent: '#eab308' },
+  { id: 'green', label: '초록', hex: '#d7f9d3', accent: '#22c55e' },
+  { id: 'pink', label: '분홍', hex: '#ffd6e7', accent: '#ec4899' },
+  { id: 'purple', label: '보라', hex: '#e9d8fd', accent: '#9333ea' },
+  { id: 'blue', label: '파랑', hex: '#d0ebff', accent: '#3b82f6' },
+  { id: 'gray', label: '회색', hex: '#e5e7eb', accent: '#6b7280' },
+  { id: 'charcoal', label: '차콜', hex: '#374151', accent: '#1f2937' },
+];
+
+const STICKY_COLOR_SET = new Set(STICKY_COLORS.map((c) => c.id));
+
+/**
+ * 스티커 메모 색상 ID를 정규화합니다.
+ */
+export function normalizeStickyColor(color) {
+  const c = String(color || '').trim().toLowerCase();
+  return STICKY_COLOR_SET.has(c) ? c : 'yellow';
+}
+
 /**
  * Microsoft OneNote 기본 설정을 반환합니다.
  */
 export function defaultOneNoteConfig() {
   return {
-    clientId: '',
-    tenant: 'common',
+    clientId: DEFAULT_ONENOTE_CLIENT_ID,
+    tenant: 'consumers',
     notebookId: '',
     notebookName: '',
     sectionId: '',
@@ -40,6 +62,7 @@ function normalizeNoteItem(raw, idx = 0) {
     content: String(item.content ?? ''),
     subject: String(item.subject || '').trim() || '일반',
     date: isValidIso(item.date) ? item.date : '',
+    color: normalizeStickyColor(item.color),
     pinned: Boolean(item.pinned),
     createdAt,
     updatedAt,
@@ -75,7 +98,9 @@ export function normalizeNotesState(raw) {
  */
 export function renderNoteBodyInnerHtml(note) {
   const n = normalizeNoteItem(note);
-  const metaText = `[과목: ${n.subject}]${n.date ? ` [날짜: ${n.date}]` : ''}`;
+  const metaText = `[과목: ${n.subject}]${n.date ? ` [날짜: ${n.date}]` : ''}${
+    n.color ? ` [색상: ${n.color}]` : ''
+  }`;
   const metaHtml = `<p data-plan-meta="1" style="color:#6b7280;font-size:10.5pt">${esc(metaText)}</p>`;
 
   const lines = n.content.split(/\r?\n/);
@@ -97,7 +122,7 @@ export function renderNoteBodyInnerHtml(note) {
 
   return `<div data-plan-body="1" data-plan-note-id="${esc(n.id)}" data-plan-subject="${esc(
     n.subject
-  )}" data-plan-date="${esc(n.date)}">${metaHtml}${bodyLinesHtml}</div>`;
+  )}" data-plan-date="${esc(n.date)}" data-plan-color="${esc(n.color)}">${metaHtml}${bodyLinesHtml}</div>`;
 }
 
 /**
@@ -167,10 +192,12 @@ export function parseOneNotePageHtml(html, pageMeta = {}) {
   const noteIdMatch = /data-plan-note-id=["']([^"']*)["']/i.exec(rawHtml);
   const subjAttrMatch = /data-plan-subject=["']([^"']*)["']/i.exec(rawHtml);
   const dateAttrMatch = /data-plan-date=["']([^"']*)["']/i.exec(rawHtml);
+  const colorAttrMatch = /data-plan-color=["']([^"']*)["']/i.exec(rawHtml);
 
   const embeddedNoteId = noteIdMatch ? decodeHtmlEntities(noteIdMatch[1]).trim() : '';
   let subject = subjAttrMatch ? decodeHtmlEntities(subjAttrMatch[1]).trim() : '';
   let date = dateAttrMatch ? decodeHtmlEntities(dateAttrMatch[1]).trim() : '';
+  let color = colorAttrMatch ? decodeHtmlEntities(colorAttrMatch[1]).trim() : '';
 
   const bodyMatch = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(rawHtml);
   let bodyHtml = bodyMatch ? bodyMatch[1] : rawHtml;
@@ -194,6 +221,10 @@ export function parseOneNotePageHtml(html, pageMeta = {}) {
       const dm = /\[날짜:\s*(\d{4}-\d{2}-\d{2})\]/i.exec(metaPlain);
       if (dm) date = dm[1];
     }
+    if (!color) {
+      const cm = /\[색상:\s*([^\]]+)\]/i.exec(metaPlain);
+      if (cm) color = cm[1].trim();
+    }
     bodyHtml = bodyHtml.replace(metaParaMatch[0], '');
   } else {
     // OneNote 클라이언트가 data-plan-meta 속성을 제거한 경우 첫 문단에서 메타 추출
@@ -202,11 +233,13 @@ export function parseOneNotePageHtml(html, pageMeta = {}) {
     );
     if (firstParaMatch) {
       const plain = stripInlineTags(firstParaMatch[2]);
-      const fullMetaRx = /^\[과목:\s*([^\]]+)\](?:\s*\[날짜:\s*(\d{4}-\d{2}-\d{2})\])?$/i;
+      const fullMetaRx =
+        /^\[과목:\s*([^\]]+)\](?:\s*\[날짜:\s*(\d{4}-\d{2}-\d{2})\])?(?:\s*\[색상:\s*([^\]]+)\])?$/i;
       const m = fullMetaRx.exec(plain);
       if (m) {
         if (!subject) subject = m[1].trim();
         if (!date && m[2]) date = m[2];
+        if (!color && m[3]) color = m[3].trim();
         bodyHtml = bodyHtml.replace(firstParaMatch[1], '');
       }
     }
@@ -257,6 +290,7 @@ export function parseOneNotePageHtml(html, pageMeta = {}) {
     content,
     subject: subject || '일반',
     date: isValidIso(date) ? date : '',
+    color: normalizeStickyColor(color),
     embeddedNoteId,
   };
 }
