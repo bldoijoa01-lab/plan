@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-11';
+} from './core/date.js?v=20261115-12';
 import {
   BNAME,
   BOOKS,
@@ -16,29 +16,29 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-11';
+} from './core/units.js?v=20261115-12';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
-} from './core/carry.js?v=20261115-11';
+} from './core/carry.js?v=20261115-12';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-11';
+} from './core/matrix.js?v=20261115-12';
 import {
   DEFAULT_ONENOTE_CLIENT_ID,
   defaultOneNoteConfig,
   normalizeNotesState,
   normalizeStickyColor,
-} from './core/onenote.js?v=20261115-11';
+} from './core/onenote.js?v=20261115-12';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261115-11';
-import { esc } from './core/html.js?v=20261115-11';
+} from './core/hub.js?v=20261115-12';
+import { esc } from './core/html.js?v=20261115-12';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -48,7 +48,7 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-11';
+} from './services/store.js?v=20261115-12';
 import {
   clearOneNoteAuth,
   completeOneNoteAuthRedirectIfPresent,
@@ -63,13 +63,13 @@ import {
   startOneNotePkceLogin,
   syncNotesBidirectional,
   verifyDirectToken,
-} from './services/onenote.js?v=20261115-11';
+} from './services/onenote.js?v=20261115-12';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261115-11';
+} from './services/gcal.js?v=20261115-12';
 import {
   renderAll,
   renderBookModal,
@@ -78,10 +78,10 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-11';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-11';
-import { renderMatrix } from './views/matrix.js?v=20261115-11';
-import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-11';
+} from './views/schedule.js?v=20261115-12';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-12';
+import { renderMatrix } from './views/matrix.js?v=20261115-12';
+import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-12';
 
 const $ = (s) => document.querySelector(s);
 
@@ -627,7 +627,7 @@ async function loadGcalMonth(ym, { force = false } = {}) {
   if (!force && (state.gcalByMonth[ym] || state.gcalTried[ym])) return;
   state.gcalTried = { ...state.gcalTried, [ym]: true };
   state.gcalLoading = true;
-  render();
+  if (force) render();
   try {
     const res = await fetchGcalMonth(ym, g.hiddenCalendarIds || []);
     state.gcalByMonth = { ...state.gcalByMonth, [ym]: res.items };
@@ -879,6 +879,7 @@ async function runOneNoteSync({ silent = false } = {}) {
     render();
   }
 
+  let notesChanged = false;
   try {
     const cfgOneNote = {
       ...defaultOneNoteConfig(),
@@ -893,6 +894,7 @@ async function runOneNoteSync({ silent = false } = {}) {
     store.saveNotes(state.notes);
     store.saveCfg(state.cfg);
     const { pushed, pulled, deleted } = res.stats;
+    notesChanged = pushed + pulled + deleted > 0;
     state.notesSyncMsg = `양방향 동기화 완료 · 전송 ${pushed}건 · 가져오기 ${pulled}건${
       deleted ? ` · 삭제 ${deleted}건` : ''
     }`;
@@ -903,7 +905,9 @@ async function runOneNoteSync({ silent = false } = {}) {
     }
   } finally {
     state.notesSyncing = false;
-    render();
+    if (!silent || notesChanged || state.view === 'notes' || state.view === 'hub') {
+      render();
+    }
   }
 }
 
@@ -935,7 +939,8 @@ async function boot() {
   state.authNeeded = false;
   state.authMsg = '';
   const cached = store.loadOfflineSnapshot();
-  const hasCachedPlans = cached && cached.plans && Object.keys(cached.plans).length > 0;
+  const hasCachedPlans = Boolean(cached && cached.plans && Object.keys(cached.plans).length > 0);
+  let prevSnap = '';
   if (hasCachedPlans) {
     state.plans = cached.plans;
     state.cfg = cached.cfg;
@@ -944,12 +949,20 @@ async function boot() {
     state.matrix = cached.matrix;
     state.notes = cached.notes || normalizeNotesState({});
     state.ready = true;
+    prevSnap = JSON.stringify({
+      plans: state.plans,
+      cfg: state.cfg,
+      logs: state.logs,
+      hub: state.hub,
+      matrix: state.matrix,
+      notes: state.notes,
+    });
     render({ motion: 'soft' });
+    triggerInitialEnter();
   } else {
     state.ready = false;
     render();
   }
-  triggerInitialEnter();
 
   try {
     const data = await store.boot();
@@ -961,7 +974,23 @@ async function boot() {
     state.notes = data.notes || normalizeNotesState({});
     state.ready = true;
     runAutoCarryOnBoot();
-    render({ motion: 'soft' });
+
+    if (!hasCachedPlans) {
+      render({ motion: 'soft' });
+      triggerInitialEnter();
+    } else {
+      const nextSnap = JSON.stringify({
+        plans: state.plans,
+        cfg: state.cfg,
+        logs: state.logs,
+        hub: state.hub,
+        matrix: state.matrix,
+        notes: state.notes,
+      });
+      if (nextSnap !== prevSnap) {
+        render();
+      }
+    }
 
     if (oauthRes && oauthRes.handled && oauthRes.ok) {
       loadOneNoteContainers({ silent: true }).then(() => runOneNoteSync({ silent: false }));
@@ -979,21 +1008,25 @@ async function boot() {
       render({ motion: 'soft' });
       return;
     }
-    // 오프라인 또는 일시 오류 시 로컬 캐시가 있으면 화면을 멈추지 않고 열기
-    const cached = store.loadOfflineSnapshot();
-    state.plans = cached.plans;
-    state.cfg = cached.cfg;
-    state.logs = cached.logs;
-    state.hub = cached.hub;
-    state.matrix = cached.matrix;
-    state.notes = cached.notes || normalizeNotesState({});
     state.syncStatus = {
       ...store.getStatus(),
       isError: true,
       lastError: (err && err.message) || '서버 연결 실패 (임시 데이터 표시 중)',
     };
-    state.ready = true;
-    render({ motion: 'soft' });
+    if (hasCachedPlans) {
+      renderSyncBanner();
+    } else {
+      // 오프라인 또는 일시 오류 시 로컬 캐시가 있으면 화면을 멈추지 않고 열기
+      state.plans = cached.plans;
+      state.cfg = cached.cfg;
+      state.logs = cached.logs;
+      state.hub = cached.hub;
+      state.matrix = cached.matrix;
+      state.notes = cached.notes || normalizeNotesState({});
+      state.ready = true;
+      render({ motion: 'soft' });
+      triggerInitialEnter();
+    }
   }
 }
 
