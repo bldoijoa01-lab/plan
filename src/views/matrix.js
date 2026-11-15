@@ -22,8 +22,8 @@ export function renderMatrix(state) {
         <div>
           <b class="card-title-md">🧭 아이젠하워 매트릭스</b>
           <div class="note">
-            공부 계획(오늘·내일·밀림) + 할 일 총 <b>${totalActive}개</b> ·
-            긴급 기준: 마감 ${rules.urgentDays}일 이내 / 시험 ${rules.examUrgentDays}일 이내
+            오늘(${lab(REAL)}) 할 일 총 <b>${totalActive}개</b> ·
+            긴급 기준: 이월·마감 ${rules.urgentDays}일 이내 / 시험 ${rules.examUrgentDays}일 이내
           </div>
         </div>
         <span class="sp"></span>
@@ -120,9 +120,7 @@ export function renderMatrix(state) {
                               }
                               ${
                                 item.source === 'plan'
-                                  ? `<span class="mini-pill">${shortDate(
-                                      item.planDate
-                                    )} 계획${
+                                  ? `<span class="mini-pill">오늘 계획${
                                       item.p ? ` · ${fmt(item.p)}P` : ''
                                     }</span>`
                                   : `<span class="mini-pill">${esc(

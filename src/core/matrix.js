@@ -1,4 +1,4 @@
-import { addDay, diffDays, isValidIso } from './date.js';
+import { diffDays, isValidIso } from './date.js';
 import {
   BNAME,
   CL,
@@ -7,7 +7,6 @@ import {
   STUDY_BOOKS,
   isGeneralItem,
   itemP,
-  planDates,
 } from './units.js';
 
 export const QUADRANTS = {
@@ -42,7 +41,7 @@ export const QUAD_ORDER = ['q1', 'q2', 'q3', 'q4'];
 export const DEFAULT_MATRIX_RULES = {
   urgentDays: 3,
   examUrgentDays: 7,
-  includePlanDays: 1,
+  includePlanDays: 0,
   importantKeywords: ['수행평가', '세특', '생기부', '기말', '시험'],
   examBooks: [
     '쎈',
@@ -97,6 +96,33 @@ export function normalizeMatrixState(raw) {
 }
 
 /**
+ * `MM-DD-번호` 형식 ID에서 원래 배정일(YYYY-MM-DD)을 추정합니다.
+ * @param {string} id
+ * @param {string} todayIso
+ * @returns {string}
+ */
+export function inferOriginDateFromId(id, todayIso) {
+  if (!id || !isValidIso(todayIso)) return '';
+  const m = /^(\d{2})-(\d{2})-/.exec(String(id));
+  if (!m) return '';
+  const year = Number(todayIso.slice(0, 4));
+  const iso = `${year}-${m[1]}-${m[2]}`;
+  if (isValidIso(iso)) {
+    if (iso <= todayIso) return iso;
+    const prevIso = `${year - 1}-${m[1]}-${m[2]}`;
+    if (isValidIso(prevIso) && diffDays(prevIso, todayIso) <= 90) {
+      return prevIso;
+    }
+    return '';
+  }
+  const prevIso = `${year - 1}-${m[1]}-${m[2]}`;
+  if (isValidIso(prevIso) && diffDays(prevIso, todayIso) <= 90) {
+    return prevIso;
+  }
+  return '';
+}
+
+/**
  * 단일 후보 항목의 긴급도·중요도와 자동 사분면을 계산합니다.
  * @param {object} item
  * @param {{ cfg?: object, todayIso: string, rules?: object }} ctx
@@ -122,14 +148,17 @@ export function classifyMatrixCandidate(item, ctx) {
     }
   }
 
-  if (item.source === 'plan' && isValidIso(item.planDate)) {
-    if (item.planDate < todayIso) {
-      urgent = true;
-      urgentReasons.push(`밀림 ${diffDays(item.planDate, todayIso)}일`);
-    } else if (item.planDate === todayIso) {
-      urgent = true;
-      urgentReasons.push('오늘 배정');
-    }
+  const carriedFrom =
+    item.carriedFrom && isValidIso(item.carriedFrom) && item.carriedFrom < todayIso
+      ? item.carriedFrom
+      : item.source === 'plan' &&
+          isValidIso(item.planDate) &&
+          item.planDate < todayIso
+        ? item.planDate
+        : '';
+  if (carriedFrom) {
+    urgent = true;
+    urgentReasons.push(`이월·밀림 ${diffDays(carriedFrom, todayIso)}일`);
   }
 
   const upcomingExams = ddays.filter((x) => {
@@ -192,38 +221,37 @@ export function classifyMatrixCandidate(item, ctx) {
 }
 
 /**
- * 공부 계획표(밀린·오늘·내일 미완료 항목)와 독립 할 일을 통합해 4분면별 항목을 구성합니다.
+ * 오늘(todayIso) 공부 계획 미완료 항목과 독립 할 일을 통합해 4분면별 항목을 구성합니다.
  */
 export function buildMatrixBoard({ plans, cfg, matrixState, todayIso }) {
   const st = normalizeMatrixState(matrixState);
   const rules = resolveMatrixRules(cfg);
-  const maxPlanDate = addDay(todayIso, Math.max(0, rules.includePlanDays));
 
   const candidates = [];
 
-  for (const d of planDates(plans)) {
-    if (d > maxPlanDate) continue;
-    for (const it of plans[d] || []) {
-      if (it.x || it.done) continue;
-      const gen = isGeneralItem(it);
-      candidates.push({
-        key: `plan:${it.id}`,
-        id: it.id,
-        source: 'plan',
-        planDate: d,
-        bookId: it.b,
-        subject: it.s,
-        cat: it.cat || '',
-        title: gen
-          ? it.t
-          : `${BNAME[it.b] || it.b} ${it.t}`,
-        rangeText: it.t,
-        p: itemP(it, cfg),
-        due: it.due || '',
-        important: Boolean(it.important),
-        done: false,
-      });
-    }
+  for (const it of (plans && plans[todayIso]) || []) {
+    if (it.x || it.done) continue;
+    const gen = isGeneralItem(it);
+    const originDate =
+      (it.from && isValidIso(it.from) ? it.from : '') ||
+      inferOriginDateFromId(it.id, todayIso);
+    const carriedFrom = originDate && originDate < todayIso ? originDate : '';
+    candidates.push({
+      key: `plan:${it.id}`,
+      id: it.id,
+      source: 'plan',
+      planDate: todayIso,
+      carriedFrom,
+      bookId: it.b,
+      subject: it.s,
+      cat: it.cat || '',
+      title: gen ? it.t : `${BNAME[it.b] || it.b} ${it.t}`,
+      rangeText: it.t,
+      p: itemP(it, cfg),
+      due: it.due || '',
+      important: Boolean(it.important),
+      done: false,
+    });
   }
 
   for (const t of st.tasks) {

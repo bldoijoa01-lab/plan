@@ -32,6 +32,7 @@ import {
 import {
   buildMatrixBoard,
   classifyMatrixCandidate,
+  inferOriginDateFromId,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   applyMatrixUndo,
@@ -193,7 +194,9 @@ test('carry rules (auto/ask/drop) and planClose spread mode', () => {
   const carried = applyAutoCarry(plans, cfg, '2026-11-15');
   assert.equal(carried.changed, true);
   assert.equal(carried.plans['2026-11-14'].length, 2);
-  assert.ok(carried.plans['2026-11-15'].some((i) => i.id === 'a1'));
+  const carriedA1 = carried.plans['2026-11-15'].find((i) => i.id === 'a1');
+  assert.ok(carriedA1);
+  assert.equal(carriedA1.from, '2026-11-14');
   assert.equal(plans['2026-11-14'].length, 3);
 
   const overdue = getOverdueItems(carried.plans, '2026-11-15');
@@ -207,50 +210,88 @@ test('carry rules (auto/ask/drop) and planClose spread mode', () => {
   const applied = applyClosePlan({ plans, cfg, todayIso: '2026-11-15', mode: 'next' });
   assert.equal(applied.plans['2026-11-15'].length, 1);
   assert.equal(applied.plans['2026-11-16'].length, 3);
+  assert.equal(applied.plans['2026-11-16'].find((i) => i.id === 'b1').from, '2026-11-15');
 });
 
-test('Eisenhower matrix auto classification, manual pin, and undo', () => {
+test('Eisenhower matrix auto classification (today-only), manual pin, and undo', () => {
   const cfg = {
     weights: { 쎈: 1, 실전모의: 23 },
     ddays: [{ n: '기말고사', d: '2026-12-07' }],
     matrixRules: {
       urgentDays: 3,
       examUrgentDays: 7,
-      includePlanDays: 1,
       importantKeywords: ['세특', '수행평가'],
       examBooks: ['쎈'],
     },
   };
 
+  assert.equal(inferOriginDateFromId('11-12-4', '2026-11-15'), '2026-11-12');
+  assert.equal(inferOriginDateFromId('11-16-1', '2026-11-15'), '');
+  assert.equal(inferOriginDateFromId('12-30-1', '2027-01-02'), '2026-12-30');
+
   const q1 = classifyMatrixCandidate(
-    { id: '1', source: 'plan', planDate: '2026-11-15', bookId: '쎈', title: '기하 쎈 #1~5' },
+    {
+      id: '1',
+      source: 'plan',
+      planDate: '2026-11-15',
+      carriedFrom: '2026-11-13',
+      bookId: '쎈',
+      title: '기하 쎈 #1~5',
+    },
     { cfg, todayIso: '2026-11-15' }
   );
+  assert.equal(q1.urgent, true);
+  assert.equal(q1.important, true);
   assert.equal(q1.autoQuad, 'q1');
 
   const q2 = classifyMatrixCandidate(
-    { id: '2', source: 'plan', planDate: '2026-11-16', bookId: '쎈', title: '기하 쎈 #6~10' },
+    { id: '2', source: 'plan', planDate: '2026-11-15', bookId: '쎈', title: '기하 쎈 #6~10' },
     { cfg, todayIso: '2026-11-15' }
   );
+  assert.equal(q2.urgent, false);
+  assert.equal(q2.important, true);
   assert.equal(q2.autoQuad, 'q2');
 
   const q3 = classifyMatrixCandidate(
-    { id: '3', source: 'plan', planDate: '2026-11-15', bookId: '실전모의', title: '실전모의 1회' },
+    {
+      id: '3',
+      source: 'plan',
+      planDate: '2026-11-15',
+      carriedFrom: '2026-11-14',
+      bookId: '실전모의',
+      title: '실전모의 1회',
+    },
     { cfg, todayIso: '2026-11-15' }
   );
+  assert.equal(q3.urgent, true);
+  assert.equal(q3.important, false);
   assert.equal(q3.autoQuad, 'q3');
 
+  const q4 = classifyMatrixCandidate(
+    { id: '4', source: 'plan', planDate: '2026-11-15', bookId: '실전모의', title: '실전모의 2회' },
+    { cfg, todayIso: '2026-11-15' }
+  );
+  assert.equal(q4.urgent, false);
+  assert.equal(q4.important, false);
+  assert.equal(q4.autoQuad, 'q4');
+
   const examSoon = classifyMatrixCandidate(
-    { id: '4', source: 'plan', planDate: '2026-12-03', bookId: '쎈', title: '기하 쎈' },
+    { id: '5', source: 'plan', planDate: '2026-12-02', bookId: '쎈', title: '기하 쎈' },
     { cfg, todayIso: '2026-12-02' }
   );
   assert.equal(examSoon.urgent, true);
   assert.equal(examSoon.autoQuad, 'q1');
 
   const plans = {
+    '2026-11-14': [
+      { id: 'past1', s: '수학', b: '쎈', t: '#1~3', n: 3, done: false },
+    ],
     '2026-11-15': [
-      { id: 'p1', s: '수학', b: '쎈', t: '#1~5', n: 5, done: false },
-      { id: 'p2', kind: 'todo', s: '학교·할일', b: '일반할일', cat: '세특', t: '생기부 세특 확인', n: 1, p: 5, due: '2026-11-25', done: false },
+      { id: '11-13-1', s: '수학', b: '쎈', t: '#1~5', n: 5, done: false },
+      { id: 'p1', s: '수학', b: '쎈', t: '#6~10', n: 5, done: false },
+      { id: 'p2', kind: 'todo', s: '학교·할일', b: '일반할일', cat: '세특', t: '생기부 세특 확인', n: 1, p: 5, due: '2026-11-17', done: false },
+      { id: 'p4', s: '영어', b: '실전모의', t: '2회', n: 1, from: '2026-11-14', done: false },
+      { id: 'p5', s: '영어', b: '실전모의', t: '3회', n: 1, done: false },
     ],
     '2026-11-16': [
       { id: 'p3', s: '영어', b: '실전모의', t: '1회', n: 1, done: false },
@@ -265,10 +306,21 @@ test('Eisenhower matrix auto classification, manual pin, and undo', () => {
   };
 
   let board = buildMatrixBoard({ plans, cfg, matrixState, todayIso: '2026-11-15' });
-  assert.ok(board.quads.q1.some((x) => x.id === 'p1'));
+  const allBoardIds = [
+    ...board.quads.q1,
+    ...board.quads.q2,
+    ...board.quads.q3,
+    ...board.quads.q4,
+  ].map((x) => x.id);
+  assert.equal(allBoardIds.includes('past1'), false);
+  assert.equal(allBoardIds.includes('p3'), false);
+
+  assert.ok(board.quads.q1.some((x) => x.id === '11-13-1'));
   assert.ok(board.quads.q1.some((x) => x.id === 'p2'));
   assert.ok(board.quads.q1.some((x) => x.id === 'm1'));
-  assert.ok(board.quads.q4.some((x) => x.id === 'p3'));
+  assert.ok(board.quads.q2.some((x) => x.id === 'p1'));
+  assert.ok(board.quads.q3.some((x) => x.id === 'p4'));
+  assert.ok(board.quads.q4.some((x) => x.id === 'p5'));
   assert.ok(board.quads.q4.some((x) => x.id === 'm2'));
 
   const mv = moveMatrixItemManual(matrixState, 'todo:m2', 'q2');
@@ -285,10 +337,10 @@ test('Eisenhower matrix auto classification, manual pin, and undo', () => {
   board = buildMatrixBoard({ plans, cfg, matrixState: undone.matrixState, todayIso: '2026-11-15' });
   assert.ok(board.quads.q4.some((x) => x.id === 'm2'));
 
-  const mv2 = moveMatrixItemManual(matrixState, 'plan:p3', 'q1');
-  const rst = resetMatrixItemToAuto(mv2.matrixState, 'plan:p3');
+  const mv2 = moveMatrixItemManual(matrixState, 'plan:p5', 'q1');
+  const rst = resetMatrixItemToAuto(mv2.matrixState, 'plan:p5');
   assert.equal(rst.changed, true);
-  assert.equal(rst.matrixState.overrides['plan:p3'], undefined);
+  assert.equal(rst.matrixState.overrides['plan:p5'], undefined);
   assert.ok(CL(rst.matrixState));
 });
 

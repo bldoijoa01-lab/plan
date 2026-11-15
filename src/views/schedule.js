@@ -1048,7 +1048,7 @@ export function renderSettings(state) {
 
     <div class="card">
       <b class="card-title-sm">아이젠하워 매트릭스 자동 분류 규칙</b>
-      <div class="note" style="margin-bottom:8px">수동으로 옮긴 항목은 자동 규칙이 덮어쓰지 않아요.</div>
+      <div class="note" style="margin-bottom:8px">오늘 할 일(오늘 배정·이월된 계획 및 할 일)에 한해서만 4분면으로 분류해요. 수동으로 옮긴 항목은 자동 규칙이 덮어쓰지 않아요.</div>
       <div class="row wrap-row" style="margin-top:8px">
         <label>긴급 마감 기준 (일 이내)</label>
         <input type="number" min="0" max="30" data-act="mrule" data-k="urgentDays" value="${
@@ -1059,12 +1059,6 @@ export function renderSettings(state) {
         <label>D-day 시험 긴급 기준 (일 이내)</label>
         <input type="number" min="0" max="60" data-act="mrule" data-k="examUrgentDays" value="${
           rules.examUrgentDays
-        }">
-      </div>
-      <div class="row wrap-row" style="margin-top:8px">
-        <label>공부 계획 후보 기간 (오늘+N일)</label>
-        <input type="number" min="0" max="7" data-act="mrule" data-k="includePlanDays" value="${
-          rules.includePlanDays
         }">
       </div>
       <div style="margin-top:10px">

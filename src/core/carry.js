@@ -43,6 +43,11 @@ export function movePlanItem(plans, fromDate, id, toDate) {
   const idx = src.findIndex((i) => i.id === id);
   if (idx < 0) return { changed: false, plans: next };
   const [item] = src.splice(idx, 1);
+  if (fromDate < toDate) {
+    if (!item.from) item.from = fromDate;
+  } else if (item.from && toDate <= item.from) {
+    delete item.from;
+  }
   next[fromDate] = src;
   next[toDate] = next[toDate] || [];
   next[toDate].push(item);
@@ -65,6 +70,7 @@ export function applyAutoCarry(plans, cfg, todayIso) {
     const remain = [];
     for (const it of list) {
       if (!it.done && !it.x && carryRuleOf(it, cfg) === 'auto') {
+        if (!it.from) it.from = d;
         next[todayIso] = next[todayIso] || [];
         next[todayIso].push(it);
         touched.add(d);
