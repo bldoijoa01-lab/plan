@@ -41,6 +41,7 @@ import { carryRuleOf, getOverdueItems, planClose } from '../core/carry.js';
 import { esc, safeUrl } from '../core/html.js';
 import { buildMatrixBoard, resolveMatrixRules } from '../core/matrix.js';
 import { defaultOneNoteConfig, normalizeNotesState } from '../core/onenote.js';
+import { KIND_MAP, normalizeHubState } from '../core/hub.js';
 import { getOneNoteAuth } from '../services/onenote.js';
 import { renderTodayNoteWidget } from './notes.js';
 
@@ -351,10 +352,11 @@ export function renderHome(state) {
     .map((d, i) => ({ d, wd: WD_KO[i], p: weekTot[i] }))
     .filter((x) => x.d >= REAL && x.p > WARN_P);
 
-  const topBookmarks = (hub && Array.isArray(hub.items) ? hub.items : [])
+  const normalizedHub = normalizeHubState(hub);
+  const topBookmarks = normalizedHub.items
     .slice()
     .sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999))
-    .slice(0, 4);
+    .slice(0, 6);
 
   return `
     <div class="home-top-grid">
@@ -633,7 +635,7 @@ export function renderHome(state) {
         <div class="row wrap-row">
           <b class="card-title-md">🔗 빠른 워크스페이스 &amp; 즐겨찾기</b>
           <span class="sp"></span>
-          <span class="note">새 탭</span>
+          <button type="button" class="btn sm" data-act="go-hub">📂 문서 목록 · 즐겨찾기 설정 →</button>
         </div>
         <div class="hub-mini-apps">
           ${QUICK_APPS.map(
@@ -649,33 +651,31 @@ export function renderHome(state) {
           ${
             topBookmarks.length
               ? topBookmarks
-                  .map(
-                    (bm) => `
-                  <a class="home-bm-item" href="${esc(
-                    safeUrl(bm.url)
-                  )}" target="_blank" rel="noopener noreferrer">
-                    <span class="hub-bm-ico">${
-                      bm.kind === 'sheet'
-                        ? '📊'
-                        : bm.kind === 'docs'
-                          ? '📝'
-                          : bm.kind === 'drive'
-                            ? '📁'
-                            : bm.kind === 'keep'
-                              ? '💡'
-                              : bm.kind === 'cal'
-                                ? '📅'
-                                : bm.kind === 'onenote'
-                                  ? '📓'
-                                  : '🔗'
-                    }</span>
-                    <span class="home-bm-title">${esc(bm.name)}</span>
-                    <span class="note">↗</span>
-                  </a>
-                `
-                  )
+                  .map((bm) => {
+                    const ico = (KIND_MAP[bm.kind] && KIND_MAP[bm.kind].icon) || '🔗';
+                    if (bm.noteId) {
+                      return `
+                        <button type="button" class="home-bm-item hub-bm-note-btn" data-act="note-open" data-id="${esc(
+                          bm.noteId
+                        )}">
+                          <span class="hub-bm-ico">${ico}</span>
+                          <span class="home-bm-title">${esc(bm.name)}</span>
+                          <span class="note">메모 →</span>
+                        </button>
+                      `;
+                    }
+                    return `
+                      <a class="home-bm-item" href="${esc(
+                        safeUrl(bm.url)
+                      )}" target="_blank" rel="noopener noreferrer">
+                        <span class="hub-bm-ico">${ico}</span>
+                        <span class="home-bm-title">${esc(bm.name)}</span>
+                        <span class="note">↗</span>
+                      </a>
+                    `;
+                  })
                   .join('')
-              : '<div class="note" style="padding:10px 0">등록된 문서 즐겨찾기가 없어요.</div>'
+              : '<div class="note" style="padding:10px 0">즐겨찾기한 문서가 없어요. 문서 허브에서 ☆를 눌러 등록해 보세요.</div>'
           }
         </div>
         <div class="row home-card-foot">

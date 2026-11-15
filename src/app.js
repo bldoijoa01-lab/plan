@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-6';
+} from './core/date.js?v=20261115-7';
 import {
   BNAME,
   BOOKS,
@@ -16,23 +16,27 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-6';
+} from './core/units.js?v=20261115-7';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
-} from './core/carry.js?v=20261115-6';
+} from './core/carry.js?v=20261115-7';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-6';
+} from './core/matrix.js?v=20261115-7';
 import {
   defaultOneNoteConfig,
   normalizeNotesState,
-} from './core/onenote.js?v=20261115-6';
-import { esc } from './core/html.js?v=20261115-6';
+} from './core/onenote.js?v=20261115-7';
+import {
+  normalizeHubState,
+  toggleHubStar,
+} from './core/hub.js?v=20261115-7';
+import { esc } from './core/html.js?v=20261115-7';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -42,7 +46,7 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-6';
+} from './services/store.js?v=20261115-7';
 import {
   clearOneNoteAuth,
   completeOneNoteAuthRedirectIfPresent,
@@ -57,7 +61,7 @@ import {
   startOneNotePkceLogin,
   syncNotesBidirectional,
   verifyDirectToken,
-} from './services/onenote.js?v=20261115-6';
+} from './services/onenote.js?v=20261115-7';
 import {
   renderAll,
   renderBookModal,
@@ -66,10 +70,10 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-6';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-6';
-import { renderMatrix } from './views/matrix.js?v=20261115-6';
-import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-6';
+} from './views/schedule.js?v=20261115-7';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-7';
+import { renderMatrix } from './views/matrix.js?v=20261115-7';
+import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-7';
 
 const $ = (s) => document.querySelector(s);
 
@@ -282,6 +286,7 @@ const state = {
   hubGroupFilter: 'all',
   hubCalEdit: false,
   hubKindTouched: false,
+  hubSearch: '',
 
   // Matrix transient UI state
   matrixAdding: false,
@@ -1365,7 +1370,22 @@ function handleClick(e) {
   }
 
   // ===== Hub actions =====
-  else if (a === 'hubaddtog') {
+  else if (a === 'go-hub') {
+    const prevView = state.view;
+    state.view = 'hub';
+    state.sec = DEFAULT_VIEW_SECTION.hub;
+    state.lastSub[state.sec] = 'hub';
+    render({ motion: prevView !== 'hub' ? tabDirection(prevView, 'hub') : '' });
+  } else if (a === 'hubstar') {
+    state.hub = toggleHubStar(state.hub, id, state.notes);
+    store.saveHub(state.hub);
+    render();
+  } else if (a === 'hub-search-clear') {
+    state.hubSearch = '';
+    render();
+    const searchInp = $('#hub-search');
+    if (searchInp) searchInp.focus();
+  } else if (a === 'hubaddtog') {
     if (state.hubEditId) {
       state.hubEditId = null;
       state.hubAdding = false;
@@ -1377,20 +1397,32 @@ function handleClick(e) {
   } else if (a === 'hubaddsave') {
     const name = (($('#hb-name') || {}).value || '').trim();
     const url = (($('#hb-url') || {}).value || '').trim();
-    const kind = ($('#hb-kind') || {}).value || detectBookmarkKind(url);
-    const group = (($('#hb-group') || {}).value || '').trim() || '기본';
+    const kind = ($('#hb-kind') || {}).value || detectBookmarkKind(url, name);
+    const group = (($('#hb-group') || {}).value || '').trim() || '학교·세특';
+    const starOn = $('#hb-star') ? Boolean($('#hb-star').checked) : true;
     if (!name || !url) return;
-    const list = CL(state.hub.items || []);
-    const maxOrder = list.reduce((m, x) => Math.max(m, x.order ?? 0), 0);
-    list.push({
-      id: 'bm' + Date.now().toString(36),
+    const curHub = normalizeHubState(state.hub);
+    const newId = 'bm' + Date.now().toString(36);
+    const newDoc = {
+      id: newId,
       name,
       url,
       kind,
       group,
-      order: maxOrder + 1,
+      modifiedAt: state.REAL,
+    };
+    const nextCustom = [...(curHub.customDocs || []), newDoc];
+    const nextItems = CL(curHub.items || []);
+    if (starOn) {
+      const maxOrder = nextItems.reduce((m, x) => Math.max(m, x.order ?? 0), 0);
+      nextItems.push({ ...newDoc, order: maxOrder + 1 });
+    }
+    state.hub = normalizeHubState({
+      ...curHub,
+      items: nextItems,
+      customDocs: nextCustom,
+      initialized: true,
     });
-    state.hub = { items: list };
     state.hubAdding = false;
     state.hubKindTouched = false;
     store.saveHub(state.hub);
@@ -1407,25 +1439,40 @@ function handleClick(e) {
   } else if (a === 'hubeditsave') {
     const name = (($('#hb-name') || {}).value || '').trim();
     const url = (($('#hb-url') || {}).value || '').trim();
-    const kind = ($('#hb-kind') || {}).value || detectBookmarkKind(url);
-    const group = (($('#hb-group') || {}).value || '').trim() || '기본';
+    const kind = ($('#hb-kind') || {}).value || detectBookmarkKind(url, name);
+    const group = (($('#hb-group') || {}).value || '').trim() || '학교·세특';
     if (!name || !url) return;
-    const list = CL(state.hub.items || []).map((x) =>
+    const curHub = normalizeHubState(state.hub);
+    const nextItems = (curHub.items || []).map((x) =>
       x.id === id ? { ...x, name, url, kind, group } : x
     );
-    state.hub = { items: list };
+    const nextCustom = (curHub.customDocs || []).map((x) =>
+      x.id === id ? { ...x, name, url, kind, group } : x
+    );
+    state.hub = normalizeHubState({
+      ...curHub,
+      items: nextItems,
+      customDocs: nextCustom,
+      initialized: true,
+    });
     state.hubEditId = null;
     state.hubKindTouched = false;
     store.saveHub(state.hub);
     render();
   } else if (a === 'hubdel') {
-    const list = CL(state.hub.items || []).filter((x) => x.id !== id);
-    state.hub = { items: list };
+    const curHub = normalizeHubState(state.hub);
+    state.hub = normalizeHubState({
+      ...curHub,
+      items: (curHub.items || []).filter((x) => x.id !== id),
+      customDocs: (curHub.customDocs || []).filter((x) => x.id !== id),
+      initialized: true,
+    });
     store.saveHub(state.hub);
     render();
   } else if (a === 'hubmove') {
     const dir = Number(t.dataset.dir) || 0;
-    const list = CL(state.hub.items || []).sort(
+    const curHub = normalizeHubState(state.hub);
+    const list = CL(curHub.items || []).sort(
       (a1, b1) => (a1.order ?? 9999) - (b1.order ?? 9999)
     );
     const idx = list.findIndex((x) => x.id === id);
@@ -1437,7 +1484,11 @@ function handleClick(e) {
     list.forEach((x, i) => {
       x.order = i + 1;
     });
-    state.hub = { items: list };
+    state.hub = normalizeHubState({
+      ...curHub,
+      items: list,
+      initialized: true,
+    });
     store.saveHub(state.hub);
     render();
   } else if (a === 'hubgrp') {
@@ -2057,11 +2108,29 @@ function handleChange(e) {
 
 function handleInput(e) {
   const t = e.target;
-  if (t.id === 'hb-url' && !state.hubKindTouched) {
+  if ((t.id === 'hb-url' || t.id === 'hb-name') && !state.hubKindTouched) {
     const kindSel = $('#hb-kind');
-    if (kindSel) kindSel.value = detectBookmarkKind(t.value);
+    if (kindSel) {
+      kindSel.value = detectBookmarkKind(
+        ($('#hb-url') || {}).value || '',
+        ($('#hb-name') || {}).value || ''
+      );
+    }
   } else if (t.id === 'hb-kind') {
     state.hubKindTouched = true;
+  } else if (t.id === 'hub-search') {
+    const pos = t.selectionStart ?? t.value.length;
+    state.hubSearch = t.value;
+    render();
+    const nextInp = $('#hub-search');
+    if (nextInp) {
+      nextInp.focus();
+      try {
+        nextInp.setSelectionRange(pos, pos);
+      } catch {
+        // ignore selection errors
+      }
+    }
   } else if (t.id === 'note-search') {
     captureActiveNoteDraft();
     const pos = t.selectionStart ?? t.value.length;

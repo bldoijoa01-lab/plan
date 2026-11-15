@@ -8,6 +8,7 @@ import {
 } from '../core/units.js';
 import { DEFAULT_MATRIX_RULES, normalizeMatrixState } from '../core/matrix.js';
 import { defaultOneNoteConfig, normalizeNotesState } from '../core/onenote.js';
+import { normalizeHubState } from '../core/hub.js';
 
 export const WORKER_URL = 'https://study-plan.bldoijoa01.workers.dev';
 export const TOKEN_KEY = 'uiToken_v1';
@@ -140,9 +141,7 @@ export function normalizePlanItems(items) {
 }
 
 export function defaultHubBookmarks() {
-  return {
-    items: [],
-  };
+  return normalizeHubState({});
 }
 
 /**
@@ -289,7 +288,7 @@ export function createStore({ onStatusChange } = {}) {
       } else if (path.startsWith('log/')) {
         logs[path.slice(4)] = val || {};
       } else if (path === 'hub/bookmarks') {
-        hub = { items: Array.isArray(val && val.items) ? val.items : [] };
+        hub = normalizeHubState(val);
       } else if (path === 'matrix/state') {
         matrix = normalizeMatrixState(val);
       } else if (path === 'notes/main') {
@@ -409,7 +408,7 @@ export function createStore({ onStatusChange } = {}) {
       saveDoc(`plan/${dateIso}`, { items: normalizePlanItems(items) }),
     saveCfg: (cfg) => saveDoc('config/main', CL(cfg)),
     saveLog: (dateIso, logObj) => saveDoc(`log/${dateIso}`, CL(logObj || {})),
-    saveHub: (hubObj) => saveDoc('hub/bookmarks', CL(hubObj || { items: [] })),
+    saveHub: (hubObj) => saveDoc('hub/bookmarks', normalizeHubState(hubObj)),
     saveMatrix: (matrixObj) =>
       saveDoc('matrix/state', normalizeMatrixState(matrixObj)),
     saveNotes: (notesObj) =>

@@ -60,7 +60,14 @@ import {
   renderToday,
   renderWeek,
 } from '../src/views/schedule.js';
-import { detectBookmarkKind, renderHub } from '../src/views/hub.js';
+import {
+  DEFAULT_HUB_DOCS,
+  buildHubDocumentCatalog,
+  detectBookmarkKind,
+  normalizeHubState,
+  renderHub,
+  toggleHubStar,
+} from '../src/views/hub.js';
 import { renderMatrix } from '../src/views/matrix.js';
 import { renderNotesView } from '../src/views/notes.js';
 
@@ -604,4 +611,103 @@ test('OneNote XHTML serialization, HTML parsing, bidirectional sync planner, and
   assert.match(notesHtml, /data-act="note-chk-tog"/);
   assert.match(notesHtml, /OneNote 웹에서 열기/);
   assert.match(notesHtml, /OneNote 앱에서 열기/);
+});
+
+test('Hub document catalog, OneNote memo integration, star toggle persistence, and search/category render', () => {
+  assert.equal(detectBookmarkKind('https://drive.google.com/file/d/abc/view', '기하.pdf'), 'pdf');
+  assert.equal(detectBookmarkKind('https://drive.google.com/file/d/abc/view', '탐구보고서.hwp'), 'hwp');
+  assert.equal(detectBookmarkKind('https://docs.google.com/presentation/d/abc/edit'), 'slide');
+  assert.equal(detectBookmarkKind('#note:n1'), 'onenote');
+
+  const initHub = normalizeHubState({});
+  assert.equal(initHub.initialized, true);
+  const expectedDefaults = DEFAULT_HUB_DOCS.filter((d) => d.defaultStarred);
+  assert.equal(initHub.items.length, expectedDefaults.length);
+
+  // 기본 즐겨찾기 전부 해제 후 다시 normalize해도 빈 상태가 유지되는지 검증
+  let emptied = initHub;
+  for (const def of expectedDefaults) {
+    emptied = toggleHubStar(emptied, def.id, {});
+  }
+  assert.equal(emptied.items.length, 0);
+  assert.equal(emptied.unstarredIds.length, expectedDefaults.length);
+  const reloadedEmpty = normalizeHubState(emptied);
+  assert.equal(reloadedEmpty.items.length, 0);
+
+  // 카탈로그에 기본 문서 + 사용자 문서 + 원노트 메모 통합 검증
+  const notesState = normalizeNotesState({
+    items: [
+      {
+        id: 'n_hub_1',
+        title: '생명과학 실험 가설 메모',
+        subject: '과탐',
+        date: '2026-11-15',
+        updatedAt: '2026-11-15T04:00:00.000Z',
+        content: '대조군 설정',
+      },
+    ],
+  });
+
+  let hubWithCustom = normalizeHubState({
+    ...reloadedEmpty,
+    customDocs: [
+      {
+        id: 'custom_1',
+        name: '사용자 개인 정리표',
+        url: 'https://docs.google.com/spreadsheets/d/custom1',
+        kind: 'sheet',
+        group: '학교·세특',
+        modifiedAt: '2026-11-15',
+      },
+    ],
+  });
+
+  // 문서 즐겨찾기 설정 토글 (PDF + OneNote 메모 + 커스텀)
+  hubWithCustom = toggleHubStar(hubWithCustom, 'gd_mech_final', notesState);
+  hubWithCustom = toggleHubStar(hubWithCustom, 'note:n_hub_1', notesState);
+  hubWithCustom = toggleHubStar(hubWithCustom, 'custom_1', notesState);
+
+  assert.equal(hubWithCustom.items.length, 3);
+  assert.ok(hubWithCustom.items.some((x) => x.id === 'gd_mech_final'));
+  assert.ok(hubWithCustom.items.some((x) => x.noteId === 'n_hub_1'));
+
+  const catalog = buildHubDocumentCatalog(hubWithCustom, notesState);
+  assert.ok(catalog.length >= DEFAULT_HUB_DOCS.length + 2);
+  assert.equal(catalog.find((d) => d.id === 'gd_mech_final').starred, true);
+  assert.equal(catalog.find((d) => d.id === 'note:n_hub_1').starred, true);
+  assert.equal(catalog.find((d) => d.id === 'custom_1').isCustom, true);
+
+  // 다시 해제하면 customDocs에는 여전히 남아 있고 items에서만 제거됨
+  const afterUnstar = toggleHubStar(hubWithCustom, 'custom_1', notesState);
+  assert.equal(afterUnstar.items.some((x) => x.id === 'custom_1'), false);
+  const afterCatalog = buildHubDocumentCatalog(afterUnstar, notesState);
+  assert.equal(afterCatalog.find((d) => d.id === 'custom_1').starred, false);
+
+  const renderedHub = renderHub({
+    cfg: defaultConfig(),
+    hub: hubWithCustom,
+    notes: notesState,
+    hubAdding: false,
+    hubEditId: null,
+    hubGroupFilter: 'all',
+    hubCalEdit: false,
+    hubSearch: '생명과학',
+  });
+  assert.match(renderedHub, /전체 문서 목록/);
+  assert.match(renderedHub, /생기부_통합관리_BCI_생명과학_수정\.xlsx/);
+  assert.match(renderedHub, /생명과학 실험 가설 메모/);
+  assert.match(renderedHub, /data-act="hubstar"/);
+
+  const renderedHome = renderHome({
+    REAL: '2026-11-15',
+    cur: '2026-11-15',
+    plans: {},
+    cfg: defaultConfig(),
+    logs: {},
+    hub: hubWithCustom,
+    matrix: { tasks: [], overrides: {} },
+    notes: notesState,
+  });
+  assert.match(renderedHome, /data-act="go-hub"/);
+  assert.match(renderedHome, /data-act="note-open" data-id="n_hub_1"/);
 });
