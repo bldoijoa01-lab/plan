@@ -3,7 +3,7 @@ import {
   addMonth,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-21';
+} from './core/date.js?v=20261116-01';
 import {
   BNAME,
   BOOKS,
@@ -12,27 +12,28 @@ import {
   GENERAL_BOOK,
   PB,
   STUDY_BOOKS,
+  auditBookRanges,
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-21';
+} from './core/units.js?v=20261116-01';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
   movePlanSlice,
-} from './core/carry.js?v=20261115-21';
+} from './core/carry.js?v=20261116-01';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-21';
+} from './core/matrix.js?v=20261116-01';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261115-21';
-import { esc } from './core/html.js?v=20261115-21';
+} from './core/hub.js?v=20261116-01';
+import { esc } from './core/html.js?v=20261116-01';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -42,13 +43,13 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-21';
+} from './services/store.js?v=20261116-01';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261115-21';
+} from './services/gcal.js?v=20261116-01';
 import {
   renderAll,
   renderBookModal,
@@ -59,9 +60,9 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-21';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-21';
-import { renderMatrix } from './views/matrix.js?v=20261115-21';
+} from './views/schedule.js?v=20261116-01';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261116-01';
+import { renderMatrix } from './views/matrix.js?v=20261116-01';
 
 const $ = (s) => document.querySelector(s);
 
@@ -223,6 +224,9 @@ function tabDirection(prevView, nextView) {
 
 let hasEnteredOnce = false;
 let lastSyncKey = '';
+let lastAuditKey = '';
+let dismissedAuditSig = '';
+let latestAuditSig = '';
 
 const state = {
   REAL: todayKst(),
@@ -400,6 +404,72 @@ function renderSyncBanner() {
       <div class="sync-banner-btns">
         <button type="button" class="btn sm pri" data-act="retry">다시 시도</button>
         <button type="button" class="btn sm" data-act="changetoken">토큰 설정</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderAuditBanner() {
+  const el = $('#audit-banner');
+  if (!el) return;
+  if (!state.ready || state.authNeeded) {
+    if (lastAuditKey !== '') {
+      lastAuditKey = '';
+      el.innerHTML = '';
+      el.className = 'sync-banner-slot';
+    }
+    return;
+  }
+  const audit = auditBookRanges(state.plans);
+  if (!audit.hasIssues) {
+    latestAuditSig = '';
+    if (lastAuditKey !== '') {
+      lastAuditKey = '';
+      el.innerHTML = '';
+      el.className = 'sync-banner-slot';
+    }
+    return;
+  }
+  const sig = audit.books
+    .map((b) => `${b.bookId}:${b.duplicateText}:${b.gapText}`)
+    .join('|');
+  latestAuditSig = sig;
+  if (dismissedAuditSig === sig) {
+    if (lastAuditKey !== '') {
+      lastAuditKey = '';
+      el.innerHTML = '';
+      el.className = 'sync-banner-slot';
+    }
+    return;
+  }
+  if (lastAuditKey === sig) return;
+  lastAuditKey = sig;
+
+  const lines = audit.books
+    .map((b) => {
+      const parts = [];
+      if (b.duplicateText) {
+        const dTxt = b.duplicateDates.map((d) => d.slice(5).replace('-', '/')).join(', ');
+        parts.push(`중복 ${esc(b.duplicateText)} (${esc(dTxt)})`);
+      }
+      if (b.gapText) {
+        parts.push(`누락 ${esc(b.gapText)}`);
+      }
+      return `<button type="button" class="btn sm" style="margin:2px 4px 2px 0" data-act="bpop" data-b="${esc(
+        b.bookId
+      )}">${esc(b.name)}: ${parts.join(' · ')}</button>`;
+    })
+    .join('');
+
+  el.className = 'sync-banner-slot active';
+  el.innerHTML = `
+    <div class="sync-banner" role="alert">
+      <div class="sync-banner-msg">
+        <b>⚠️ 교재 범위 중복·누락 감지</b>
+        <span style="display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-top:4px">${lines}</span>
+      </div>
+      <div class="sync-banner-btns">
+        <button type="button" class="btn sm" data-act="audit-dismiss">닫기</button>
       </div>
     </div>
   `;
@@ -689,6 +759,7 @@ function render(opts = {}) {
   syncHead(ddays);
   syncNav();
   renderSyncBanner();
+  renderAuditBanner();
 
   const appEl = $('#app');
   if (!appEl) return;
@@ -1187,6 +1258,9 @@ function handleClick(e) {
   } else if (a === 'cno') {
     state.closing = false;
     render();
+  } else if (a === 'audit-dismiss') {
+    dismissedAuditSig = latestAuditSig;
+    renderAuditBanner();
   } else if (a === 'cmode') {
     state.closeMode = t.dataset.m;
     render();

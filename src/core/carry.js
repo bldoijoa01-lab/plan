@@ -204,7 +204,7 @@ export function planClose({ plans, cfg, todayIso, mode = 'next', keepIds = new S
       after[days[0]] = fmt(after[days[0]] + itemP(i, cfg));
     }
   } else {
-    const wEnd = addDay(todayIso, 6 - dayOfWeek(todayIso));
+    const wEnd = addDay(todayIso, 7 - dayOfWeek(todayIso));
     const wd = days.filter((d) => d <= wEnd);
     const pool = wd.length ? wd : [days[0]];
     const sorted = moves.slice().sort((a, b) => itemP(b, cfg) - itemP(a, cfg));
@@ -249,7 +249,11 @@ export function planClose({ plans, cfg, todayIso, mode = 'next', keepIds = new S
         if (pCmp !== 0) return pCmp;
         return ua[0].n - ub[0].n;
       }
-      return 0;
+      if (ua && ua.length) return -1;
+      if (ub && ub.length) return 1;
+      return String((a && a.t) || '').localeCompare(String((b && b.t) || ''), 'ko', {
+        numeric: true,
+      });
     };
 
     const movedIds = new Set(moves.map((m) => m.id));

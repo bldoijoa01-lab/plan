@@ -22,6 +22,7 @@ import {
   unitsText,
   splitRangeUpTo,
   getBookProgress,
+  auditBookRanges,
 } from '../src/core/units.js';
 import {
   applyAutoCarry,
@@ -932,4 +933,53 @@ test('planClose & applyClosePlan (spread) preserves workbook unit order across t
     applied.plans['2026-11-19'].filter((x) => x.b === '쎈').map((x) => x.t),
     ['#11~15']
   );
+});
+
+test('auditBookRanges detects duplicates/gaps for 원솔 & other books and stays clean across carry/split/move/spread', () => {
+  const brokenPlans = {
+    '2026-11-14': [{ id: 'w0', s: '수학', b: '원솔', t: 'T05·1~8', n: 8, done: true }],
+    '2026-11-16': [{ id: 'w1', s: '수학', b: '원솔', t: 'T05·15~16', n: 2, done: false }],
+    '2026-11-17': [{ id: 'w2', s: '수학', b: '원솔', t: 'T05·15~19, T06·1', n: 6, done: false, from: '2026-11-15' }],
+    '2026-11-18': [{ id: 'w3', s: '수학', b: '원솔', t: 'T05·17~19', n: 3, done: false }],
+    '2026-11-19': [{ id: 'w4', s: '수학', b: '원솔', t: 'T06·7~8', n: 2, done: false }],
+    '2026-11-20': [{ id: 'w5', s: '수학', b: '원솔', t: 'T06·9~13', n: 5, done: false }],
+    '2026-11-22': [{ id: 'w6', s: '수학', b: '원솔', t: 'T06·8~14, T07·1~2', n: 9, done: false }],
+    '2026-11-23': [
+      { id: 's1', s: '수학', b: '쎈', t: '#1~5', n: 5, done: false },
+      { id: 's2', s: '수학', b: '쎈', t: '#4~8', n: 5, done: false },
+    ],
+  };
+
+  const audit = auditBookRanges(brokenPlans);
+  assert.equal(audit.hasIssues, true);
+  const wonsol = audit.books.find((b) => b.bookId === '원솔');
+  assert.ok(wonsol);
+  assert.equal(wonsol.duplicateText, 'T05·15~19, T06·8~13');
+  assert.equal(wonsol.gapText, 'T05·9~14, T06·2~6');
+  const ssen = audit.books.find((b) => b.bookId === '쎈');
+  assert.ok(ssen);
+  assert.equal(ssen.duplicateText, '#4~5');
+
+  const cfg = defaultConfig();
+  cfg.carry = { ...cfg.carry, 원솔: 'auto' };
+  let cleanPlans = {
+    '2026-11-15': [{ id: 'a0', s: '수학', b: '원솔', t: 'T05·9~14', n: 6, done: false }],
+    '2026-11-16': [{ id: 'a1', s: '수학', b: '원솔', t: 'T05·15~19, T06·1', n: 6, done: false }],
+    '2026-11-18': [{ id: 'a2', s: '수학', b: '원솔', t: 'T06·2~6', n: 5, done: false }],
+    '2026-11-22': [{ id: 'a3', s: '수학', b: '원솔', t: 'T06·7~14', n: 8, done: false }],
+  };
+
+  const carried = applyAutoCarry(cleanPlans, cfg, '2026-11-16');
+  cleanPlans = carried.plans;
+  assert.equal(auditBookRanges(cleanPlans).hasIssues, false);
+
+  const splitRes = splitRangeUpTo(cleanPlans['2026-11-16'][0], 'T05·17', '2026-11-16');
+  assert.equal(splitRes.ok, true);
+  cleanPlans['2026-11-16'].splice(0, 1, ...splitRes.items);
+  assert.equal(auditBookRanges(cleanPlans).hasIssues, false);
+
+  const closed = applyClosePlan({ plans: cleanPlans, cfg, todayIso: '2026-11-16', mode: 'spread' });
+  assert.equal(auditBookRanges(closed.plans).hasIssues, false);
+  // 11/22(일요일)도 이번 주 pool에 포함되어 wEnd 누락이 없는지 확인
+  assert.ok(closed.summary.days.includes('2026-11-22'));
 });

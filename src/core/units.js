@@ -370,3 +370,83 @@ export function getBookProgress(plans, bookId, cfg) {
     extraRows,
   };
 }
+
+/**
+ * 모든 학습 교재의 계획 범위를 날짜 전체에서 검사해 중복·누락 구간을 찾습니다.
+ * @param {Record<string, object[]>} plans
+ */
+export function auditBookRanges(plans) {
+  const byBook = new Map();
+  for (const d of planDates(plans)) {
+    for (const it of plans[d] || []) {
+      if (!it || it.x || !STUDY_BOOKS[it.b]) continue;
+      const units = parseUnits(it);
+      if (!units || !units.length) continue;
+      if (!byBook.has(it.b)) byBook.set(it.b, new Map());
+      const prefixMap = byBook.get(it.b);
+      for (const u of units) {
+        if (!prefixMap.has(u.p)) prefixMap.set(u.p, new Map());
+        const numMap = prefixMap.get(u.p);
+        if (!numMap.has(u.n)) numMap.set(u.n, []);
+        numMap.get(u.n).push({ date: d, id: it.id, done: Boolean(it.done) });
+      }
+    }
+  }
+
+  const books = [];
+  let duplicateCount = 0;
+  let gapCount = 0;
+
+  for (const [bookId, prefixMap] of byBook.entries()) {
+    const dupUnits = [];
+    const dupDatesSet = new Set();
+    const gapUnits = [];
+
+    const prefixes = [...prefixMap.keys()].sort((a, b) =>
+      String(a).localeCompare(String(b), 'ko', { numeric: true })
+    );
+
+    for (const p of prefixes) {
+      const numMap = prefixMap.get(p);
+      const nums = [...numMap.keys()].sort((a, b) => a - b);
+      if (!nums.length) continue;
+
+      for (const n of nums) {
+        const occ = numMap.get(n);
+        if (occ.length > 1) {
+          dupUnits.push({ p, n });
+          for (const o of occ) dupDatesSet.add(o.date);
+        }
+      }
+
+      const minN = nums[0];
+      const maxN = nums[nums.length - 1];
+      for (let n = minN; n <= maxN; n++) {
+        if (!numMap.has(n)) {
+          gapUnits.push({ p, n });
+        }
+      }
+    }
+
+    if (dupUnits.length || gapUnits.length) {
+      duplicateCount += dupUnits.length;
+      gapCount += gapUnits.length;
+      books.push({
+        bookId,
+        name: BNAME[bookId] || bookId,
+        duplicateText: dupUnits.length ? unitsText(dupUnits) : '',
+        duplicateCount: dupUnits.length,
+        duplicateDates: [...dupDatesSet].sort(),
+        gapText: gapUnits.length ? unitsText(gapUnits) : '',
+        gapCount: gapUnits.length,
+      });
+    }
+  }
+
+  return {
+    hasIssues: books.length > 0,
+    duplicateCount,
+    gapCount,
+    books,
+  };
+}
