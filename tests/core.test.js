@@ -72,7 +72,6 @@ import {
 } from '../src/views/hub.js';
 import { renderMatrix } from '../src/views/matrix.js';
 import {
-  renderHomeStickyWidget,
   renderNotesView,
   renderTodayNoteWidget,
 } from '../src/views/notes.js';
@@ -760,56 +759,30 @@ test('Sticky Notes colors, OneNote metadata color round-trip, and AADSTS700016 l
     ],
   });
 
-  const stickyBoardHtml = renderNotesView({
+  const notesViewHtml = renderNotesView({
     REAL: '2026-11-15',
     cur: '2026-11-15',
     cfg: { onenote: defaultOneNoteConfig() },
     notes: notesState,
     oneNoteAuth: { accessToken: 'tok', userName: '테스트', mode: 'pkce' },
-    notesViewMode: 'sticky',
-    stickyNewColor: 'green',
+    notesSelectedId: 'n_sticky_1',
     notesConnectOpen: true,
     notesAuthTab: 'pkce',
   });
-  assert.match(stickyBoardHtml, /sticky-board-grid/);
-  assert.match(stickyBoardHtml, /sticky-card sticky-blue/);
-  assert.match(stickyBoardHtml, /data-act="sticky-quick-add"/);
-  assert.match(stickyBoardHtml, /data-act="on-pkce-consumers"/);
-  assert.match(stickyBoardHtml, /data-act="on-tenant-preset"/);
-  assert.match(stickyBoardHtml, /AADSTS700016/);
-  assert.match(stickyBoardHtml, /data-act="note-chk-tog"/);
+  assert.match(notesViewHtml, /notes-layout/);
+  assert.match(notesViewHtml, /data-act="on-pkce-consumers"/);
+  assert.match(notesViewHtml, /data-act="on-tenant-preset"/);
+  assert.match(notesViewHtml, /AADSTS700016/);
+  assert.match(notesViewHtml, /data-act="note-chk-tog"/);
 
-  const splitHtml = renderNotesView({
-    REAL: '2026-11-15',
-    cur: '2026-11-15',
-    cfg: { onenote: defaultOneNoteConfig() },
-    notes: notesState,
-    oneNoteAuth: null,
-    notesViewMode: 'split',
-    notesSelectedId: 'n_sticky_1',
-    notesConnectOpen: false,
-  });
-  assert.match(splitHtml, /notes-layout/);
-  assert.match(splitHtml, /sticky-editor-tint-blue/);
-
-  const todayStickyHtml = renderTodayNoteWidget({
+  const todayNoteHtml = renderTodayNoteWidget({
     REAL: '2026-11-15',
     cur: '2026-11-15',
     notes: notesState,
     oneNoteAuth: null,
-    stickyNewColor: 'pink',
   });
-  assert.match(todayStickyHtml, /today-sticky-grid/);
-  assert.match(todayStickyHtml, /mini-sticky-card sticky-blue/);
-
-  const homeStickyHtml = renderHomeStickyWidget({
-    REAL: '2026-11-15',
-    cur: '2026-11-15',
-    notes: notesState,
-    stickyNewColor: 'purple',
-  });
-  assert.match(homeStickyHtml, /home-sticky-grid/);
-  assert.match(homeStickyHtml, /mini-sticky-card sticky-blue/);
+  assert.match(todayNoteHtml, /today-note-list/);
+  assert.match(todayNoteHtml, /data-act="note-today-add"/);
 });
 
 test('Google Calendar events: KST dates, all-day exclusive end, multi-day grouping', async () => {

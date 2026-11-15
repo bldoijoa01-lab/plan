@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-15';
+} from './core/date.js?v=20261115-16';
 import {
   BNAME,
   BOOKS,
@@ -16,29 +16,28 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-15';
+} from './core/units.js?v=20261115-16';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
-} from './core/carry.js?v=20261115-15';
+} from './core/carry.js?v=20261115-16';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-15';
+} from './core/matrix.js?v=20261115-16';
 import {
   DEFAULT_ONENOTE_CLIENT_ID,
   defaultOneNoteConfig,
   normalizeNotesState,
-  normalizeStickyColor,
-} from './core/onenote.js?v=20261115-15';
+} from './core/onenote.js?v=20261115-16';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261115-15';
-import { esc } from './core/html.js?v=20261115-15';
+} from './core/hub.js?v=20261115-16';
+import { esc } from './core/html.js?v=20261115-16';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -48,7 +47,7 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-15';
+} from './services/store.js?v=20261115-16';
 import {
   clearOneNoteAuth,
   completeOneNoteAuthRedirectIfPresent,
@@ -63,13 +62,13 @@ import {
   startOneNotePkceLogin,
   syncNotesBidirectional,
   verifyDirectToken,
-} from './services/onenote.js?v=20261115-15';
+} from './services/onenote.js?v=20261115-16';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261115-15';
+} from './services/gcal.js?v=20261115-16';
 import {
   renderAll,
   renderBookModal,
@@ -79,10 +78,10 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-15';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-15';
-import { renderMatrix } from './views/matrix.js?v=20261115-15';
-import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-15';
+} from './views/schedule.js?v=20261115-16';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-16';
+import { renderMatrix } from './views/matrix.js?v=20261115-16';
+import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-16';
 
 const $ = (s) => document.querySelector(s);
 
@@ -96,7 +95,7 @@ const NAV_SECTIONS = {
       ['home', '🏠 종합 대시보드'],
       ['today', '📅 오늘 할 일'],
       ['matrix', '🧭 긴급 매트릭스'],
-      ['notes', '🗒️ 스티커 메모'],
+      ['notes', '📓 OneNote 메모'],
     ],
   },
   study: {
@@ -107,7 +106,7 @@ const NAV_SECTIONS = {
       ['today', '📅 오늘 학습'],
       ['week', '📊 주간 현황'],
       ['books', '📖 교재·기록 분석'],
-      ['notes', '🗒️ 스티커 메모'],
+      ['notes', '📓 OneNote 메모'],
     ],
   },
   schedule: {
@@ -118,7 +117,7 @@ const NAV_SECTIONS = {
       ['all', '🗓️ 월간 캘린더'],
       ['matrix', '🧭 아이젠하워 매트릭스'],
       ['hub', '🔗 캘린더·문서 허브'],
-      ['notes', '🗒️ 스티커 메모'],
+      ['notes', '📓 OneNote 메모'],
     ],
   },
   settings: {
@@ -309,8 +308,6 @@ const state = {
   gcalLoading: false,
   gcalMsg: '',
   gcalSetupOpen: false,
-  notesViewMode: 'sticky',
-  stickyNewColor: 'yellow',
   notesSelectedId: null,
   notesSearch: '',
   notesFilterSubj: 'all',
@@ -788,7 +785,6 @@ function triggerInitialEnter() {
 }
 
 function captureActiveNoteDraft({ forceDirty = false } = {}) {
-  flushNotesSave();
   if (state.view !== 'notes') return null;
   const subjEl = $('#note-subj');
   const saveBtn = document.querySelector('[data-act="note-save"]');
@@ -898,7 +894,6 @@ async function loadOneNoteContainers({ silent = false } = {}) {
 }
 
 async function runOneNoteSync({ silent = false } = {}) {
-  flushNotesSave();
   if (state.notesSyncing) return;
   if (!isOneNoteConnected()) {
     if (!silent) {
@@ -1785,7 +1780,7 @@ function handleClick(e) {
     render();
   }
 
-  // ===== OneNote / Notes / Sticky Notes actions =====
+  // ===== OneNote / Notes actions =====
   else if (a === 'note-open') {
     const prevView = state.view;
     state.notesSelectedId = id || null;
@@ -1793,92 +1788,6 @@ function handleClick(e) {
     state.sec = DEFAULT_VIEW_SECTION.notes;
     state.lastSub[state.sec] = 'notes';
     render({ motion: prevView !== 'notes' ? tabDirection(prevView, 'notes') : '' });
-  } else if (a === 'note-view-mode') {
-    captureActiveNoteDraft();
-    state.notesViewMode = t.dataset.mode === 'split' ? 'split' : 'sticky';
-    render();
-  } else if (a === 'note-expand') {
-    state.notesSelectedId = id || null;
-    state.notesViewMode = 'split';
-    render();
-  } else if (a === 'sticky-pick-color') {
-    state.stickyNewColor = normalizeStickyColor(t.dataset.color);
-    render();
-  } else if (a === 'sticky-quick-add') {
-    const titleInp = $('#sticky-quick-title');
-    const bodyInp = $('#sticky-quick-body');
-    const subjSel = $('#sticky-quick-subj');
-    const rawBody = String((bodyInp && bodyInp.value) || '').trim();
-    const rawTitle = String((titleInp && titleInp.value) || '').trim();
-    if (!rawBody && !rawTitle) return;
-    const curNotes = normalizeNotesState(state.notes);
-    const nowIso = new Date().toISOString();
-    const firstLine = (rawBody.split(/\r?\n/)[0] || '').replace(/^\s*-\s*\[[ xX]\]\s*/, '').trim();
-    const finalTitle = rawTitle || firstLine.slice(0, 42) || '새 스티커 메모';
-    const color = normalizeStickyColor(state.stickyNewColor || 'yellow');
-    const nextNotes = normalizeNotesState({
-      ...curNotes,
-      items: [
-        {
-          id: 'n_' + Date.now().toString(36),
-          title: finalTitle,
-          content: rawBody,
-          subject: (subjSel && subjSel.value) || '일반',
-          date: state.notesFilterSubj === 'date' ? state.cur : state.REAL,
-          color,
-          pinned: false,
-          createdAt: nowIso,
-          updatedAt: nowIso,
-          dirty: true,
-        },
-        ...curNotes.items,
-      ],
-    });
-    state.notes = nextNotes;
-    state.notesSelectedId = nextNotes.items[0].id;
-    state.notesSyncMsg = '새 스티커 메모를 붙였어요.';
-    store.saveNotes(state.notes);
-    render();
-    if (
-      isOneNoteConnected() &&
-      (!state.cfg.onenote || state.cfg.onenote.autoSync !== false)
-    ) {
-      runOneNoteSync({ silent: true });
-    }
-  } else if (a === 'sticky-color') {
-    captureActiveNoteDraft();
-    const nextColor = normalizeStickyColor(t.dataset.color);
-    const curNotes = normalizeNotesState(state.notes);
-    const nowIso = new Date().toISOString();
-    curNotes.items = curNotes.items.map((x) =>
-      x.id === id ? { ...x, color: nextColor, updatedAt: nowIso, dirty: true } : x
-    );
-    state.notes = curNotes;
-    store.saveNotes(state.notes);
-    render();
-  } else if (a === 'sticky-add-chk') {
-    const curNotes = normalizeNotesState(state.notes);
-    const nowIso = new Date().toISOString();
-    curNotes.items = curNotes.items.map((x) => {
-      if (x.id !== id) return x;
-      const base = String(x.content || '').trimEnd();
-      return {
-        ...x,
-        content: base ? `${base}\n- [ ] 새 할 일` : '- [ ] 새 할 일',
-        updatedAt: nowIso,
-        dirty: true,
-      };
-    });
-    state.notes = curNotes;
-    store.saveNotes(state.notes);
-    render();
-    setTimeout(() => {
-      const ta = document.querySelector(`[data-act="sticky-body"][data-id="${CSS.escape(id)}"]`);
-      if (ta) {
-        ta.focus();
-        ta.setSelectionRange(ta.value.length, ta.value.length);
-      }
-    }, 0);
   } else if (a === 'note-new') {
     captureActiveNoteDraft();
     const curNotes = normalizeNotesState(state.notes);
@@ -1896,11 +1805,10 @@ function handleClick(e) {
       items: [
         {
           id: nextId,
-          title: '새 스티커 메모',
+          title: '새 메모',
           content: '',
           subject: defSubj,
           date: state.notesFilterSubj === 'date' ? state.cur : state.REAL,
-          color: normalizeStickyColor(state.stickyNewColor || 'yellow'),
           pinned: false,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -1914,10 +1822,7 @@ function handleClick(e) {
     store.saveNotes(state.notes);
     render();
     setTimeout(() => {
-      const inp =
-        state.notesViewMode === 'split'
-          ? $('#note-title')
-          : document.querySelector(`[data-act="sticky-title"][data-id="${CSS.escape(nextId)}"]`);
+      const inp = $('#note-title');
       if (inp) {
         inp.focus();
         if (typeof inp.select === 'function') inp.select();
@@ -2074,11 +1979,10 @@ function handleClick(e) {
       items: [
         {
           id: 'n_' + Date.now().toString(36),
-          title: rawTxt.split('\n')[0].slice(0, 42) || '빠른 스티커 메모',
+          title: rawTxt.split('\n')[0].slice(0, 42) || '빠른 메모',
           content: rawTxt,
           subject: '일반',
           date: state.cur,
-          color: normalizeStickyColor(state.stickyNewColor || 'yellow'),
           pinned: false,
           createdAt: nowIso,
           updatedAt: nowIso,
@@ -2437,76 +2341,11 @@ function handleChange(e) {
       autoSync: Boolean(t.checked),
     };
     store.saveCfg(state.cfg);
-  } else if (a === 'sticky-subj') {
-    const noteId = t.dataset.id;
-    if (!noteId) return;
-    const curNotes = normalizeNotesState(state.notes);
-    const nowIso = new Date().toISOString();
-    curNotes.items = curNotes.items.map((x) =>
-      x.id === noteId
-        ? { ...x, subject: t.value || '일반', updatedAt: nowIso, dirty: true }
-        : x
-    );
-    state.notes = curNotes;
-    store.saveNotes(state.notes);
-    render();
   }
-}
-
-let notesSaveTimer = null;
-let notesSaveDirty = false;
-
-function scheduleNotesSave(delayMs = 450) {
-  notesSaveDirty = true;
-  if (notesSaveTimer) clearTimeout(notesSaveTimer);
-  notesSaveTimer = setTimeout(() => {
-    notesSaveTimer = null;
-    if (!notesSaveDirty) return;
-    notesSaveDirty = false;
-    store.saveNotes(state.notes);
-  }, delayMs);
-}
-
-function flushNotesSave() {
-  if (notesSaveTimer) {
-    clearTimeout(notesSaveTimer);
-    notesSaveTimer = null;
-  }
-  if (notesSaveDirty) {
-    notesSaveDirty = false;
-    store.saveNotes(state.notes);
-  }
-}
-
-function updateStickyFieldInPlace(noteId, field, value) {
-  if (!noteId) return;
-  const curNotes = normalizeNotesState(state.notes);
-  const idx = curNotes.items.findIndex((x) => x.id === noteId);
-  if (idx === -1) return;
-  const curItem = curNotes.items[idx];
-  const nextVal =
-    field === 'title' ? String(value || '').trim() || '제목 없는 메모' : String(value || '');
-  if (curItem[field] === nextVal) return;
-  curNotes.items[idx] = {
-    ...curItem,
-    [field]: nextVal,
-    updatedAt: new Date().toISOString(),
-    dirty: true,
-  };
-  state.notes = curNotes;
-  scheduleNotesSave();
 }
 
 function handleInput(e) {
   const t = e.target;
-  if (t.dataset && t.dataset.act === 'sticky-title') {
-    updateStickyFieldInPlace(t.dataset.id, 'title', t.value);
-    return;
-  }
-  if (t.dataset && t.dataset.act === 'sticky-body') {
-    updateStickyFieldInPlace(t.dataset.id, 'content', t.value);
-    return;
-  }
   if ((t.id === 'hb-url' || t.id === 'hb-name') && !state.hubKindTouched) {
     const kindSel = $('#hb-kind');
     if (kindSel) {
@@ -2556,14 +2395,6 @@ function handleKeydown(e) {
     closeCalModal();
     return;
   }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-    if (e.target && (e.target.id === 'sticky-quick-body' || e.target.id === 'sticky-quick-title')) {
-      e.preventDefault();
-      const btn = document.querySelector('[data-act="sticky-quick-add"]');
-      if (btn) btn.click();
-      return;
-    }
-  }
   if (e.key === 'Enter') {
     if (e.target && e.target.id === 'ak') {
       e.preventDefault();
@@ -2573,10 +2404,9 @@ function handleKeydown(e) {
       e.preventDefault();
       const btn = document.querySelector('[data-act="toksave"]');
       if (btn) btn.click();
-    } else if (e.target && (e.target.id === 'today-quick-note' || e.target.id === 'sticky-quick-title')) {
+    } else if (e.target && e.target.id === 'today-quick-note') {
       e.preventDefault();
-      const act = e.target.id === 'sticky-quick-title' ? 'sticky-quick-add' : 'note-today-add';
-      const btn = document.querySelector(`[data-act="${act}"]`);
+      const btn = document.querySelector('[data-act="note-today-add"]');
       if (btn) btn.click();
     }
   }
@@ -2647,9 +2477,7 @@ document.addEventListener('keydown', handleKeydown);
 
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      flushNotesSave();
-    } else {
+    if (!document.hidden) {
       const nowToday = todayKst();
       if (nowToday !== state.REAL) {
         if (state.cur === state.REAL) state.cur = nowToday;
@@ -2658,12 +2486,6 @@ if (typeof document !== 'undefined') {
         render();
       }
     }
-  });
-}
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('pagehide', () => {
-    flushNotesSave();
   });
 }
 

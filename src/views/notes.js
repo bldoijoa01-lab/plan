@@ -2,10 +2,8 @@ import { esc, safeUrl } from '../core/html.js';
 import { lab, shortDate } from '../core/date.js';
 import {
   DEFAULT_ONENOTE_CLIENT_ID,
-  STICKY_COLORS,
   defaultOneNoteConfig,
   normalizeNotesState,
-  normalizeStickyColor,
   safeOneNoteClientUrl,
 } from '../core/onenote.js';
 import { getOneNoteAuth, getOneNoteRedirectUri } from '../services/onenote.js';
@@ -57,29 +55,6 @@ function noteStatusText(note) {
   return `수정: ${String(note.updatedAt || '').slice(0, 16).replace('T', ' ')}`;
 }
 
-function colorDotsHtml(noteId, activeColor, actName = 'sticky-color') {
-  const cur = normalizeStickyColor(activeColor);
-  return `
-    <div class="sticky-color-dots" role="group" aria-label="스티커 메모 색상 선택">
-      ${STICKY_COLORS.map(
-        (c) => `
-        <button
-          type="button"
-          class="sticky-color-dot ${cur === c.id ? 'on' : ''}"
-          style="background:${c.hex}"
-          data-act="${actName}"
-          data-id="${esc(noteId)}"
-          data-color="${c.id}"
-          title="${esc(c.label)}"
-          aria-label="${esc(c.label)} 색상"
-          aria-pressed="${cur === c.id ? 'true' : 'false'}"
-        ></button>
-      `
-      ).join('')}
-    </div>
-  `;
-}
-
 function subjectOptionsHtml(selectedSubj) {
   const list = [
     ...NOTE_SUBJECTS,
@@ -126,8 +101,7 @@ function renderConnectPanel({
         <div class="note" style="margin-top:4px;line-height:1.55">
           • <b>원인</b>: Azure 앱이 <b>개인 계정 전용</b>(또는 다른 디렉터리)으로 등록된 상태에서 브라우저에 로그인된 <b>학교·기관 Microsoft 계정</b>으로 접속하면 해당 학교 디렉터리(<code>821ada1a-...</code>)에서 앱을 찾지 못해 거부됩니다.<br>
           • <b>해결 1 (가장 빠름)</b>: 아래 <b>👤 개인 계정 전용 (consumers)</b> 버튼을 눌러 <code>@outlook.com</code> / <code>@naver.com</code> / <code>@gmail.com</code> 같은 <b>개인 Microsoft 계정</b>으로 로그인하세요.<br>
-          • <b>해결 2 (학교 계정 사용)</b>: Entra 앱 등록 → <b>매니페스트(Manifest)</b>에서 <code>"signInAudience"</code>를 <code>"AzureADandPersonalMicrosoftAccount"</code>로 바꾸거나 학교 테넌트에 앱을 등록하세요.<br>
-          • <b>참고</b>: 🗒️ <b>스티커 메모 보드</b>는 Microsoft 로그인 없이도 우리 웹앱 클라우드(Cloudflare)에 <b>즉시 자동 저장·기기 동기화</b>됩니다!
+          • <b>해결 2 (학교 계정 사용)</b>: Entra 앱 등록 → <b>매니페스트(Manifest)</b>에서 <code>"signInAudience"</code>를 <code>"AzureADandPersonalMicrosoftAccount"</code>로 바꾸거나 학교 테넌트에 앱을 등록하세요.
         </div>
       </div>
 
@@ -253,225 +227,6 @@ function renderConnectPanel({
   `;
 }
 
-function renderStickyCard(note, isConnected) {
-  const color = normalizeStickyColor(note.color);
-  const chkLines = extractCheckLines(note.content);
-  const clientHref = safeOneNoteClientUrl(note.onenoteClientUrl);
-  const webHref = note.onenoteWebUrl ? safeUrl(note.onenoteWebUrl) : '';
-
-  return `
-    <article class="sticky-card sticky-${color}" data-note-id="${esc(note.id)}">
-      <div class="sticky-card-head">
-        ${colorDotsHtml(note.id, color, 'sticky-color')}
-        <span class="sp"></span>
-        <button
-          type="button"
-          class="sticky-icon-btn ${note.pinned ? 'on' : ''}"
-          data-act="note-pin"
-          data-id="${esc(note.id)}"
-          title="${note.pinned ? '상단 고정 해제' : '상단 고정'}"
-          aria-label="고정"
-        >📌</button>
-        <button
-          type="button"
-          class="sticky-icon-btn"
-          data-act="sticky-add-chk"
-          data-id="${esc(note.id)}"
-          title="체크리스트 줄 추가"
-          aria-label="체크리스트 줄 추가"
-        >☑</button>
-        <button
-          type="button"
-          class="sticky-icon-btn"
-          data-act="note-expand"
-          data-id="${esc(note.id)}"
-          title="상세 편집기에서 크게 보기"
-          aria-label="상세 편집기 열기"
-        >⤢</button>
-        ${
-          isConnected
-            ? `<button
-                type="button"
-                class="sticky-icon-btn"
-                data-act="note-push-one"
-                data-id="${esc(note.id)}"
-                title="이 메모만 OneNote로 즉시 전송"
-                aria-label="OneNote 전송"
-              >📤</button>`
-            : ''
-        }
-        <button
-          type="button"
-          class="sticky-icon-btn danger"
-          data-act="note-del"
-          data-id="${esc(note.id)}"
-          title="스티커 메모 삭제"
-          aria-label="삭제"
-        >✕</button>
-      </div>
-
-      <input
-        type="text"
-        class="sticky-title-in"
-        data-act="sticky-title"
-        data-id="${esc(note.id)}"
-        value="${esc(note.title)}"
-        placeholder="스티커 메모 제목..."
-        aria-label="스티커 메모 제목"
-      >
-
-      <textarea
-        class="sticky-body-in"
-        data-act="sticky-body"
-        data-id="${esc(note.id)}"
-        rows="5"
-        placeholder="포스트잇처럼 바로 입력하세요... ('- [ ] 항목' 입력 시 체크박스 생성)"
-        aria-label="스티커 메모 본문"
-      >${esc(note.content)}</textarea>
-
-      ${
-        chkLines.length
-          ? `
-        <div class="sticky-chk-list">
-          ${chkLines
-            .map(
-              (c) => `
-            <button
-              type="button"
-              class="sticky-chk-btn ${c.checked ? 'done' : ''}"
-              data-act="note-chk-tog"
-              data-id="${esc(note.id)}"
-              data-line="${c.lineIdx}"
-            >${c.checked ? '☑' : '☐'} ${esc(c.text || '(빈 항목)')}</button>
-          `
-            )
-            .join('')}
-        </div>
-      `
-          : ''
-      }
-
-      <div class="sticky-card-foot">
-        <select
-          class="sticky-subj-sel"
-          data-act="sticky-subj"
-          data-id="${esc(note.id)}"
-          aria-label="과목 태그"
-        >${subjectOptionsHtml(note.subject)}</select>
-        ${note.date ? `<span class="mini-pill">📅 ${esc(shortDate(note.date))}</span>` : ''}
-        <span class="sp"></span>
-        ${syncBadgeHtml(note, isConnected)}
-      </div>
-
-      ${
-        (webHref && webHref !== '#') || clientHref
-          ? `
-        <div class="sticky-on-links">
-          ${
-            webHref && webHref !== '#'
-              ? `<a class="btn sm" href="${esc(webHref)}" target="_blank" rel="noopener noreferrer">🌐 OneNote 웹에서 열기 ↗</a>`
-              : ''
-          }
-          ${
-            clientHref
-              ? `<a class="btn sm" href="${esc(clientHref)}">🟣 OneNote 앱에서 열기</a>`
-              : ''
-          }
-        </div>
-      `
-          : ''
-      }
-    </article>
-  `;
-}
-
-function renderStickyBoardView({
-  state,
-  filteredItems,
-  notesState,
-  isConnected,
-  filterSubj,
-}) {
-  const newColor = normalizeStickyColor(state.stickyNewColor || 'yellow');
-  const defSubj =
-    filterSubj && !['all', 'pinned', 'date'].includes(filterSubj) ? filterSubj : '일반';
-
-  return `
-    <div class="card sticky-toolbar-card">
-      <div class="row wrap-row">
-        <input
-          type="text"
-          id="note-search"
-          data-act="note-search"
-          placeholder="스티커 메모 제목·내용 검색..."
-          value="${esc(state.notesSearch || '')}"
-          style="flex:1;min-width:180px"
-        >
-        <div class="chips">
-          <button type="button" class="chip ${filterSubj === 'all' ? 'on' : ''}" data-act="note-filter" data-f="all">전체 (${notesState.items.length})</button>
-          <button type="button" class="chip ${filterSubj === 'pinned' ? 'on' : ''}" data-act="note-filter" data-f="pinned">📌 고정</button>
-          <button type="button" class="chip ${filterSubj === 'date' ? 'on' : ''}" data-act="note-filter" data-f="date">📅 ${esc(shortDate(state.cur))}</button>
-          ${NOTE_SUBJECTS.map(
-            (s) =>
-              `<button type="button" class="chip ${filterSubj === s ? 'on' : ''}" data-act="note-filter" data-f="${esc(s)}">${esc(s)}</button>`
-          ).join('')}
-        </div>
-      </div>
-    </div>
-
-    <div class="sticky-board-grid">
-      <div class="sticky-card sticky-creator-card sticky-${newColor}">
-        <div class="sticky-card-head">
-          <b class="card-title-sm">+ 새 스티커 메모 붙이기</b>
-          <span class="sp"></span>
-          ${colorDotsHtml('new', newColor, 'sticky-pick-color')}
-        </div>
-        <input
-          type="text"
-          id="sticky-quick-title"
-          class="sticky-title-in"
-          placeholder="제목 (비워두면 첫 줄이 제목이 됩니다)"
-          aria-label="새 스티커 메모 제목"
-        >
-        <textarea
-          id="sticky-quick-body"
-          class="sticky-body-in"
-          rows="4"
-          placeholder="여기에 포스트잇처럼 메모를 적어 바로 보드에 붙이세요...
-- [ ] 체크리스트 항목도 추가할 수 있어요"
-          aria-label="새 스티커 메모 내용"
-        ></textarea>
-        <div class="sticky-card-foot">
-          <select id="sticky-quick-subj" class="sticky-subj-sel" aria-label="새 메모 과목">
-            ${subjectOptionsHtml(defSubj)}
-          </select>
-          <span class="sp"></span>
-          <button type="button" class="btn sm pri" data-act="sticky-quick-add">📌 보드에 붙이기</button>
-        </div>
-      </div>
-
-      ${
-        filteredItems.length
-          ? filteredItems.map((it) => renderStickyCard(it, isConnected)).join('')
-          : `
-        <div class="card sticky-empty-card">
-          <div class="notes-empty">
-            <div style="font-size:30px">🗒️</div>
-            <b>검색/필터에 맞는 스티커 메모가 없어요</b>
-            <div class="note">왼쪽 새 스티커 카드에 바로 메모를 적거나 필터를 '전체'로 바꿔 보세요.</div>
-            ${
-              filterSubj !== 'all' || state.notesSearch
-                ? '<button type="button" class="btn sm" data-act="note-filter" data-f="all">전체 메모 보기</button>'
-                : ''
-            }
-          </div>
-        </div>
-      `
-      }
-    </div>
-  `;
-}
-
 function renderSplitEditorView({
   state,
   filteredItems,
@@ -483,7 +238,6 @@ function renderSplitEditorView({
   const chkLines = activeNote ? extractCheckLines(activeNote.content) : [];
   const clientHref = activeNote ? safeOneNoteClientUrl(activeNote.onenoteClientUrl) : '';
   const webHref = activeNote && activeNote.onenoteWebUrl ? safeUrl(activeNote.onenoteWebUrl) : '';
-  const activeColor = activeNote ? normalizeStickyColor(activeNote.color) : 'yellow';
 
   return `
     <div class="notes-layout">
@@ -511,8 +265,6 @@ function renderSplitEditorView({
               ? filteredItems
                   .map((it) => {
                     const isActive = activeNote && activeNote.id === it.id;
-                    const itColor = normalizeStickyColor(it.color);
-                    const colorObj = STICKY_COLORS.find((c) => c.id === itColor) || STICKY_COLORS[0];
                     const preview =
                       String(it.content || '')
                         .replace(/\s+/g, ' ')
@@ -523,7 +275,6 @@ function renderSplitEditorView({
                         isActive ? 'active' : ''
                       }" data-act="note-sel" data-id="${esc(it.id)}">
                         <div class="row wrap-row">
-                          <span class="sticky-mini-swatch" style="background:${colorObj.hex}" title="${esc(colorObj.label)}"></span>
                           ${it.pinned ? '<span class="mini-pill">📌</span>' : ''}
                           <span class="cat-badge">${esc(it.subject)}</span>
                           ${it.date ? `<span class="mini-pill">${esc(shortDate(it.date))}</span>` : ''}
@@ -541,7 +292,7 @@ function renderSplitEditorView({
         </div>
       </div>
 
-      <div class="card notes-editor-card sticky-editor-tint-${activeColor}">
+      <div class="card notes-editor-card">
         ${
           activeNote
             ? `
@@ -549,7 +300,6 @@ function renderSplitEditorView({
             <input type="text" id="note-title" placeholder="메모 제목" value="${esc(
               activeNote.title
             )}" style="flex:1;min-width:180px;font-weight:700">
-            ${colorDotsHtml(activeNote.id, activeColor, 'sticky-color')}
             <button type="button" class="btn sm ${
               activeNote.pinned ? 'pri' : ''
             }" data-act="note-pin" data-id="${esc(activeNote.id)}">${
@@ -651,7 +401,6 @@ export function renderNotesView(state) {
   const auth = state.oneNoteAuth !== undefined ? state.oneNoteAuth : getOneNoteAuth();
   const isConnected = Boolean(auth && (auth.accessToken || auth.refreshToken));
   const notesState = normalizeNotesState(state.notes);
-  const viewMode = state.notesViewMode === 'split' ? 'split' : 'sticky';
 
   const sortedItems = notesState.items
     .slice()
@@ -702,13 +451,13 @@ export function renderNotesView(state) {
       <div class="row wrap-row">
         <div class="on-hero-title">
           <div class="row wrap-row">
-            <b class="card-title-md">🗒️ 스티커 메모 &amp; Microsoft OneNote 양방향 메모장</b>
+            <b class="card-title-md">📓 Microsoft OneNote 양방향 메모장</b>
             ${
               isConnected
                 ? `<span class="tag note-on-tag">🟣 OneNote 양방향 연결됨 · ${esc(
                     targetSectionLabel
                   )}</span>`
-                : '<span class="bdg">🟡 클라우드 스티커 메모 모드 (로그인 없이도 즉시 저장)</span>'
+                : '<span class="bdg">🟡 로컬·클라우드 메모 모드</span>'
             }
           </div>
           <div class="note" style="margin-top:4px">
@@ -716,27 +465,18 @@ export function renderNotesView(state) {
               state.notesSyncMsg
                 ? esc(state.notesSyncMsg)
                 : lastSyncStr
-                  ? `마지막 양방향 동기화: ${esc(lastSyncStr)} · 총 스티커 메모 ${notesState.items.length}개`
-                  : `포스트잇처럼 색상을 골라 바로 메모하면 웹·모바일에 즉시 자동 저장되며, OneNote 연결 시 양방향 동기화됩니다.`
+                  ? `마지막 양방향 동기화: ${esc(lastSyncStr)} · 총 메모 ${notesState.items.length}개`
+                  : `메모를 작성하면 웹·모바일에 즉시 자동 저장되며, OneNote 연결 시 양방향 동기화됩니다.`
             }
           </div>
         </div>
         <div class="menu">
-          <div class="seg">
-            <button type="button" class="btn sm ${
-              viewMode === 'sticky' ? 'pri' : ''
-            }" data-act="note-view-mode" data-mode="sticky">🗒️ 스티커 보드</button>
-            <button type="button" class="btn sm ${
-              viewMode === 'split' ? 'pri' : ''
-            }" data-act="note-view-mode" data-mode="split">📑 상세 편집</button>
-          </div>
           <button type="button" class="btn sm pri" data-act="on-sync" ${
             state.notesSyncing ? 'disabled' : ''
           }>${state.notesSyncing ? '⏳ 동기화 중...' : '🔄 OneNote 동기화'}</button>
           <button type="button" class="btn sm" data-act="on-connect-tog">${
             state.notesConnectOpen ? '설정 닫기' : '⚙️ Microsoft 연결 설정'
           }</button>
-          <a class="btn sm" href="https://www.onenote.com/stickynotes" target="_blank" rel="noopener noreferrer" title="Microsoft 웹 스티커 메모 열기">MS 스티커 웹 ↗</a>
           <button type="button" class="btn sm" data-act="note-new">+ 새 메모</button>
         </div>
       </div>
@@ -755,24 +495,14 @@ export function renderNotesView(state) {
       }
     </div>
 
-    ${
-      viewMode === 'sticky'
-        ? renderStickyBoardView({
-            state,
-            filteredItems,
-            notesState,
-            isConnected,
-            filterSubj,
-          })
-        : renderSplitEditorView({
-            state,
-            filteredItems,
-            activeNote,
-            notesState,
-            isConnected,
-            filterSubj,
-          })
-    }
+    ${renderSplitEditorView({
+      state,
+      filteredItems,
+      activeNote,
+      notesState,
+      isConnected,
+      filterSubj,
+    })}
   `;
 }
 
@@ -781,7 +511,6 @@ export function renderTodayNoteWidget(state) {
   const auth = state.oneNoteAuth !== undefined ? state.oneNoteAuth : getOneNoteAuth();
   const isConnected = Boolean(auth && (auth.accessToken || auth.refreshToken));
   const targetDate = state.cur;
-  const pickColor = normalizeStickyColor(state.stickyNewColor || 'yellow');
 
   const dateNotes = notesState.items.filter((x) => x.date === targetDate);
   const displayNotes = (
@@ -794,14 +523,13 @@ export function renderTodayNoteWidget(state) {
               (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
               String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
           )
-  ).slice(0, 4);
+  ).slice(0, 3);
 
   return `
-    <div class="card sticky-widget-card">
+    <div class="card glass-tint-purple">
       <div class="row wrap-row">
-        <b class="card-title-sm">🗒️ ${esc(lab(targetDate))} 스티커 메모</b>
+        <b class="card-title-sm">📓 ${esc(lab(targetDate))} 원노트 빠른 메모</b>
         <span class="sp"></span>
-        ${colorDotsHtml('widget', pickColor, 'sticky-pick-color')}
         ${
           isConnected
             ? '<span class="mini-pill note-on-badge">🟣 연동됨</span>'
@@ -809,100 +537,33 @@ export function renderTodayNoteWidget(state) {
         }
       </div>
       <div class="row" style="margin-top:8px">
-        <input type="text" id="today-quick-note" placeholder="포스트잇 한 줄 메모..." style="flex:1;min-width:120px">
-        <button type="button" class="btn sm pri" data-act="note-today-add">+ 붙이기</button>
+        <input type="text" id="today-quick-note" placeholder="한 줄 메모 남기기..." style="flex:1;min-width:120px">
+        <button type="button" class="btn sm pri" data-act="note-today-add">메모 추가</button>
       </div>
       ${
         displayNotes.length
-          ? `<div class="today-sticky-grid">
+          ? `<div class="today-note-list">
               ${displayNotes
-                .map((n) => {
-                  const nColor = normalizeStickyColor(n.color);
-                  const preview = String(n.content || '')
-                    .replace(/\s+/g, ' ')
-                    .trim()
-                    .slice(0, 56);
-                  return `
-                <button type="button" class="mini-sticky-card sticky-${nColor}" data-act="note-open" data-id="${esc(
+                .map(
+                  (n) => `
+                <button type="button" class="today-note-row" data-act="note-open" data-id="${esc(
                     n.id
                   )}">
-                  <div class="row wrap-row">
-                    ${n.pinned ? '<span>📌</span>' : ''}
-                    <span class="cat-badge">${esc(n.subject)}</span>
-                    <span class="sp"></span>
-                    ${n.onenotePageId ? '<span class="note">🟣</span>' : ''}
-                  </div>
-                  <div class="mini-sticky-title">${esc(n.title)}</div>
-                  ${preview ? `<div class="mini-sticky-preview">${esc(preview)}</div>` : ''}
+                  <span class="cat-badge">${esc(n.subject)}</span>
+                  <span class="today-note-title">${esc(n.title)}</span>
+                  ${n.onenotePageId ? '<span class="note">🟣</span>' : ''}
                 </button>
-              `;
-                })
+              `
+                )
                 .join('')}
             </div>`
-          : '<div class="note" style="margin-top:8px">아직 붙인 스티커 메모가 없어요. 위 칸에 적어 붙여 보세요!</div>'
+          : '<div class="note" style="margin-top:8px">저장된 메모가 없어요. 위 칸에 적어 바로 추가해 보세요!</div>'
       }
       <div class="row" style="margin-top:10px">
-        <span class="note mono">전체 스티커 ${notesState.items.length}장</span>
+        <span class="note mono">전체 메모 ${notesState.items.length}개</span>
         <span class="sp"></span>
-        <button type="button" class="btn sm" data-v="notes">🗒️ 스티커 보드 전체 열기</button>
+        <button type="button" class="btn sm" data-v="notes">📓 메모 전체 열기</button>
       </div>
-    </div>
-  `;
-}
-
-export function renderHomeStickyWidget(state) {
-  const notesState = normalizeNotesState(state.notes);
-  const pickColor = normalizeStickyColor(state.stickyNewColor || 'yellow');
-  const displayNotes = notesState.items
-    .slice()
-    .sort(
-      (a, b) =>
-        (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
-        String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
-    )
-    .slice(0, 6);
-
-  return `
-    <div class="card home-sticky-strip">
-      <div class="row wrap-row">
-        <b class="card-title-md">🗒️ 빠른 스티커 메모 보드</b>
-        ${colorDotsHtml('home', pickColor, 'sticky-pick-color')}
-        <span class="sp"></span>
-        <span class="note mono">${notesState.items.length}장 저장됨</span>
-        <button type="button" class="btn sm pri" data-v="notes">스티커 보드 열기 →</button>
-      </div>
-      <div class="row wrap-row" style="margin-top:10px">
-        <input type="text" id="today-quick-note" placeholder="떠오른 생각·할 일·오답 포인트를 바로 포스트잇으로 붙이세요..." style="flex:1;min-width:200px">
-        <button type="button" class="btn sm pri" data-act="note-today-add">+ 스티커 붙이기</button>
-      </div>
-      ${
-        displayNotes.length
-          ? `<div class="home-sticky-grid">
-              ${displayNotes
-                .map((n) => {
-                  const nColor = normalizeStickyColor(n.color);
-                  const preview = String(n.content || '')
-                    .replace(/\s+/g, ' ')
-                    .trim()
-                    .slice(0, 70);
-                  return `
-                <button type="button" class="mini-sticky-card sticky-${nColor}" data-act="note-open" data-id="${esc(
-                    n.id
-                  )}">
-                  <div class="row wrap-row">
-                    ${n.pinned ? '<span>📌</span>' : ''}
-                    <span class="cat-badge">${esc(n.subject)}</span>
-                    ${n.date ? `<span class="mini-pill">${esc(shortDate(n.date))}</span>` : ''}
-                  </div>
-                  <div class="mini-sticky-title">${esc(n.title)}</div>
-                  ${preview ? `<div class="mini-sticky-preview">${esc(preview)}</div>` : ''}
-                </button>
-              `;
-                })
-                .join('')}
-            </div>`
-          : '<div class="note" style="margin-top:10px">아직 붙인 스티커 메모가 없어요. 위 입력란에 적고 엔터를 눌러 첫 포스트잇을 붙여 보세요!</div>'
-      }
     </div>
   `;
 }
