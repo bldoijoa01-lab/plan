@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-3';
+} from './core/date.js?v=20261115-4';
 import {
   BNAME,
   BOOKS,
@@ -16,19 +16,19 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-3';
+} from './core/units.js?v=20261115-4';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
-} from './core/carry.js?v=20261115-3';
+} from './core/carry.js?v=20261115-4';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-3';
-import { esc } from './core/html.js?v=20261115-3';
+} from './core/matrix.js?v=20261115-4';
+import { esc } from './core/html.js?v=20261115-4';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -38,7 +38,7 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-3';
+} from './services/store.js?v=20261115-4';
 import {
   renderAll,
   renderBookModal,
@@ -47,9 +47,9 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-3';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-3';
-import { renderMatrix } from './views/matrix.js?v=20261115-3';
+} from './views/schedule.js?v=20261115-4';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-4';
+import { renderMatrix } from './views/matrix.js?v=20261115-4';
 
 const $ = (s) => document.querySelector(s);
 
@@ -469,13 +469,7 @@ function syncNav() {
   const metaEl = $('#subnav-meta');
   if (metaEl && metaEl.dataset.sec !== state.sec) {
     metaEl.dataset.sec = state.sec;
-    metaEl.innerHTML = `
-      <span class="sec-crumb">${esc(secMeta.label)}</span>
-      <div class="sec-heading">
-        <strong>${esc(secMeta.title)}</strong>
-        <span>${esc(secMeta.desc)}</span>
-      </div>
-    `;
+    metaEl.innerHTML = `<span class="sec-crumb">${esc(secMeta.label)}</span>`;
   }
 
   const navEl = $('#nav');

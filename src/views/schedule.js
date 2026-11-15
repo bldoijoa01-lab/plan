@@ -323,7 +323,7 @@ export function renderHome(state) {
     matrixState: matrix,
     todayIso: REAL,
   });
-  const q1Top = quads.q1.slice(0, 6);
+  const q1Top = quads.q1.slice(0, 4);
 
   const subjStats = ALL_SUBJ.map((s) => {
     const list = todayItems.filter((i) => i.s === s);
@@ -342,8 +342,7 @@ export function renderHome(state) {
     };
   }).filter(Boolean);
 
-  const todayTodoPreview = todayItems.filter((i) => !i.done).slice(0, 5);
-  const odTop = od.slice(0, 5);
+  const odTop = od.slice(0, 4);
   const upcomingHigh = weekDays
     .map((d, i) => ({ d, wd: WD_KO[i], p: weekTot[i] }))
     .filter((x) => x.d >= REAL && x.p > WARN_P);
@@ -351,7 +350,7 @@ export function renderHome(state) {
   const topBookmarks = (hub && Array.isArray(hub.items) ? hub.items : [])
     .slice()
     .sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999))
-    .slice(0, 6);
+    .slice(0, 4);
 
   return `
     <div class="home-top-grid">
@@ -524,7 +523,7 @@ export function renderHome(state) {
           <span class="sp"></span>
           <span class="tag">${todayItems.length}줄 · ${remainCnt}건 남음</span>
         </div>
-        <div class="note" style="margin-top:4px">과목별 완료율과 오늘 남은 분량을 바로 체크할 수 있어요.</div>
+        <div class="note" style="margin-top:4px">오늘 배정된 과목별 완료율과 부하 점수예요.</div>
         <div class="home-list">
           ${
             subjStats.length
@@ -546,28 +545,6 @@ export function renderHome(state) {
                   .join('')
               : '<div class="note" style="padding:10px 0">오늘 등록된 공부 계획이 아직 없어요.</div>'
           }
-          ${
-            todayTodoPreview.length
-              ? `<div class="home-sub-sec">
-                  <div class="note" style="margin-bottom:4px">오늘 미완료 빠른 체크</div>
-                  ${todayTodoPreview
-                    .map(
-                      (item) => `
-                    <div class="it">
-                      <input type="checkbox" data-act="tog" data-d="${esc(REAL)}" data-id="${esc(
-                        item.id
-                      )}" aria-label="완료 체크">
-                      <div class="tx">
-                        <div class="it-main">${itemTitleHtml(item)}</div>
-                      </div>
-                      <span class="p mono">${fmt(itemP(item, cfg))}P</span>
-                    </div>
-                  `
-                    )
-                    .join('')}
-                </div>`
-              : ''
-          }
         </div>
         <div class="row home-card-foot">
           <span class="note">완료 ${fmt(doneP)}P · 남은 분량 ${fmt(totP - doneP)}P</span>
@@ -578,7 +555,6 @@ export function renderHome(state) {
         </div>
       </div>
 
-      <div class="home-col-stack">
       <div class="card glass-tint-amber">
         <div class="row wrap-row">
           <b class="card-title-md">⏳ 밀린 항목 &amp; 이월 관리</b>
@@ -700,7 +676,6 @@ export function renderHome(state) {
           <span class="sp"></span>
           <button type="button" class="btn sm pri" data-v="hub">허브 열기</button>
         </div>
-      </div>
       </div>
     </div>
   `;
