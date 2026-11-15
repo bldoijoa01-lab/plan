@@ -299,7 +299,7 @@ const QUICK_APPS = [
 ];
 
 export function renderHome(state) {
-  const { plans, cfg, REAL, matrix, hub } = state;
+  const { plans, cfg, logs, REAL, matrix, hub } = state;
   const todayItems = liveItems(plans[REAL]);
   const totP = sumP(todayItems, cfg);
   const doneP = sumP(todayItems, cfg, (i) => i.done);
@@ -308,15 +308,22 @@ export function renderHome(state) {
   const ddays = cfg.ddays || DEF_DD;
   const od = getOverdueItems(plans, REAL);
 
+  const weekDays = weekDatesOf(REAL);
+  const weekTot = weekDays.map((d) => sumP(liveItems(plans[d]), cfg));
+  const weekMax = Math.max(1, ...weekTot);
+  const weekAll = weekDays.flatMap((d) => liveItems(plans[d]));
+  const weekT = sumP(weekAll, cfg);
+  const weekD = sumP(weekAll, cfg, (i) => i.done);
+  const weekPct = weekT ? Math.round((weekD / weekT) * 100) : 0;
+  const todayLog = (logs && logs[REAL]) || {};
+
   const { quads } = buildMatrixBoard({
     plans,
     cfg,
     matrixState: matrix,
     todayIso: REAL,
   });
-  const q1Top = quads.q1.slice(0, 5);
-  const totalMatrix =
-    quads.q1.length + quads.q2.length + quads.q3.length + quads.q4.length;
+  const q1Top = quads.q1.slice(0, 6);
 
   const subjStats = ALL_SUBJ.map((s) => {
     const list = todayItems.filter((i) => i.s === s);
@@ -335,44 +342,116 @@ export function renderHome(state) {
     };
   }).filter(Boolean);
 
+  const todayTodoPreview = todayItems.filter((i) => !i.done).slice(0, 5);
+  const odTop = od.slice(0, 5);
+  const upcomingHigh = weekDays
+    .map((d, i) => ({ d, wd: WD_KO[i], p: weekTot[i] }))
+    .filter((x) => x.d >= REAL && x.p > WARN_P);
+
   const topBookmarks = (hub && Array.isArray(hub.items) ? hub.items : [])
     .slice()
     .sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999))
-    .slice(0, 4);
+    .slice(0, 6);
 
   return `
-    <div class="card home-hero">
-      <div class="home-hero-top">
-        <div class="home-hero-main">
-          <span class="hero-kicker">TODAY FOCUS · ${esc(lab(REAL))}</span>
-          <h2 class="hero-title">오늘 목표 <b>${pct}%</b> 달성 중</h2>
-          <div class="note">
-            완료 <b>${fmt(doneP)}P</b> / 계획 <b>${fmt(totP)}P</b> · 남은 할 일 <b>${remainCnt}건</b>${
-              od.length ? ` · <span style="color:var(--carry);font-weight:700">이월 대기 ${od.length}개</span>` : ''
-            }
+    <div class="home-top-grid">
+      <div class="card home-hero">
+        <div class="home-hero-top">
+          <div class="home-hero-main">
+            <span class="hero-kicker">TODAY FOCUS · ${esc(lab(REAL))}</span>
+            <h2 class="hero-title">오늘 목표 <b>${pct}%</b> 달성 중</h2>
+            <div class="note">
+              완료 <b>${fmt(doneP)}P</b> / 계획 <b>${fmt(totP)}P</b> · 남은 할 일 <b>${remainCnt}건</b>${
+                od.length ? ` · <span style="color:var(--carry);font-weight:700">이월 대기 ${od.length}개</span>` : ''
+              }
+            </div>
+          </div>
+          <div class="home-hero-actions">
+            <button type="button" class="btn pri" data-act="goto" data-d="${esc(REAL)}" data-v2="today">📅 오늘 학습 시작</button>
+            <button type="button" class="btn" data-v="matrix">🧭 매트릭스 열기</button>
+            <button type="button" class="btn" data-act="close">🌙 오늘 마무리</button>
           </div>
         </div>
-        <div class="home-hero-actions">
-          <button type="button" class="btn pri" data-act="goto" data-d="${esc(REAL)}" data-v2="today">📅 오늘 학습 시작</button>
-          <button type="button" class="btn" data-v="matrix">🧭 매트릭스 열기</button>
-          <button type="button" class="btn" data-act="close">🌙 오늘 마무리</button>
+        ${gaugeHtml(REAL, plans, cfg)}
+        <div class="home-kpi-strip">
+          <div class="home-kpi">
+            <span>오늘 부하</span>
+            <b class="mono">${fmt(doneP)} / ${fmt(totP)}P</b>
+          </div>
+          <div class="home-kpi">
+            <span>남은 할 일</span>
+            <b class="mono">${remainCnt}건 <small>(전체 ${todayItems.length}건)</small></b>
+          </div>
+          <div class="home-kpi">
+            <span>이번주 달성</span>
+            <b class="mono">${weekPct}% <small>(${Math.round(weekD)}/${Math.round(weekT)}P)</small></b>
+          </div>
+          <div class="home-kpi">
+            <span>오늘 기록</span>
+            <b>${todayLog.hours ? `${esc(todayLog.hours)}h` : '미기록'} · ${esc(todayLog.feel || '체감 미선택')}</b>
+          </div>
         </div>
       </div>
-      ${gaugeHtml(REAL, plans, cfg)}
-    </div>
 
-    <div class="ddrow home-ddays">
-      ${ddays
-        .map(
-          (x, idx) => `
-        <div class="ddc ddc-${idx % 4}">
-          <span>${esc(x.n)}</span>
-          <b>${ddayLabel(x.d, REAL)}</b>
-          <em>${esc(String(x.d || '').replace(/-/g, '/'))}</em>
+      <div class="card home-overview-side">
+        <div class="ddrow home-ddays">
+          ${ddays
+            .map(
+              (x, idx) => `
+            <div class="ddc ddc-${idx % 4}">
+              <span>${esc(x.n)}</span>
+              <b>${ddayLabel(x.d, REAL)}</b>
+              <em>${esc(String(x.d || '').replace(/-/g, '/'))}</em>
+            </div>
+          `
+            )
+            .join('')}
         </div>
-      `
-        )
-        .join('')}
+        <div class="home-week-mini">
+          <div class="row wrap-row">
+            <b class="card-title-sm">📊 이번주 부하 흐름 (월~일)</b>
+            <span class="sp"></span>
+            <span class="mono note">${Math.round(weekD)}/${Math.round(weekT)}P · ${weekPct}%</span>
+          </div>
+          <div class="bars bars-mini">
+            ${weekDays
+              .map((d, i) => {
+                const it = liveItems(plans[d]);
+                const p = weekTot[i];
+                const past = d < REAL;
+                const ad = it.length && it.every((x) => x.done);
+                let num, bar;
+                if (!it.length) {
+                  num = '<div class="num sm">–</div>';
+                  bar = '<div class="wbar" style="height:0"></div>';
+                } else if (past && ad) {
+                  num = '<div class="num sm">완료</div>';
+                  bar = '<div class="wbar donebar"></div>';
+                } else {
+                  const segs = Object.keys(SC)
+                    .map((k) => ({ k, p: sumP(it, cfg, (x) => x.s === k) }))
+                    .filter((x) => x.p > 0)
+                    .map(
+                      (x) =>
+                        `<span style="background:var(${SC[x.k][0]});height:${
+                          (x.p / Math.max(p, 0.1)) * 100
+                        }%"></span>`
+                    )
+                    .join('');
+                  num = `<div class="num">${Math.round(p)}</div>`;
+                  bar = `<div class="wbar" style="height:${Math.max(
+                    6,
+                    (p / weekMax) * 48
+                  )}px">${segs}</div>`;
+                }
+                return `<div class="bcol">${num}${bar}<div class="dl ${
+                  d === REAL ? 'now' : ''
+                }">${WD_KO[i]}</div></div>`;
+              })
+              .join('')}
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="home-grid">
@@ -433,7 +512,7 @@ export function renderHome(state) {
           }
         </div>
         <div class="row home-card-foot">
-          <span class="note">전체 매트릭스 ${totalMatrix}개 중 Q1 ${quads.q1.length}개</span>
+          <span class="note mono">Q1 ${quads.q1.length} · Q2 ${quads.q2.length} · Q3 ${quads.q3.length} · Q4 ${quads.q4.length}</span>
           <span class="sp"></span>
           <button type="button" class="btn sm pri" data-v="matrix">매트릭스 전체 보기</button>
         </div>
@@ -443,13 +522,9 @@ export function renderHome(state) {
         <div class="row wrap-row">
           <b class="card-title-md">📚 오늘 과목별 진행 현황</b>
           <span class="sp"></span>
-          ${
-            od.length
-              ? `<span class="bdg o">밀린 항목 ${od.length}개</span>`
-              : `<span class="tag">${todayItems.length}줄</span>`
-          }
+          <span class="tag">${todayItems.length}줄 · ${remainCnt}건 남음</span>
         </div>
-        <div class="note" style="margin-top:4px">오늘 배정된 과목별 완료율과 부하 점수입니다.</div>
+        <div class="note" style="margin-top:4px">과목별 완료율과 오늘 남은 분량을 바로 체크할 수 있어요.</div>
         <div class="home-list">
           ${
             subjStats.length
@@ -469,17 +544,106 @@ export function renderHome(state) {
                 `
                   )
                   .join('')
-              : '<div class="note" style="padding:14px 0">오늘 등록된 공부 계획이 아직 없어요.</div>'
+              : '<div class="note" style="padding:10px 0">오늘 등록된 공부 계획이 아직 없어요.</div>'
+          }
+          ${
+            todayTodoPreview.length
+              ? `<div class="home-sub-sec">
+                  <div class="note" style="margin-bottom:4px">오늘 미완료 빠른 체크</div>
+                  ${todayTodoPreview
+                    .map(
+                      (item) => `
+                    <div class="it">
+                      <input type="checkbox" data-act="tog" data-d="${esc(REAL)}" data-id="${esc(
+                        item.id
+                      )}" aria-label="완료 체크">
+                      <div class="tx">
+                        <div class="it-main">${itemTitleHtml(item)}</div>
+                      </div>
+                      <span class="p mono">${fmt(itemP(item, cfg))}P</span>
+                    </div>
+                  `
+                    )
+                    .join('')}
+                </div>`
+              : ''
           }
         </div>
         <div class="row home-card-foot">
-          <span class="note">${
-            od.length ? `밀린 항목 ${od.length}개가 대기 중이에요.` : '밀린 항목 없이 깔끔해요.'
-          }</span>
+          <span class="note">완료 ${fmt(doneP)}P · 남은 분량 ${fmt(totP - doneP)}P</span>
           <span class="sp"></span>
           <button type="button" class="btn sm pri" data-act="goto" data-d="${esc(
             REAL
           )}" data-v2="today">오늘 학습 열기</button>
+        </div>
+      </div>
+
+      <div class="card glass-tint-amber">
+        <div class="row wrap-row">
+          <b class="card-title-md">⏳ 밀린 항목 &amp; 이월 관리</b>
+          <span class="sp"></span>
+          ${
+            od.length
+              ? `<span class="bdg o">${od.length}개 대기</span>`
+              : '<span class="tag">이월 없음</span>'
+          }
+        </div>
+        <div class="note" style="margin-top:4px">${
+          od.length
+            ? `이전 날짜 미완료 총 ${fmt(
+                od.reduce((a, { item }) => a + itemP(item, cfg), 0)
+              )}P를 오늘로 가져올 수 있어요.`
+            : '지난 날짜에서 넘어와 대기 중인 항목이 없어요.'
+        }</div>
+        <div class="home-list">
+          ${
+            odTop.length
+              ? odTop
+                  .map(({ date: odDate, item: i }) => {
+                    const rule = carryRuleOf(i, cfg);
+                    return `
+                    <div class="it">
+                      <div class="tx">
+                        <div class="it-main">${itemTitleHtml(i)}</div>
+                        <div class="note">원래 ${lab(odDate)} · ${MODE_LABEL[rule] || '물어보기'}</div>
+                      </div>
+                      <span class="p mono">${fmt(itemP(i, cfg))}P</span>
+                      <button type="button" class="btn sm" data-act="pull" data-d="${esc(
+                        odDate
+                      )}" data-id="${esc(i.id)}">여기로</button>
+                    </div>
+                  `;
+                  })
+                  .join('')
+              : `<div class="home-sub-ok">
+                  <div class="note">${
+                    upcomingHigh.length
+                      ? `이번주 고부하 주의 날 (${upcomingHigh.length}일):`
+                      : '이번주 남은 일정도 안정적이에요.'
+                  }</div>
+                  ${
+                    upcomingHigh.length
+                      ? `<div class="chips" style="margin-top:6px">${upcomingHigh
+                          .map(
+                            (x) =>
+                              `<button type="button" class="chip p" data-act="goto" data-d="${esc(
+                                x.d
+                              )}" data-v2="today">${esc(x.wd)} ${Math.round(x.p)}P</button>`
+                          )
+                          .join('')}</div>`
+                      : ''
+                  }
+                </div>`
+          }
+        </div>
+        <div class="row home-card-foot">
+          ${
+            od.length
+              ? `<button type="button" class="btn sm pri" data-act="pullall">전부 오늘로</button>`
+              : '<span class="note">밀림 규칙은 설정에서 변경</span>'
+          }
+          <span class="sp"></span>
+          <button type="button" class="btn sm" data-v="week">주간 현황 보기</button>
         </div>
       </div>
 
@@ -543,42 +707,47 @@ export function renderHome(state) {
 export function renderToday(state) {
   const { plans, cfg, logs, cur, REAL, closing, closedMsg, adding, addKind } = state;
   const items = plans[cur] || [];
+  const liveDay = liveItems(items);
+  const ddays = cfg.ddays || DEF_DD;
 
-  let h = `
+  let mainCol = `
     <div class="card">
-      <div class="datebar">
-        <button type="button" class="btn sm" data-act="day" data-n="-1" aria-label="어제">◀</button>
-        <b>${lab(cur)}${cur === REAL ? ' · 오늘' : ''}</b>
-        <button type="button" class="btn sm" data-act="day" data-n="1" aria-label="내일">▶</button>
+      <div class="row wrap-row">
+        <div class="datebar">
+          <button type="button" class="btn sm" data-act="day" data-n="-1" aria-label="어제">◀</button>
+          <b>${lab(cur)}${cur === REAL ? ' · 오늘' : ''}</b>
+          <button type="button" class="btn sm" data-act="day" data-n="1" aria-label="내일">▶</button>
+        </div>
+        ${
+          cur !== REAL
+            ? `<button type="button" class="btn sm" data-act="goto" data-d="${esc(REAL)}">오늘로 돌아가기</button>`
+            : ''
+        }
+        <span class="sp"></span>
+        ${
+          cur === REAL && !closing
+            ? '<button type="button" class="btn sm pri" data-act="close">🌙 오늘은 여기까지</button>'
+            : ''
+        }
       </div>
-      ${
-        cur !== REAL
-          ? `<div class="center-mt"><button type="button" class="btn sm" data-act="goto" data-d="${REAL}">오늘로 돌아가기</button></div>`
-          : ''
-      }
       ${gaugeHtml(cur, plans, cfg)}
-      ${
-        cur === REAL && !closing
-          ? `<div class="center-mt" style="margin-top:10px"><button type="button" class="btn pri" data-act="close">🌙 오늘은 여기까지</button></div>`
-          : ''
-      }
     </div>
   `;
 
   if (cur === REAL && closedMsg) {
-    h += `<div class="card glass-ok"><b>마무리 완료</b><div class="note">${esc(
+    mainCol += `<div class="card glass-ok"><b>마무리 완료</b><div class="note">${esc(
       closedMsg
     )} 푹 쉬어요!</div></div>`;
   }
   if (cur === REAL && closing) {
-    h += closeCardHtml(state);
+    mainCol += closeCardHtml(state);
   }
 
   // Overdue items (d < REAL)
   const od = getOverdueItems(plans, REAL);
   if (od.length && cur >= REAL) {
     const tp = fmt(od.reduce((a, { item }) => a + itemP(item, cfg), 0));
-    h += `
+    mainCol += `
       <div class="card glass-warn">
         <div class="row wrap-row">
           <b>밀린 것 ${od.length}개 · ${tp}P</b>
@@ -596,7 +765,7 @@ export function renderToday(state) {
           : rule === 'auto'
             ? '규칙: 자동'
             : '규칙: 물어보기';
-      h += `
+      mainCol += `
         <div class="it">
           <div class="tx">
             <div>${itemTitleHtml(i)}</div>
@@ -609,11 +778,11 @@ export function renderToday(state) {
         </div>
       `;
     }
-    h += '</div>';
+    mainCol += '</div>';
   }
 
   if (!items.length) {
-    h += '<div class="card note">이 날은 계획이 없어요.</div>';
+    mainCol += '<div class="card note">이 날은 계획이 없어요.</div>';
   }
 
   let subjCards = '';
@@ -632,12 +801,48 @@ export function renderToday(state) {
     `;
   }
   if (subjCards) {
-    h += `<div class="subj-grid">${subjCards}</div>`;
+    mainCol += `<div class="subj-grid">${subjCards}</div>`;
   }
 
-  // Add task card (교재 진도 + 일반 할 일) & Daily study log card
-  h += '<div class="two">';
-  h += `
+  // Right sidebar: Subject load summary + Add task + Daily study log
+  const subjBars = ALL_SUBJ.map((s) => {
+    const L = liveDay.filter((i) => i.s === s);
+    if (!L.length) return '';
+    const tP = sumP(L, cfg);
+    const dP = sumP(L, cfg, (i) => i.done);
+    const subjPct = tP ? Math.round((dP / tP) * 100) : L.every((i) => i.done) ? 100 : 0;
+    const cVar = SC[s] ? SC[s][0] : '--acc';
+    return `
+      <div class="pg">
+        <span style="color:var(${cVar})">${esc(s)}</span>
+        <div class="t"><i style="width:${subjPct}%;background:var(${cVar})"></i></div>
+        <em>${fmt(dP)}/${fmt(tP)}P · ${subjPct}%</em>
+      </div>
+    `;
+  })
+    .filter(Boolean)
+    .join('');
+
+  const summarySideCard = `
+    <div class="card glass-tint-indigo">
+      <div class="row wrap-row">
+        <b class="card-title-sm">오늘 과목별 부하 요약</b>
+        <span class="sp"></span>
+        <span class="note mono">${liveDay.filter((i) => i.done).length}/${liveDay.length} 완료</span>
+      </div>
+      ${subjBars || '<div class="note" style="margin-top:8px">오늘 예정된 과목 항목이 없어요.</div>'}
+      <div class="today-dd-pills">
+        ${ddays
+          .slice(0, 3)
+          .map(
+            (x) => `<span class="mini-pill"><b>${esc(x.n)}</b> ${ddayLabel(x.d, cur)}</span>`
+          )
+          .join('')}
+      </div>
+    </div>
+  `;
+
+  const addSideCard = `
     <div class="card">
       <div class="row">
         <b class="card-title-sm">할 일 추가</b>
@@ -693,7 +898,7 @@ export function renderToday(state) {
   // Daily study log card
   const lg = logs[cur] || {};
   const donePToday = sumP(items, cfg, (i) => i.done);
-  h += `
+  const logSideCard = `
     <div class="card">
       <b class="card-title-sm">${lab(cur)} 기록</b>
       <div class="row" style="margin-top:8px">
@@ -722,10 +927,9 @@ export function renderToday(state) {
         }
       </div>
     </div>
-  </div>
   `;
 
-  return h;
+  return `<div class="today-layout"><div class="today-main">${mainCol}</div><div class="today-side">${summarySideCard}${addSideCard}${logSideCard}</div></div>`;
 }
 
 export function renderWeek(state) {
@@ -736,13 +940,31 @@ export function renderWeek(state) {
   const all = days.flatMap((d) => liveItems(plans[d]));
   const T = sumP(all, cfg);
   const D = sumP(all, cfg, (i) => i.done);
+  const weekPct = T ? Math.round((D / T) * 100) : 0;
+  const left = days.filter((d) => d >= REAL).length || 0;
+  const rem = fmt(T - D);
+  const per = left ? Math.round(rem / left) : 0;
+  const isCurWeek = days.includes(REAL);
 
   let h = `
     <div class="card">
-      <div class="datebar">
-        <button type="button" class="btn sm" data-act="wk" data-n="-7">◀</button>
-        <b>${lab(days[0])} ~ ${lab(days[6])}</b>
-        <button type="button" class="btn sm" data-act="wk" data-n="7">▶</button>
+      <div class="row wrap-row">
+        <div class="datebar">
+          <button type="button" class="btn sm" data-act="wk" data-n="-7">◀</button>
+          <b>${lab(days[0])} ~ ${lab(days[6])}</b>
+          <button type="button" class="btn sm" data-act="wk" data-n="7">▶</button>
+        </div>
+        ${
+          !isCurWeek
+            ? `<button type="button" class="btn sm" data-act="goto" data-d="${esc(REAL)}" data-v2="week">오늘이 속한 주로</button>`
+            : ''
+        }
+        <span class="sp"></span>
+        <div class="week-head-pills">
+          <span class="tag">진행률 ${weekPct}%</span>
+          <span class="mini-pill mono">완료 ${Math.round(D)}P / ${Math.round(T)}P</span>
+          <span class="mini-pill mono">일평균 약 ${per}P</span>
+        </div>
       </div>
     </div>
   `;
@@ -791,9 +1013,6 @@ export function renderWeek(state) {
   `;
 
   // Progress card
-  const left = days.filter((d) => d >= REAL).length || 0;
-  const rem = fmt(T - D);
-  const per = left ? Math.round(rem / left) : 0;
   const warn = days
     .map((d, i) => [d, i, tot[i]])
     .filter((x) => x[0] >= REAL && x[2] > WARN_P)
@@ -808,7 +1027,7 @@ export function renderWeek(state) {
     <div class="card">
       <b class="card-title-md">이번주 계획 현황</b>
       <div class="big3">
-        <div><b>${T ? Math.round((D / T) * 100) : 0}%</b><span>진행률</span></div>
+        <div><b>${weekPct}%</b><span>진행률</span></div>
         <div><b>${Math.round(D)}P / ${Math.round(
           T
         ).toLocaleString()}P</b><span>완료 / 전체</span></div>
@@ -1067,7 +1286,7 @@ function bookSummaryOrDetailHtml(plans, cfg, selB) {
         </div>
       `;
     }
-    return out;
+    return `<div class="book-detail-grid">${out}</div>`;
   }
 
   const subjOrder = (b) => {
@@ -1081,17 +1300,29 @@ function bookSummaryOrDetailHtml(plans, cfg, selB) {
         <b class="card-title-sm">교재별 (이름을 누르면 진도 팝업, 필터 버튼으로 달력 보기)</b>
       </div>
       <table class="tbl">
-        <tr><th>교재</th><th class="r">완료/계획</th><th class="r">남은 P</th><th class="r">선택</th></tr>
+        <tr><th>교재</th><th>진도율</th><th class="r">완료/계획</th><th class="r">남은 P</th><th class="r">선택</th></tr>
         ${Object.keys(r)
           .sort((a, b) => subjOrder(a) - subjOrder(b))
           .map((b) => {
             const o = r[b];
+            const pct = o.n ? Math.round((o.dn / o.n) * 100) : 0;
+            const subj = STUDY_BOOKS[b] || '학교·할일';
+            const cVar = SC[subj] ? SC[subj][0] : '--acc';
             return `
               <tr>
                 <td>
-                  <button type="button" class="book-link" data-act="bookpop" data-b="${esc(
-                    b
-                  )}">${esc(BNAME[b] || b)}</button>
+                  <div class="row" style="gap:6px">
+                    <span class="subj-dot" style="background:var(${cVar})"></span>
+                    <button type="button" class="book-link" data-act="bookpop" data-b="${esc(
+                      b
+                    )}">${esc(BNAME[b] || b)}</button>
+                  </div>
+                </td>
+                <td>
+                  <div class="tbl-pg">
+                    <div class="bar"><i style="width:${pct}%;background:var(${cVar})"></i></div>
+                    <span class="mono note">${pct}%</span>
+                  </div>
                 </td>
                 <td class="r mono">${fmt(o.dn)}/${fmt(o.n)}${esc(
                   UNIT[b] || '개'
