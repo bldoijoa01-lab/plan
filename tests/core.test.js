@@ -475,7 +475,7 @@ test('Calendar URL normalizer, bookmark detection, and real export data render c
 
   const setSyncHtml = renderSettings({ ...state, settingsSection: 'sync' });
   assert.match(setSyncHtml, /접속 토큰 및 데이터 백업/);
-  assert.match(setSyncHtml, /Microsoft OneNote 양방향 메모 연동/);
+  assert.doesNotMatch(setSyncHtml, /Microsoft OneNote 양방향 메모 연동/);
   assert.doesNotMatch(setSyncHtml, /하루 기준 부하/);
 });
 
@@ -715,7 +715,7 @@ test('Hub document catalog, OneNote memo integration, star toggle persistence, a
   });
   assert.equal(renderHomeHtmlCheck(renderedHome), true);
   assert.match(renderedHome, /data-act="go-hub"/);
-  assert.match(renderedHome, /data-act="note-open" data-id="n_hub_1"/);
+  assert.doesNotMatch(renderedHome, /data-v="notes"/);
 });
 
 function renderHomeHtmlCheck(html) {

@@ -41,12 +41,9 @@ import {
 import { carryRuleOf, getOverdueItems, planClose } from '../core/carry.js';
 import { esc, safeUrl } from '../core/html.js';
 import { buildMatrixBoard, resolveMatrixRules } from '../core/matrix.js';
-import { defaultOneNoteConfig, normalizeNotesState } from '../core/onenote.js';
 import { KIND_MAP, normalizeHubState } from '../core/hub.js';
-import { getOneNoteAuth } from '../services/onenote.js';
 import { groupGcalByDate } from '../core/gcal.js';
 import { isGcalConnected } from '../services/gcal.js';
-import { renderTodayNoteWidget } from './notes.js';
 
 const WARN_P = 80;
 const HIGH_P = 100;
@@ -377,7 +374,6 @@ export function renderHome(state) {
           <div class="home-hero-actions">
             <button type="button" class="btn pri" data-act="goto" data-d="${esc(REAL)}" data-v2="today">📅 오늘 학습 시작</button>
             <button type="button" class="btn" data-v="matrix">🧭 매트릭스 열기</button>
-            <button type="button" class="btn" data-v="notes">📓 원노트 메모</button>
             <button type="button" class="btn" data-act="close">🌙 오늘 마무리</button>
           </div>
         </div>
@@ -656,17 +652,6 @@ export function renderHome(state) {
               ? topBookmarks
                   .map((bm) => {
                     const ico = (KIND_MAP[bm.kind] && KIND_MAP[bm.kind].icon) || '🔗';
-                    if (bm.noteId) {
-                      return `
-                        <button type="button" class="home-bm-item hub-bm-note-btn" data-act="note-open" data-id="${esc(
-                          bm.noteId
-                        )}">
-                          <span class="hub-bm-ico">${ico}</span>
-                          <span class="home-bm-title">${esc(bm.name)}</span>
-                          <span class="note">메모 →</span>
-                        </button>
-                      `;
-                    }
                     return `
                       <a class="home-bm-item" href="${esc(
                         safeUrl(bm.url)
@@ -930,9 +915,7 @@ export function renderToday(state) {
         .join('')}</div>`
     : '';
 
-  return `<div class="today-layout"><div class="today-main">${mainCol}</div><div class="today-side">${summarySideCard}${gcalSideCard}${addSideCard}${logSideCard}${renderTodayNoteWidget(
-    state
-  )}</div></div>`;
+  return `<div class="today-layout"><div class="today-main">${mainCol}</div><div class="today-side">${summarySideCard}${gcalSideCard}${addSideCard}${logSideCard}</div></div>`;
 }
 
 export function renderWeek(state) {
@@ -1747,35 +1730,7 @@ export function renderSettings(state) {
   }
 
   if (showSync) {
-    const onAuth = state.oneNoteAuth !== undefined ? state.oneNoteAuth : getOneNoteAuth();
-    const onConnected = Boolean(onAuth && (onAuth.accessToken || onAuth.refreshToken));
-    const onCfg = { ...defaultOneNoteConfig(), ...((cfg && cfg.onenote) || {}) };
-    const onNotes = normalizeNotesState(state.notes);
     cards += `
-    <div class="card glass-tint-purple">
-      <div class="row wrap-row">
-        <b class="card-title-sm">📓 Microsoft OneNote 양방향 메모 연동</b>
-        <span class="sp"></span>
-        ${
-          onConnected
-            ? '<span class="mini-pill note-on-badge">🟣 연동됨</span>'
-            : '<span class="mini-pill">미연결</span>'
-        }
-      </div>
-      <div class="note" style="margin:8px 0">
-        ${
-          onConnected
-            ? `계정: ${esc(onAuth.userName || onAuth.userEmail || 'Microsoft')} · 대상: ${esc(
-                (onCfg.notebookName ? onCfg.notebookName + ' / ' : '') +
-                  (onCfg.sectionName || '공부 계획표 메모')
-              )} · 저장된 메모 ${onNotes.items.length}개`
-            : `웹앱 메모를 Microsoft OneNote와 양방향으로 동기화해 PC·태블릿 OneNote에서도 이어서 작성할 수 있어요. (현재 웹 메모 ${onNotes.items.length}개)`
-        }
-      </div>
-      <div class="row wrap-row" style="margin-top:8px">
-        <button type="button" class="btn sm pri" data-v="notes" data-open-on="1">원노트 메모 및 연동 설정 열기</button>
-      </div>
-    </div>
     <div class="card">
       <b class="card-title-sm">구글 캘린더 임베드 설정</b>
       <div class="note" style="margin:6px 0">

@@ -4,7 +4,7 @@ import {
   ddayLabel,
   lab,
   todayKst,
-} from './core/date.js?v=20261115-17';
+} from './core/date.js?v=20261115-18';
 import {
   BNAME,
   BOOKS,
@@ -16,29 +16,24 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261115-17';
+} from './core/units.js?v=20261115-18';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
   movePlanSlice,
-} from './core/carry.js?v=20261115-17';
+} from './core/carry.js?v=20261115-18';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261115-17';
-import {
-  DEFAULT_ONENOTE_CLIENT_ID,
-  defaultOneNoteConfig,
-  normalizeNotesState,
-} from './core/onenote.js?v=20261115-17';
+} from './core/matrix.js?v=20261115-18';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261115-17';
-import { esc } from './core/html.js?v=20261115-17';
+} from './core/hub.js?v=20261115-18';
+import { esc } from './core/html.js?v=20261115-18';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -48,28 +43,13 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261115-17';
-import {
-  clearOneNoteAuth,
-  completeOneNoteAuthRedirectIfPresent,
-  createNotebook,
-  createSection,
-  ensureValidAccessToken,
-  getOneNoteRedirectUri,
-  isOneNoteConnected,
-  listNotebooks,
-  listSections,
-  pushSingleNoteToOneNote,
-  startOneNotePkceLogin,
-  syncNotesBidirectional,
-  verifyDirectToken,
-} from './services/onenote.js?v=20261115-17';
+} from './services/store.js?v=20261115-18';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261115-17';
+} from './services/gcal.js?v=20261115-18';
 import {
   renderAll,
   renderBookModal,
@@ -80,10 +60,9 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261115-17';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-17';
-import { renderMatrix } from './views/matrix.js?v=20261115-17';
-import { NOTE_TEMPLATES, renderNotesView } from './views/notes.js?v=20261115-17';
+} from './views/schedule.js?v=20261115-18';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261115-18';
+import { renderMatrix } from './views/matrix.js?v=20261115-18';
 
 const $ = (s) => document.querySelector(s);
 
@@ -97,7 +76,6 @@ const NAV_SECTIONS = {
       ['home', '🏠 종합 대시보드'],
       ['today', '📅 오늘 할 일'],
       ['matrix', '🧭 긴급 매트릭스'],
-      ['notes', '📓 OneNote 메모'],
     ],
   },
   study: {
@@ -108,7 +86,6 @@ const NAV_SECTIONS = {
       ['today', '📅 오늘 학습'],
       ['week', '📊 주간 현황'],
       ['books', '📖 교재·기록 분석'],
-      ['notes', '📓 OneNote 메모'],
     ],
   },
   schedule: {
@@ -119,7 +96,6 @@ const NAV_SECTIONS = {
       ['all', '🗓️ 월간 캘린더'],
       ['matrix', '🧭 아이젠하워 매트릭스'],
       ['hub', '🔗 캘린더·문서 허브'],
-      ['notes', '📓 OneNote 메모'],
     ],
   },
   settings: {
@@ -138,7 +114,6 @@ const TAB_ORDER = [
   'today',
   'week',
   'books',
-  'notes',
   'all',
   'matrix',
   'hub',
@@ -270,7 +245,7 @@ const state = {
   logs: {},
   hub: defaultHubBookmarks(),
   matrix: { tasks: [], overrides: {} },
-  notes: normalizeNotesState({}),
+  notes: { items: [] },
 
   // Schedule transient UI state
   adding: false,
@@ -755,7 +730,6 @@ function render(opts = {}) {
   else if (state.view === 'all') appEl.innerHTML = renderAll(state);
   else if (state.view === 'matrix') appEl.innerHTML = renderMatrix(state);
   else if (state.view === 'hub') appEl.innerHTML = renderHub(state);
-  else if (state.view === 'notes') appEl.innerHTML = renderNotesView(state);
   else if (state.view === 'set')
     appEl.innerHTML = renderSettings({ ...state, settingsSection: 'study' });
   else if (state.view === 'set-matrix')
@@ -839,181 +813,7 @@ function triggerInitialEnter() {
   setTimeout(() => document.body.classList.remove('enter'), 950);
 }
 
-function captureActiveNoteDraft({ forceDirty = false } = {}) {
-  if (state.view !== 'notes') return null;
-  const subjEl = $('#note-subj');
-  const saveBtn = document.querySelector('[data-act="note-save"]');
-  const noteId =
-    (subjEl && subjEl.dataset.id) ||
-    (saveBtn && saveBtn.dataset.id) ||
-    state.notesSelectedId;
-  if (!noteId) return null;
-
-  const titleEl = $('#note-title');
-  const bodyEl = $('#note-body');
-  const dateEl = $('#note-date');
-  if (!titleEl && !bodyEl && !subjEl && !dateEl) return null;
-
-  const curNotes = normalizeNotesState(state.notes);
-  const idx = curNotes.items.findIndex((x) => x.id === noteId);
-  if (idx === -1) return null;
-
-  const curItem = curNotes.items[idx];
-  const nextTitle = titleEl
-    ? String(titleEl.value || '').trim() || '제목 없는 메모'
-    : curItem.title;
-  const nextContent = bodyEl ? String(bodyEl.value || '') : curItem.content;
-  const nextSubject = subjEl ? String(subjEl.value || '일반') : curItem.subject;
-  const nextDate = dateEl ? String(dateEl.value || '') : curItem.date;
-
-  const changed =
-    nextTitle !== curItem.title ||
-    nextContent !== curItem.content ||
-    nextSubject !== curItem.subject ||
-    nextDate !== curItem.date;
-
-  if (!changed && !forceDirty) return curItem;
-
-  const nowIso = new Date().toISOString();
-  curNotes.items[idx] = {
-    ...curItem,
-    title: nextTitle,
-    content: nextContent,
-    subject: nextSubject,
-    date: nextDate,
-    updatedAt: changed ? nowIso : curItem.updatedAt,
-    dirty: changed || forceDirty ? true : curItem.dirty,
-  };
-  state.notes = curNotes;
-  store.saveNotes(state.notes);
-  return curNotes.items[idx];
-}
-
-async function loadOneNoteContainers({ silent = false } = {}) {
-  if (!isOneNoteConnected()) return;
-  try {
-    const cfgOneNote = {
-      ...defaultOneNoteConfig(),
-      ...((state.cfg && state.cfg.onenote) || {}),
-    };
-    const token = await ensureValidAccessToken(cfgOneNote);
-    let notebooks = await listNotebooks(token);
-    if (!notebooks.length) {
-      const nb = await createNotebook(token, '공부 계획표');
-      notebooks = [nb];
-    }
-    state.notesNotebooks = notebooks;
-
-    const nbId =
-      (cfgOneNote.notebookId &&
-        notebooks.some((n) => n.id === cfgOneNote.notebookId) &&
-        cfgOneNote.notebookId) ||
-      notebooks[0].id;
-    const nbObj = notebooks.find((n) => n.id === nbId) || notebooks[0];
-
-    const sections = nbId ? await listSections(token, nbId) : [];
-    state.notesSections = sections;
-
-    let nextCfgChanged = false;
-    const nextOneNote = { ...cfgOneNote };
-    if (nbObj && nextOneNote.notebookId !== nbObj.id) {
-      nextOneNote.notebookId = nbObj.id;
-      nextOneNote.notebookName = nbObj.displayName || '';
-      nextCfgChanged = true;
-    }
-    if (
-      sections.length &&
-      (!nextOneNote.sectionId || !sections.some((s) => s.id === nextOneNote.sectionId))
-    ) {
-      const preferredSec =
-        sections.find((s) => s.displayName === (nextOneNote.sectionName || '공부 계획표 메모')) ||
-        sections[0];
-      nextOneNote.sectionId = preferredSec.id;
-      nextOneNote.sectionName = preferredSec.displayName || '공부 계획표 메모';
-      nextCfgChanged = true;
-    }
-    if (nextCfgChanged) {
-      state.cfg = { ...CL(state.cfg), onenote: nextOneNote };
-      store.saveCfg(state.cfg);
-    }
-    if (!silent) {
-      state.notesSyncMsg = `전자필기장 ${notebooks.length}개 · 섹션 ${sections.length}개를 불러왔어요.`;
-    }
-  } catch (err) {
-    if (!silent) {
-      state.notesSyncMsg = `OneNote 목록 불러오기 실패: ${(err && err.message) || err}`;
-    }
-  } finally {
-    render();
-  }
-}
-
-async function runOneNoteSync({ silent = false } = {}) {
-  if (state.notesSyncing) return;
-  if (!isOneNoteConnected()) {
-    if (!silent) {
-      state.notesConnectOpen = true;
-      state.notesSyncMsg = '먼저 OneNote 계정을 연결해 주세요.';
-      render();
-    }
-    return;
-  }
-
-  state.notesSyncing = true;
-  if (!silent) {
-    state.notesSyncMsg = 'Microsoft OneNote와 양방향 동기화 중...';
-    render();
-  }
-
-  let notesChanged = false;
-  try {
-    const cfgOneNote = {
-      ...defaultOneNoteConfig(),
-      ...((state.cfg && state.cfg.onenote) || {}),
-    };
-    const res = await syncNotesBidirectional({
-      notesState: state.notes,
-      cfgOneNote,
-    });
-    state.notes = res.nextNotesState;
-    state.cfg = { ...CL(state.cfg), onenote: res.nextCfgOneNote };
-    store.saveNotes(state.notes);
-    store.saveCfg(state.cfg);
-    const { pushed, pulled, deleted } = res.stats;
-    notesChanged = pushed + pulled + deleted > 0;
-    state.notesSyncMsg = `양방향 동기화 완료 · 전송 ${pushed}건 · 가져오기 ${pulled}건${
-      deleted ? ` · 삭제 ${deleted}건` : ''
-    }`;
-  } catch (err) {
-    const msg = (err && err.message) || String(err);
-    if (!silent || (err && err.code === 'onenote_auth')) {
-      state.notesSyncMsg = `OneNote 동기화 실패: ${msg}`;
-    }
-  } finally {
-    state.notesSyncing = false;
-    if (!silent || notesChanged || state.view === 'notes' || state.view === 'hub') {
-      render();
-    }
-  }
-}
-
 async function boot() {
-  const oauthRes = await completeOneNoteAuthRedirectIfPresent().catch((err) => ({
-    handled: true,
-    ok: false,
-    error: (err && err.message) || String(err),
-  }));
-
-  if (oauthRes && oauthRes.handled) {
-    state.view = 'notes';
-    state.sec = DEFAULT_VIEW_SECTION.notes;
-    state.lastSub[state.sec] = 'notes';
-    state.notesConnectOpen = true;
-    state.notesSyncMsg = oauthRes.ok
-      ? 'Microsoft 계정 연결 완료! 대상 섹션을 확인해 주세요.'
-      : oauthRes.error || 'Microsoft 계정 연결에 실패했어요.';
-  }
-
   const token = getToken();
   if (!token) {
     state.authNeeded = true;
@@ -1033,7 +833,7 @@ async function boot() {
     state.logs = cached.logs;
     state.hub = cached.hub;
     state.matrix = cached.matrix;
-    state.notes = cached.notes || normalizeNotesState({});
+    state.notes = { items: [] };
     state.ready = true;
     prevSnap = JSON.stringify({
       plans: state.plans,
@@ -1057,7 +857,7 @@ async function boot() {
     state.logs = data.logs;
     state.hub = data.hub;
     state.matrix = data.matrix;
-    state.notes = data.notes || normalizeNotesState({});
+    state.notes = { items: [] };
     state.ready = true;
     runAutoCarryOnBoot();
 
@@ -1076,15 +876,6 @@ async function boot() {
       if (nextSnap !== prevSnap) {
         render();
       }
-    }
-
-    if (oauthRes && oauthRes.handled && oauthRes.ok) {
-      loadOneNoteContainers({ silent: true }).then(() => runOneNoteSync({ silent: false }));
-    } else if (
-      isOneNoteConnected() &&
-      (!state.cfg.onenote || state.cfg.onenote.autoSync !== false)
-    ) {
-      runOneNoteSync({ silent: true });
     }
   } catch (err) {
     if (err && err.code === 'auth') {
@@ -1108,7 +899,7 @@ async function boot() {
       state.logs = cached.logs;
       state.hub = cached.hub;
       state.matrix = cached.matrix;
-      state.notes = cached.notes || normalizeNotesState({});
+      state.notes = { items: [] };
       state.ready = true;
       render({ motion: 'soft' });
       triggerInitialEnter();
@@ -1132,7 +923,6 @@ function handleClick(e) {
   if (!t) return;
 
   if (t.dataset.sec) {
-    captureActiveNoteDraft();
     const nextSec = t.dataset.sec;
     const secCfg = NAV_SECTIONS[nextSec];
     if (!secCfg) return;
@@ -1156,7 +946,6 @@ function handleClick(e) {
   }
 
   if (t.dataset.v) {
-    captureActiveNoteDraft();
     const nextView = t.dataset.v;
     const prevView = state.view;
     if (!t.closest('#nav')) {
@@ -1164,9 +953,6 @@ function handleClick(e) {
     }
     state.view = nextView;
     state.lastSub[state.sec] = nextView;
-    if (t.dataset.openOn === '1') {
-      state.notesConnectOpen = true;
-    }
     const motion =
       nextView !== prevView ? tabDirection(prevView, nextView) : '';
     closeBookModal();
@@ -1911,388 +1697,11 @@ function handleClick(e) {
     render();
   }
 
-  // ===== OneNote / Notes actions =====
-  else if (a === 'note-open') {
-    const prevView = state.view;
-    state.notesSelectedId = id || null;
-    state.view = 'notes';
-    state.sec = DEFAULT_VIEW_SECTION.notes;
-    state.lastSub[state.sec] = 'notes';
-    render({ motion: prevView !== 'notes' ? tabDirection(prevView, 'notes') : '' });
-  } else if (a === 'note-new') {
-    captureActiveNoteDraft();
-    const curNotes = normalizeNotesState(state.notes);
-    const nowIso = new Date().toISOString();
-    const defSubj =
-      state.notesFilterSubj &&
-      state.notesFilterSubj !== 'all' &&
-      state.notesFilterSubj !== 'pinned' &&
-      state.notesFilterSubj !== 'date'
-        ? state.notesFilterSubj
-        : '일반';
-    const nextId = 'n_' + Date.now().toString(36);
-    const nextNotes = normalizeNotesState({
-      ...curNotes,
-      items: [
-        {
-          id: nextId,
-          title: '새 메모',
-          content: '',
-          subject: defSubj,
-          date: state.notesFilterSubj === 'date' ? state.cur : state.REAL,
-          pinned: false,
-          createdAt: nowIso,
-          updatedAt: nowIso,
-          dirty: true,
-        },
-        ...curNotes.items,
-      ],
-    });
-    state.notes = nextNotes;
-    state.notesSelectedId = nextId;
-    store.saveNotes(state.notes);
-    render();
-    setTimeout(() => {
-      const inp = $('#note-title');
-      if (inp) {
-        inp.focus();
-        if (typeof inp.select === 'function') inp.select();
-      }
-    }, 0);
-  } else if (a === 'note-sel') {
-    captureActiveNoteDraft();
-    state.notesSelectedId = id;
-    render();
-  } else if (a === 'note-filter') {
-    captureActiveNoteDraft();
-    state.notesFilterSubj = t.dataset.f || 'all';
-    render();
-  } else if (a === 'note-pin') {
-    captureActiveNoteDraft();
-    const curNotes = normalizeNotesState(state.notes);
-    const nowIso = new Date().toISOString();
-    curNotes.items = curNotes.items.map((x) =>
-      x.id === id ? { ...x, pinned: !x.pinned, updatedAt: nowIso } : x
-    );
-    state.notes = curNotes;
-    store.saveNotes(state.notes);
-    render();
-  } else if (a === 'note-del') {
-    const curNotes = normalizeNotesState(state.notes);
-    const target = curNotes.items.find((x) => x.id === id);
-    if (!target) return;
-    if (!window.confirm(`"${target.title}" 메모를 삭제할까요?`)) return;
-    if (target.onenotePageId && !curNotes.deletedPageIds.includes(target.onenotePageId)) {
-      curNotes.deletedPageIds.push(target.onenotePageId);
-    }
-    curNotes.items = curNotes.items.filter((x) => x.id !== id);
-    state.notes = curNotes;
-    if (state.notesSelectedId === id) state.notesSelectedId = null;
-    store.saveNotes(state.notes);
-    render();
-    if (
-      isOneNoteConnected() &&
-      target.onenotePageId &&
-      (!state.cfg.onenote || state.cfg.onenote.autoSync !== false)
-    ) {
-      runOneNoteSync({ silent: true });
-    }
-  } else if (a === 'note-date-today') {
-    captureActiveNoteDraft();
-    const curNotes = normalizeNotesState(state.notes);
-    const saveBtn = document.querySelector('[data-act="note-save"]');
-    const targetId = (saveBtn && saveBtn.dataset.id) || state.notesSelectedId;
-    const nowIso = new Date().toISOString();
-    curNotes.items = curNotes.items.map((x) =>
-      x.id === targetId ? { ...x, date: state.cur, updatedAt: nowIso, dirty: true } : x
-    );
-    state.notes = curNotes;
-    store.saveNotes(state.notes);
-    render();
-  } else if (a === 'note-tpl') {
-    const tpl = NOTE_TEMPLATES[t.dataset.tpl];
-    if (!tpl) return;
-    captureActiveNoteDraft();
-    const curNotes = normalizeNotesState(state.notes);
-    const saveBtn = document.querySelector('[data-act="note-save"]');
-    const targetId = (saveBtn && saveBtn.dataset.id) || state.notesSelectedId;
-    const nowIso = new Date().toISOString();
-    curNotes.items = curNotes.items.map((x) => {
-      if (x.id !== targetId) return x;
-      const base = String(x.content || '').trimEnd();
-      return {
-        ...x,
-        content: base ? `${base}\n\n${tpl}` : tpl,
-        updatedAt: nowIso,
-        dirty: true,
-      };
-    });
-    state.notes = curNotes;
-    store.saveNotes(state.notes);
-    render();
-  } else if (a === 'note-chk-tog') {
-    captureActiveNoteDraft();
-    const lineIdx = Number(t.dataset.line);
-    const curNotes = normalizeNotesState(state.notes);
-    const nowIso = new Date().toISOString();
-    curNotes.items = curNotes.items.map((x) => {
-      if (x.id !== id) return x;
-      const lines = String(x.content || '').split(/\r?\n/);
-      if (lines[lineIdx] != null) {
-        lines[lineIdx] = lines[lineIdx].replace(
-          /^(\s*-\s*\[)([ xX])(\]\s*.*)$/,
-          (_, p1, mark, p3) => `${p1}${mark.toLowerCase() === 'x' ? ' ' : 'x'}${p3}`
-        );
-      }
-      return {
-        ...x,
-        content: lines.join('\n'),
-        updatedAt: nowIso,
-        dirty: true,
-      };
-    });
-    state.notes = curNotes;
-    store.saveNotes(state.notes);
-    render();
-  } else if (a === 'note-save') {
-    const saved = captureActiveNoteDraft({ forceDirty: true });
-    if (!saved) return;
-    state.notesSyncMsg = '웹에 저장했어요.';
-    render();
-    if (
-      isOneNoteConnected() &&
-      (!state.cfg.onenote || state.cfg.onenote.autoSync !== false)
-    ) {
-      runOneNoteSync({ silent: false });
-    }
-  } else if (a === 'note-push-one') {
-    const captured = captureActiveNoteDraft();
-    const curNotes = normalizeNotesState(state.notes);
-    const target = curNotes.items.find((x) => x.id === id) || captured;
-    if (!target) return;
-    if (!isOneNoteConnected()) {
-      state.notesConnectOpen = true;
-      state.notesSyncMsg = '먼저 OneNote 계정을 연결해 주세요.';
-      render();
-      return;
-    }
-    state.notesSyncing = true;
-    state.notesSyncMsg = 'OneNote로 메모 전송 중...';
-    render();
-    pushSingleNoteToOneNote({
-      note: target,
-      cfgOneNote: (state.cfg && state.cfg.onenote) || defaultOneNoteConfig(),
-    })
-      .then(({ updatedNote, nextCfgOneNote }) => {
-        const latest = normalizeNotesState(state.notes);
-        latest.items = latest.items.map((x) => (x.id === updatedNote.id ? updatedNote : x));
-        state.notes = latest;
-        state.cfg = { ...CL(state.cfg), onenote: nextCfgOneNote };
-        store.saveNotes(state.notes);
-        store.saveCfg(state.cfg);
-        state.notesSyncMsg = '이 메모를 Microsoft OneNote에 즉시 반영했어요.';
-      })
-      .catch((err) => {
-        state.notesSyncMsg = `OneNote 전송 실패: ${(err && err.message) || err}`;
-      })
-      .finally(() => {
-        state.notesSyncing = false;
-        render();
-      });
-  } else if (a === 'note-today-add') {
-    const inp = $('#today-quick-note');
-    const rawTxt = ((inp && inp.value) || '').trim();
-    if (!rawTxt) return;
-    const curNotes = normalizeNotesState(state.notes);
-    const nowIso = new Date().toISOString();
-    const nextNotes = normalizeNotesState({
-      ...curNotes,
-      items: [
-        {
-          id: 'n_' + Date.now().toString(36),
-          title: rawTxt.split('\n')[0].slice(0, 42) || '빠른 메모',
-          content: rawTxt,
-          subject: '일반',
-          date: state.cur,
-          pinned: false,
-          createdAt: nowIso,
-          updatedAt: nowIso,
-          dirty: true,
-        },
-        ...curNotes.items,
-      ],
-    });
-    state.notes = nextNotes;
-    state.notesSelectedId = nextNotes.items[0].id;
-    store.saveNotes(state.notes);
-    render();
-    if (
-      isOneNoteConnected() &&
-      (!state.cfg.onenote || state.cfg.onenote.autoSync !== false)
-    ) {
-      runOneNoteSync({ silent: true });
-    }
-  } else if (a === 'on-sync') {
-    captureActiveNoteDraft();
-    runOneNoteSync({ silent: false });
-  } else if (a === 'on-connect-tog') {
-    captureActiveNoteDraft();
-    state.notesConnectOpen = !state.notesConnectOpen;
-    render();
-    if (state.notesConnectOpen && isOneNoteConnected() && !state.notesNotebooks.length) {
-      loadOneNoteContainers({ silent: true });
-    }
-  } else if (a === 'on-auth-tab') {
-    captureActiveNoteDraft();
-    state.notesAuthTab = t.dataset.tab || 'pkce';
-    render();
-  } else if (a === 'on-tenant-preset') {
-    const nextTenant = String(t.dataset.tenant || 'consumers').trim() || 'consumers';
-    const curClientId =
-      (($('#on-client-id') || {}).value || '').trim() ||
-      (state.cfg.onenote && state.cfg.onenote.clientId) ||
-      DEFAULT_ONENOTE_CLIENT_ID;
-    state.cfg = CL(state.cfg);
-    state.cfg.onenote = {
-      ...defaultOneNoteConfig(),
-      ...(state.cfg.onenote || {}),
-      clientId: curClientId,
-      tenant: nextTenant,
-    };
-    store.saveCfg(state.cfg);
-    render();
-  } else if (a === 'on-pkce-consumers') {
-    const clientId =
-      (($('#on-client-id') || {}).value || '').trim() ||
-      (state.cfg.onenote && state.cfg.onenote.clientId) ||
-      DEFAULT_ONENOTE_CLIENT_ID;
-    const tenant = 'consumers';
-    state.cfg = CL(state.cfg);
-    state.cfg.onenote = {
-      ...defaultOneNoteConfig(),
-      ...(state.cfg.onenote || {}),
-      clientId,
-      tenant,
-    };
-    store.saveCfg(state.cfg);
-    startOneNotePkceLogin({ clientId, tenant }).catch((err) => {
-      state.notesSyncMsg = (err && err.message) || String(err);
-      render();
-    });
-  } else if (a === 'on-copy-redirect') {
-    const uri = getOneNoteRedirectUri();
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-      navigator.clipboard
-        .writeText(uri)
-        .then(() => {
-          state.notesSyncMsg = `리디렉션 URI를 복사했어요: ${uri}`;
-          render();
-        })
-        .catch(() => {
-          window.prompt('아래 리디렉션 URI를 복사하세요:', uri);
-        });
-    } else {
-      window.prompt('아래 리디렉션 URI를 복사하세요:', uri);
-    }
-  } else if (a === 'on-pkce-login') {
-    const clientId =
-      (($('#on-client-id') || {}).value || '').trim() ||
-      (state.cfg.onenote && state.cfg.onenote.clientId) ||
-      DEFAULT_ONENOTE_CLIENT_ID;
-    const tenant = (($('#on-tenant') || {}).value || 'consumers').trim() || 'consumers';
-    state.cfg = CL(state.cfg);
-    state.cfg.onenote = {
-      ...defaultOneNoteConfig(),
-      ...(state.cfg.onenote || {}),
-      clientId,
-      tenant,
-    };
-    store.saveCfg(state.cfg);
-    startOneNotePkceLogin({ clientId, tenant }).catch((err) => {
-      state.notesSyncMsg = (err && err.message) || String(err);
-      render();
-    });
-  } else if (a === 'on-token-save') {
-    const rawTok = ($('#on-access-token') || {}).value || '';
-    state.notesSyncing = true;
-    state.notesSyncMsg = 'Microsoft Graph 토큰 확인 중...';
-    render();
-    verifyDirectToken(rawTok)
-      .then((auth) => {
-        state.notesSyncMsg = `${auth.userName || auth.userEmail || 'Microsoft'} 계정 연결 완료!`;
-        return loadOneNoteContainers({ silent: true });
-      })
-      .catch((err) => {
-        state.notesSyncMsg = `토큰 연결 실패: ${(err && err.message) || err}`;
-      })
-      .finally(() => {
-        state.notesSyncing = false;
-        render();
-        if (isOneNoteConnected()) runOneNoteSync({ silent: false });
-      });
-  } else if (a === 'on-load-containers') {
-    loadOneNoteContainers({ silent: false });
-  } else if (a === 'on-create-sec') {
-    const secName = window.prompt('새 OneNote 섹션 이름을 입력하세요:', '공부 계획표 메모');
-    if (!secName || !secName.trim()) return;
-    const cleanName = secName.trim();
-    state.notesSyncing = true;
-    state.notesSyncMsg = `"${cleanName}" 섹션 생성 중...`;
-    render();
-    (async () => {
-      const cfgOneNote = {
-        ...defaultOneNoteConfig(),
-        ...((state.cfg && state.cfg.onenote) || {}),
-      };
-      const token = await ensureValidAccessToken(cfgOneNote);
-      let nbId = cfgOneNote.notebookId;
-      let nbName = cfgOneNote.notebookName;
-      if (!nbId) {
-        let nbs = await listNotebooks(token);
-        if (!nbs.length) {
-          const createdNb = await createNotebook(token, '공부 계획표');
-          nbs = [createdNb];
-        }
-        nbId = nbs[0].id;
-        nbName = nbs[0].displayName || '';
-      }
-      const createdSec = await createSection(token, nbId, cleanName);
-      state.notesSections = await listSections(token, nbId);
-      state.cfg = CL(state.cfg);
-      state.cfg.onenote = {
-        ...cfgOneNote,
-        notebookId: nbId,
-        notebookName: nbName,
-        sectionId: createdSec.id,
-        sectionName: createdSec.displayName || cleanName,
-      };
-      store.saveCfg(state.cfg);
-      state.notesSyncMsg = `새 섹션 "${state.cfg.onenote.sectionName}" 생성 완료!`;
-    })()
-      .catch((err) => {
-        state.notesSyncMsg = `섹션 생성 실패: ${(err && err.message) || err}`;
-      })
-      .finally(() => {
-        state.notesSyncing = false;
-        render();
-      });
-  } else if (a === 'on-disconnect') {
-    clearOneNoteAuth();
-    state.notesNotebooks = [];
-    state.notesSections = [];
-    state.notesSyncMsg = 'Microsoft OneNote 연결을 해제했어요.';
-    render();
-  }
 }
 
 function handleChange(e) {
   const t = e.target;
   if (!state.ready) return;
-  if (t.id === 'note-subj' || t.id === 'note-date') {
-    captureActiveNoteDraft();
-    render();
-    return;
-  }
   const a = t.dataset.act;
   if (!a) return;
 
@@ -2419,59 +1828,6 @@ function handleChange(e) {
       .catch((err) => {
         window.alert('JSON 가져오기 실패: ' + ((err && err.message) || err));
       });
-  } else if (a === 'on-nb-change') {
-    const opt = t.options && t.selectedIndex >= 0 ? t.options[t.selectedIndex] : null;
-    const nbId = t.value || '';
-    const nbName = opt ? opt.textContent || '' : '';
-    state.cfg = CL(state.cfg);
-    state.cfg.onenote = {
-      ...defaultOneNoteConfig(),
-      ...(state.cfg.onenote || {}),
-      notebookId: nbId,
-      notebookName: nbName,
-      sectionId: '',
-      sectionName: '',
-    };
-    state.notesSections = [];
-    store.saveCfg(state.cfg);
-    render();
-    if (nbId && isOneNoteConnected()) {
-      ensureValidAccessToken(state.cfg.onenote)
-        .then((tok) => listSections(tok, nbId))
-        .then((secs) => {
-          state.notesSections = secs;
-          if (secs.length) {
-            state.cfg = CL(state.cfg);
-            state.cfg.onenote.sectionId = secs[0].id;
-            state.cfg.onenote.sectionName = secs[0].displayName || '공부 계획표 메모';
-            store.saveCfg(state.cfg);
-          }
-          render();
-        })
-        .catch((err) => {
-          state.notesSyncMsg = `섹션 목록 불러오기 실패: ${(err && err.message) || err}`;
-          render();
-        });
-    }
-  } else if (a === 'on-sec-change') {
-    const opt = t.options && t.selectedIndex >= 0 ? t.options[t.selectedIndex] : null;
-    state.cfg = CL(state.cfg);
-    state.cfg.onenote = {
-      ...defaultOneNoteConfig(),
-      ...(state.cfg.onenote || {}),
-      sectionId: t.value || '',
-      sectionName: opt ? opt.textContent || '' : '공부 계획표 메모',
-    };
-    store.saveCfg(state.cfg);
-    render();
-  } else if (a === 'on-autosync-tog') {
-    state.cfg = CL(state.cfg);
-    state.cfg.onenote = {
-      ...defaultOneNoteConfig(),
-      ...(state.cfg.onenote || {}),
-      autoSync: Boolean(t.checked),
-    };
-    store.saveCfg(state.cfg);
   } else if (a === 'movepop-start') {
     if (!state.moveModal) return;
     const nextStart = Math.max(0, Number(t.value) || 0);
@@ -2510,20 +1866,6 @@ function handleInput(e) {
     state.hubSearch = t.value;
     render();
     const nextInp = $('#hub-search');
-    if (nextInp) {
-      nextInp.focus();
-      try {
-        nextInp.setSelectionRange(pos, pos);
-      } catch {
-        // ignore selection errors
-      }
-    }
-  } else if (t.id === 'note-search') {
-    captureActiveNoteDraft();
-    const pos = t.selectionStart ?? t.value.length;
-    state.notesSearch = t.value;
-    render();
-    const nextInp = $('#note-search');
     if (nextInp) {
       nextInp.focus();
       try {

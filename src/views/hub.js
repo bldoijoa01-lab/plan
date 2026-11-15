@@ -82,15 +82,6 @@ function renderDocLinkStart(doc, kInfo, metaText) {
       <span class="note">${metaText}</span>
     </span>
   `;
-  if (doc.noteId) {
-    return `
-      <button type="button" class="hub-bm-link hub-bm-note-btn" data-act="note-open" data-id="${esc(
-        doc.noteId
-      )}" title="웹 메모장에서 열기">
-        ${inner}
-      </button>
-    `;
-  }
   const url = safeUrl(doc.url);
   return `
     <a class="hub-bm-link" href="${esc(
