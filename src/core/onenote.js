@@ -73,9 +73,6 @@ function normalizeNoteItem(raw, idx = 0) {
     onenoteClientUrl: String(item.onenoteClientUrl || ''),
     lastSyncedAt: String(item.lastSyncedAt || ''),
     remoteModifiedAt: String(item.remoteModifiedAt || ''),
-    outlookId: String(item.outlookId || ''),
-    outlookModifiedAt: String(item.outlookModifiedAt || ''),
-    outlookSyncedAt: String(item.outlookSyncedAt || ''),
     dirty: Boolean(item.dirty),
   };
 }
@@ -89,69 +86,11 @@ export function normalizeNotesState(raw) {
   const items = rawItems.map((it, idx) => normalizeNoteItem(it, idx));
   const rawDeleted = Array.isArray(src.deletedPageIds) ? src.deletedPageIds : [];
   const deletedPageIds = [...new Set(rawDeleted.map((x) => String(x || '').trim()).filter(Boolean))];
-  const rawOl = Array.isArray(src.deletedOutlookIds) ? src.deletedOutlookIds : [];
-  const deletedOutlookIds = [...new Set(rawOl.map((x) => String(x || '').trim()).filter(Boolean))];
   return {
     items,
     deletedPageIds,
-    deletedOutlookIds,
     lastFullSyncAt: String(src.lastFullSyncAt || ''),
-    lastOutlookSyncAt: String(src.lastOutlookSyncAt || ''),
   };
-}
-
-/**
- * 로컬 스티커 메모와 Outlook '메모' 폴더 항목을 비교해 동기화 계획을 산출합니다.
- * remoteNotes: [{ id, subject, body, lastModifiedDateTime }]
- * complete=false(목록이 잘린 경우)면 원격 삭제 판단(연결 해제)을 하지 않습니다.
- * 원격에서 사라진 메모는 로컬에서 삭제하지 않고 연결만 해제합니다(데이터 보호).
- */
-export function planOutlookSync({ localState, remoteNotes = [], complete = true }) {
-  const local = normalizeNotesState(localState);
-  const ignored = new Set(local.deletedOutlookIds);
-  const remoteMap = new Map();
-  for (const r of Array.isArray(remoteNotes) ? remoteNotes : []) {
-    if (r && r.id) remoteMap.set(r.id, r);
-  }
-  const matched = new Set();
-  const toCreateRemote = [];
-  const toUpdateRemote = [];
-  const toPull = [];
-  const unlinkLocalIds = [];
-
-  for (const item of local.items) {
-    const localMs = Date.parse(item.updatedAt || '') || 0;
-    const syncedMs = Date.parse(item.outlookSyncedAt || '') || 0;
-    const localChanged = localMs > syncedMs;
-    if (!item.outlookId) {
-      toCreateRemote.push(item);
-      continue;
-    }
-    const remote = remoteMap.get(item.outlookId);
-    if (remote) {
-      matched.add(remote.id);
-      const remoteMs = Date.parse(remote.lastModifiedDateTime || '') || 0;
-      const knownMs = Date.parse(item.outlookModifiedAt || '') || 0;
-      const remoteChanged = !item.outlookModifiedAt || remoteMs > knownMs + 1000;
-      if (localChanged && (!remoteChanged || localMs >= remoteMs)) {
-        toUpdateRemote.push(item);
-      } else if (remoteChanged) {
-        toPull.push({ remote, localItem: item });
-      }
-      continue;
-    }
-    if (complete) {
-      if (localChanged) toCreateRemote.push({ ...item, outlookId: '' });
-      else unlinkLocalIds.push(item.id);
-    }
-  }
-
-  for (const r of remoteMap.values()) {
-    if (!matched.has(r.id) && !ignored.has(r.id)) {
-      toPull.push({ remote: r, localItem: null });
-    }
-  }
-  return { toCreateRemote, toUpdateRemote, toPull, unlinkLocalIds };
 }
 
 /**

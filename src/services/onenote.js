@@ -111,15 +111,6 @@ async function sha256Base64Url(input) {
   return bytesToBase64Url(new Uint8Array(hash));
 }
 
-export const OUTLOOK_EXTRA_SCOPE = 'Mail.ReadWrite';
-
-export function hasOutlookScope() {
-  const auth = getOneNoteAuth();
-  return Boolean(
-    auth && new RegExp(OUTLOOK_EXTRA_SCOPE, 'i').test(String(auth.scope || ''))
-  );
-}
-
 export async function graphFetch(pathOrUrl, accessToken, options = {}) {
   const url = /^https?:\/\//i.test(pathOrUrl) ? pathOrUrl : GRAPH_BASE + pathOrUrl;
   const headers = {
@@ -184,11 +175,9 @@ export async function startOneNotePkceLogin({
   clientId,
   tenant = 'consumers',
   prompt = 'select_account',
-  includeMail = false,
 }) {
   const cleanClientId = String(clientId || '').trim();
   const cleanTenant = String(tenant || 'consumers').trim() || 'consumers';
-  const scope = includeMail ? `${OAUTH_SCOPES} ${OUTLOOK_EXTRA_SCOPE}` : OAUTH_SCOPES;
   if (!cleanClientId) {
     throw new Error('Azure 앱 등록 클라이언트 ID(Client ID)를 입력해 주세요.');
   }
@@ -207,7 +196,6 @@ export async function startOneNotePkceLogin({
     clientId: cleanClientId,
     tenant: cleanTenant,
     redirectUri,
-    scope,
   });
 
   const authParams = new URLSearchParams({
@@ -215,7 +203,7 @@ export async function startOneNotePkceLogin({
     response_type: 'code',
     redirect_uri: redirectUri,
     response_mode: 'query',
-    scope,
+    scope: OAUTH_SCOPES,
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',

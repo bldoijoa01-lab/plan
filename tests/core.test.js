@@ -811,29 +811,3 @@ test('Sticky Notes colors, OneNote metadata color round-trip, and AADSTS700016 l
   assert.match(homeStickyHtml, /home-sticky-grid/);
   assert.match(homeStickyHtml, /mini-sticky-card sticky-blue/);
 });
-
-test('Outlook notes sync planner: create, update, pull, unlink, ignore deleted', async () => {
-  const { planOutlookSync } = await import('../src/core/onenote.js');
-  const local = normalizeNotesState({
-    deletedOutlookIds: ['ol-ignored'],
-    items: [
-      { id: 'a', title: 'new', content: 'x', updatedAt: '2026-11-15T05:00:00.000Z' },
-      { id: 'b', title: 'edited', content: 'y', outlookId: 'ol-b', outlookModifiedAt: '2026-11-15T01:00:00.000Z', outlookSyncedAt: '2026-11-15T01:00:00.000Z', updatedAt: '2026-11-15T04:00:00.000Z' },
-      { id: 'c', title: 'remote newer', content: 'z', outlookId: 'ol-c', outlookModifiedAt: '2026-11-15T01:00:00.000Z', outlookSyncedAt: '2026-11-15T01:00:00.000Z', updatedAt: '2026-11-15T01:00:00.000Z' },
-      { id: 'd', title: 'gone remotely', content: 'w', outlookId: 'ol-d', outlookModifiedAt: '2026-11-15T01:00:00.000Z', outlookSyncedAt: '2026-11-15T01:00:00.000Z', updatedAt: '2026-11-15T01:00:00.000Z' },
-    ],
-  });
-  const remote = [
-    { id: 'ol-b', lastModifiedDateTime: '2026-11-15T01:00:00.000Z' },
-    { id: 'ol-c', lastModifiedDateTime: '2026-11-15T06:00:00.000Z' },
-    { id: 'ol-new', lastModifiedDateTime: '2026-11-15T07:00:00.000Z' },
-    { id: 'ol-ignored', lastModifiedDateTime: '2026-11-15T07:00:00.000Z' },
-  ];
-  const plan = planOutlookSync({ localState: local, remoteNotes: remote, complete: true });
-  assert.deepEqual(plan.toCreateRemote.map((x) => x.id), ['a']);
-  assert.deepEqual(plan.toUpdateRemote.map((x) => x.id), ['b']);
-  assert.deepEqual(plan.toPull.map((x) => x.remote.id), ['ol-c', 'ol-new']);
-  assert.deepEqual(plan.unlinkLocalIds, ['d']);
-  const partial = planOutlookSync({ localState: local, remoteNotes: remote, complete: false });
-  assert.deepEqual(partial.unlinkLocalIds, []);
-});
