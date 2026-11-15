@@ -97,6 +97,7 @@ export function renderHub(state) {
       </div>
     </div>
 
+    <div class="hub-main-grid">
     <div class="card">
       <div class="row wrap-row">
         <b class="card-title-md">📅 내 구글 캘린더</b>
@@ -243,6 +244,7 @@ export function renderHub(state) {
                     ([grp, list]) => `
                     <div class="hub-group-sec">
                       <div class="hub-group-title">${esc(grp)}</div>
+                      <div class="hub-bm-grid">
                       ${list
                         .map((bm) => {
                           const kInfo =
@@ -283,6 +285,7 @@ export function renderHub(state) {
                           `;
                         })
                         .join('')}
+                      </div>
                     </div>
                   `
                   )
@@ -291,6 +294,7 @@ export function renderHub(state) {
             : '<div class="note" style="padding:14px 0">등록된 문서 즐겨찾기가 없어요. 자주 쓰는 독스나 스프레드시트 링크를 추가해 보세요!</div>'
         }
       </div>
+    </div>
     </div>
   `;
 

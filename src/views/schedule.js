@@ -365,11 +365,12 @@ export function renderToday(state) {
     h += '<div class="card note">이 날은 계획이 없어요.</div>';
   }
 
+  let subjCards = '';
   for (const s of ALL_SUBJ) {
     const L = items.filter((i) => i.s === s);
     if (!L.length) continue;
     const cVar = SC[s] ? SC[s][0] : '--acc';
-    h += `
+    subjCards += `
       <div class="card">
         <div class="subj-head">
           <span class="subj-dot" style="background:var(${cVar})"></span>
@@ -379,8 +380,12 @@ export function renderToday(state) {
       </div>
     `;
   }
+  if (subjCards) {
+    h += `<div class="subj-grid">${subjCards}</div>`;
+  }
 
-  // Add task card (교재 진도 + 일반 할 일)
+  // Add task card (교재 진도 + 일반 할 일) & Daily study log card
+  h += '<div class="two">';
   h += `
     <div class="card">
       <div class="row">
@@ -466,6 +471,7 @@ export function renderToday(state) {
         }
       </div>
     </div>
+  </div>
   `;
 
   return h;
@@ -490,7 +496,7 @@ export function renderWeek(state) {
     </div>
   `;
 
-  h += `
+  const barsCard = `
     <div class="card">
       <b class="card-title-md">하루 분량 (부하 점수 P)</b>
       <div class="bars">
@@ -666,7 +672,7 @@ export function renderWeek(state) {
     </div>
   `;
 
-  h += `<div class="two">${prog}${carryCard}</div><div class="wgrid">`;
+  h += `<div class="week-summary-grid">${barsCard}${prog}${carryCard}</div><div class="wgrid">`;
 
   h += days
     .map((d, i) => {
@@ -739,7 +745,7 @@ export function renderAll(state) {
   );
   const chipBooks = hasGeneral ? [...allBooks, GENERAL_BOOK] : allBooks;
 
-  let h = `
+  const calCard = `
     <div class="card">
       <div class="datebar">
         <button type="button" class="btn sm" data-act="cm" data-n="-1">◀</button>
@@ -821,10 +827,11 @@ export function renderAll(state) {
 
   // Book summary / detail
   const r = remainByBook(plans, cfg);
+  let sideCards = '';
   if (selB.size) {
     for (const b of selB) {
       const prog = getBookProgress(plans, b, cfg);
-      h += `
+      sideCards += `
         <div class="card">
           <div class="row wrap-row">
             <button type="button" class="book-link" style="font:400 16px Jua" data-act="bookpop" data-b="${esc(
@@ -875,7 +882,7 @@ export function renderAll(state) {
       const idx = ALL_SUBJ.indexOf(s);
       return idx >= 0 ? idx : 99;
     };
-    h += `
+    sideCards += `
       <div class="card">
         <div class="row">
           <b class="card-title-sm">교재별 (이름을 누르면 진도 팝업, 필터 버튼으로 달력 보기)</b>
@@ -913,7 +920,7 @@ export function renderAll(state) {
 
   const L = Object.keys(logs || {}).sort();
   if (L.length) {
-    h += `
+    sideCards += `
       <div class="card">
         <b class="card-title-sm">기록 (보정용)</b>
         <table class="tbl">
@@ -936,7 +943,7 @@ export function renderAll(state) {
     `;
   }
 
-  return h;
+  return `<div class="all-layout"><div class="all-main">${calCard}</div><div class="all-side">${sideCards}</div></div>`;
 }
 
 export function renderSettings(state) {
@@ -945,6 +952,7 @@ export function renderSettings(state) {
   const examSet = new Set(rules.examBooks);
 
   let h = `
+    <div class="settings-grid">
     <div class="card">
       <b class="card-title-sm">부하 점수 (단위당 P) 및 밀림 규칙</b>
       <div class="note">체감과 시간 기록을 보면서 고치면 전체 계획 부하가 같이 바뀌어요.</div>
@@ -1117,6 +1125,7 @@ export function renderSettings(state) {
         <button type="button" class="btn sm" data-act="reseed">초기 데이터(11/12~12/6) 다시 불러오기</button>
       </div>
       <div class="note" style="margin-top:6px">토큰은 이 브라우저의 localStorage에만 저장되며 코드에 포함되지 않아요.</div>
+    </div>
     </div>
   `;
 
