@@ -43,6 +43,13 @@ import {
   exportJsonToDocs,
   mergeConfig,
 } from '../src/services/store.js';
+import {
+  defaultOneNoteConfig,
+  normalizeNotesState,
+  noteToOneNoteHtml,
+  parseOneNotePageHtml,
+  planBidirectionalSync,
+} from '../src/core/onenote.js';
 import { safeUrl } from '../src/core/html.js';
 import {
   renderAll,
@@ -55,6 +62,7 @@ import {
 } from '../src/views/schedule.js';
 import { detectBookmarkKind, renderHub } from '../src/views/hub.js';
 import { renderMatrix } from '../src/views/matrix.js';
+import { renderNotesView } from '../src/views/notes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EXPORT_PATH = path.resolve(__dirname, '../data/plan-data-export.json');
@@ -455,5 +463,145 @@ test('Calendar URL normalizer, bookmark detection, and real export data render c
 
   const setSyncHtml = renderSettings({ ...state, settingsSection: 'sync' });
   assert.match(setSyncHtml, /접속 토큰 및 데이터 백업/);
+  assert.match(setSyncHtml, /Microsoft OneNote 양방향 메모 연동/);
   assert.doesNotMatch(setSyncHtml, /하루 기준 부하/);
+});
+
+test('OneNote XHTML serialization, HTML parsing, bidirectional sync planner, and Notes view render', () => {
+  const sampleNote = {
+    id: 'n_test_1',
+    title: '미적분 오답 정리 & <핵심>',
+    subject: '수학',
+    date: '2026-11-15',
+    pinned: true,
+    createdAt: '2026-11-15T01:00:00.000Z',
+    updatedAt: '2026-11-15T02:00:00.000Z',
+    content: '첫째 줄 정리\n\n- [ ] 다시 풀어보기\n- [x] 개념 노트 필기',
+  };
+
+  const xhtml = noteToOneNoteHtml(sampleNote);
+  assert.match(xhtml, /<title>미적분 오답 정리 &amp; &lt;핵심&gt;<\/title>/);
+  assert.match(xhtml, /data-tag="to-do"/);
+  assert.match(xhtml, /data-tag="to-do:completed"/);
+
+  const parsed = parseOneNotePageHtml(xhtml);
+  assert.equal(parsed.title, '미적분 오답 정리 & <핵심>');
+  assert.equal(parsed.subject, '수학');
+  assert.equal(parsed.date, '2026-11-15');
+  assert.equal(parsed.embeddedNoteId, 'n_test_1');
+  assert.equal(parsed.content, sampleNote.content);
+
+  // OneNote 클라이언트가 만든 순수 HTML 페이지도 깔끔하게 파싱
+  const onAppHtml = `
+    <html>
+      <head><title>외부 원노트 메모</title></head>
+      <body>
+        <div style="position:absolute">
+          <p>오늘 물리 1단원 요약</p>
+          <p data-tag="to-do">기출 10문제 풀기</p>
+          <p data-tag="to-do:completed">오답 체크</p>
+        </div>
+      </body>
+    </html>
+  `;
+  const parsedExt = parseOneNotePageHtml(onAppHtml);
+  assert.equal(parsedExt.title, '외부 원노트 메모');
+  assert.equal(
+    parsedExt.content,
+    '오늘 물리 1단원 요약\n- [ ] 기출 10문제 풀기\n- [x] 오답 체크'
+  );
+
+  // 양방향 동기화 플래너 검증
+  const localState = normalizeNotesState({
+    deletedPageIds: ['pg-del-local'],
+    items: [
+      {
+        id: 'n_create',
+        title: '새 로컬 메모',
+        content: '본문',
+        dirty: true,
+        updatedAt: '2026-11-15T05:00:00.000Z',
+      },
+      {
+        id: 'n_push_upd',
+        title: '로컬이 최신인 메모',
+        content: '수정됨',
+        onenotePageId: 'pg-push-upd',
+        onenoteSectionId: 'sec-1',
+        remoteModifiedAt: '2026-11-15T01:00:00.000Z',
+        updatedAt: '2026-11-15T04:00:00.000Z',
+        dirty: true,
+      },
+      {
+        id: 'n_pull_upd',
+        title: '원노트가 최신인 메모',
+        content: '구버전',
+        onenotePageId: 'pg-pull-upd',
+        onenoteSectionId: 'sec-1',
+        remoteModifiedAt: '2026-11-15T01:00:00.000Z',
+        updatedAt: '2026-11-15T01:00:00.000Z',
+        dirty: false,
+      },
+      {
+        id: 'n_del_remote',
+        title: '원노트에서 지워진 메모',
+        content: '삭제 예정',
+        onenotePageId: 'pg-gone',
+        onenoteSectionId: 'sec-1',
+        remoteModifiedAt: '2026-11-15T01:00:00.000Z',
+        dirty: false,
+      },
+    ],
+  });
+
+  const remotePages = [
+    { id: 'pg-del-local', title: '로컬서 삭제한 메모', lastModifiedDateTime: '2026-11-15T01:00:00.000Z' },
+    { id: 'pg-push-upd', title: '구버전', lastModifiedDateTime: '2026-11-15T02:00:00.000Z' },
+    { id: 'pg-pull-upd', title: '원노트 수정판', lastModifiedDateTime: '2026-11-15T06:00:00.000Z' },
+    { id: 'pg-new-remote', title: '원노트에서 새로 쓴 메모', lastModifiedDateTime: '2026-11-15T07:00:00.000Z' },
+  ];
+
+  const syncPlan = planBidirectionalSync({
+    localState,
+    remotePages,
+    sectionId: 'sec-1',
+  });
+
+  assert.deepEqual(syncPlan.toDeleteRemote, ['pg-del-local']);
+  assert.deepEqual(syncPlan.toCreateRemote.map((x) => x.id), ['n_create']);
+  assert.deepEqual(syncPlan.toUpdateRemote.map((x) => x.id), ['n_push_upd']);
+  assert.deepEqual(
+    syncPlan.toPullRemote.map((x) => x.remote.id),
+    ['pg-pull-upd', 'pg-new-remote']
+  );
+  assert.equal(syncPlan.toPullRemote[0].localItem.id, 'n_pull_upd');
+  assert.equal(syncPlan.toPullRemote[1].localItem, null);
+  assert.deepEqual(syncPlan.deletedRemotelyLocalIds, ['n_del_remote']);
+
+  assert.equal(detectBookmarkKind('https://www.onenote.com/notebooks'), 'onenote');
+
+  const notesHtml = renderNotesView({
+    REAL: '2026-11-15',
+    cur: '2026-11-15',
+    cfg: { onenote: defaultOneNoteConfig() },
+    notes: normalizeNotesState({
+      items: [
+        {
+          ...sampleNote,
+          onenotePageId: 'pg-1',
+          onenoteWebUrl: 'https://onedrive.live.com/edit.aspx?resid=123',
+          onenoteClientUrl: 'onenote:https://d.docs.live.net/123',
+        },
+      ],
+    }),
+    oneNoteAuth: { accessToken: 'tok', userName: '테스트 계정', mode: 'pkce' },
+    notesSelectedId: 'n_test_1',
+    notesConnectOpen: true,
+    notesAuthTab: 'pkce',
+  });
+  assert.match(notesHtml, /Microsoft OneNote 양방향 메모장/);
+  assert.match(notesHtml, /data-act="on-sync"/);
+  assert.match(notesHtml, /data-act="note-chk-tog"/);
+  assert.match(notesHtml, /OneNote 웹에서 열기/);
+  assert.match(notesHtml, /OneNote 앱에서 열기/);
 });

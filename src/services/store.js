@@ -7,6 +7,7 @@ import {
   doneDateOf,
 } from '../core/units.js';
 import { DEFAULT_MATRIX_RULES, normalizeMatrixState } from '../core/matrix.js';
+import { defaultOneNoteConfig, normalizeNotesState } from '../core/onenote.js';
 
 export const WORKER_URL = 'https://study-plan.bldoijoa01.workers.dev';
 export const TOKEN_KEY = 'uiToken_v1';
@@ -99,6 +100,7 @@ export function defaultConfig() {
     calendarUrl: '',
     calendarMode: 'WEEK',
     matrixRules: CL(DEFAULT_MATRIX_RULES),
+    onenote: defaultOneNoteConfig(),
   };
 }
 
@@ -115,6 +117,10 @@ export function mergeConfig(raw) {
     matrixRules: {
       ...base.matrixRules,
       ...(raw.matrixRules || {}),
+    },
+    onenote: {
+      ...base.onenote,
+      ...((raw && raw.onenote) || {}),
     },
   };
 }
@@ -172,6 +178,9 @@ export function exportJsonToDocs(payload) {
     for (const [k, v] of Object.entries(payload.matrix)) {
       docs[`matrix/${k}`] = CL(v);
     }
+  }
+  if (payload.notes && typeof payload.notes === 'object') {
+    docs['notes/main'] = normalizeNotesState(payload.notes.main || payload.notes);
   }
   return docs;
 }
@@ -267,6 +276,7 @@ export function createStore({ onStatusChange } = {}) {
     let cfg = defaultConfig();
     let hub = defaultHubBookmarks();
     let matrix = normalizeMatrixState({});
+    let notes = normalizeNotesState({});
 
     for (const [path, raw] of Object.entries(docsMap || {})) {
       const val = CL(raw);
@@ -282,9 +292,11 @@ export function createStore({ onStatusChange } = {}) {
         hub = { items: Array.isArray(val && val.items) ? val.items : [] };
       } else if (path === 'matrix/state') {
         matrix = normalizeMatrixState(val);
+      } else if (path === 'notes/main') {
+        notes = normalizeNotesState(val);
       }
     }
-    return { plans, cfg, logs, hub, matrix };
+    return { plans, cfg, logs, hub, matrix, notes };
   }
 
   async function boot() {
@@ -400,6 +412,8 @@ export function createStore({ onStatusChange } = {}) {
     saveHub: (hubObj) => saveDoc('hub/bookmarks', CL(hubObj || { items: [] })),
     saveMatrix: (matrixObj) =>
       saveDoc('matrix/state', normalizeMatrixState(matrixObj)),
+    saveNotes: (notesObj) =>
+      saveDoc('notes/main', normalizeNotesState(notesObj)),
     batchSetDocs,
     retryFailed,
     getStatus,

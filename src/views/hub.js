@@ -6,6 +6,7 @@ export const BOOKMARK_KINDS = [
   { id: 'sheet', icon: '📊', label: '스프레드시트', cls: 'bk-sheet' },
   { id: 'drive', icon: '📁', label: '드라이브', cls: 'bk-drive' },
   { id: 'keep', icon: '💡', label: '구글 킵', cls: 'bk-keep' },
+  { id: 'onenote', icon: '📓', label: '원노트', cls: 'bk-onenote' },
   { id: 'cal', icon: '📅', label: '캘린더', cls: 'bk-cal' },
   { id: 'link', icon: '🔗', label: '링크', cls: 'bk-link' },
 ];
@@ -18,6 +19,9 @@ export function detectBookmarkKind(url) {
   if (u.includes('/document') || u.includes('docs.google.com/document')) return 'docs';
   if (u.includes('drive.google')) return 'drive';
   if (u.includes('keep.google')) return 'keep';
+  if (u.includes('onenote.com') || u.includes('onedrive.live') || u.includes('1drv.ms')) {
+    return 'onenote';
+  }
   if (u.includes('calendar.google')) return 'cal';
   return 'link';
 }
@@ -29,6 +33,13 @@ const CORE_APPS = [
     icon: '📅',
     url: 'https://calendar.google.com',
     cls: 'bk-cal',
+  },
+  {
+    name: 'Microsoft OneNote',
+    sub: '양방향 메모·필기',
+    icon: '📓',
+    url: 'https://www.onenote.com/notebooks',
+    cls: 'bk-onenote',
   },
   {
     name: '구글 킵',
