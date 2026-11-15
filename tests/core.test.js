@@ -47,6 +47,8 @@ import { safeUrl } from '../src/core/html.js';
 import {
   renderAll,
   renderBookModal,
+  renderBooksView,
+  renderHome,
   renderSettings,
   renderToday,
   renderWeek,
@@ -430,6 +432,28 @@ test('Calendar URL normalizer, bookmark detection, and real export data render c
   assert.match(matrixHtml, /지금 하기/);
   assert.match(matrixHtml, /계획하기/);
 
+  const homeHtml = renderHome(state);
+  assert.match(homeHtml, /오늘 목표/);
+  assert.match(homeHtml, /지금 바로 할 일/);
+  assert.match(homeHtml, /오늘 과목별 진행 현황/);
+  assert.match(homeHtml, /빠른 워크스페이스/);
+
+  const booksHtml = renderBooksView(state);
+  assert.match(booksHtml, /교재별 진도 필터/);
+  assert.match(booksHtml, /전체 누적 진행 현황/);
+
   const setHtml = renderSettings(state);
   assert.match(setHtml, /아이젠하워 매트릭스 자동 분류 규칙/);
+
+  const setStudyHtml = renderSettings({ ...state, settingsSection: 'study' });
+  assert.match(setStudyHtml, /하루 기준 부하/);
+  assert.doesNotMatch(setStudyHtml, /접속 토큰 및 데이터 백업/);
+
+  const setRulesHtml = renderSettings({ ...state, settingsSection: 'rules' });
+  assert.match(setRulesHtml, /아이젠하워 매트릭스 자동 분류 규칙/);
+  assert.doesNotMatch(setRulesHtml, /하루 기준 부하/);
+
+  const setSyncHtml = renderSettings({ ...state, settingsSection: 'sync' });
+  assert.match(setSyncHtml, /접속 토큰 및 데이터 백업/);
+  assert.doesNotMatch(setSyncHtml, /하루 기준 부하/);
 });

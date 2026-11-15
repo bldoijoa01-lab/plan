@@ -19,12 +19,30 @@
   <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body>
+  <div class="bg-orbs" aria-hidden="true">
+    <span class="orb orb-1"></span>
+    <span class="orb orb-2"></span>
+    <span class="orb orb-3"></span>
+    <span class="orb orb-4"></span>
+  </div>
   <div class="wrap">
-    <header class="app-header">
-      <h1>공부 계획표</h1>
-      <div class="sub" id="head"></div>
+    <header class="site-header app-header">
+      <div class="site-brand">
+        <button type="button" class="brand-btn" data-sec="home" title="홈으로 이동">
+          <span class="brand-logo">✦</span>
+          <span class="brand-text">
+            <strong>공부 계획표</strong>
+            <small>STUDY &amp; SCHEDULE HUB</small>
+          </span>
+        </button>
+      </div>
+      <nav id="top-nav" class="top-nav" aria-label="대분류 메뉴"></nav>
+      <div class="sub head-controls" id="head"></div>
     </header>
-    <nav id="nav" aria-label="주요 화면"></nav>
+    <section class="subnav-bar" id="subnav-bar" aria-label="하위 분야 탐색">
+      <div class="subnav-meta" id="subnav-meta"></div>
+      <nav id="nav" class="sub-nav" aria-label="하위 분야 메뉴"></nav>
+    </section>
     <div id="sync-banner" class="sync-banner-slot"></div>
     <main id="app"></main>
   </div>

@@ -42,6 +42,8 @@ import {
 import {
   renderAll,
   renderBookModal,
+  renderBooksView,
+  renderHome,
   renderSettings,
   renderToday,
   renderWeek,
@@ -51,7 +53,73 @@ import { renderMatrix } from './views/matrix.js';
 
 const $ = (s) => document.querySelector(s);
 
-const TAB_ORDER = ['today', 'week', 'all', 'matrix', 'hub', 'set'];
+const SECTION_ORDER = ['home', 'study', 'schedule', 'settings'];
+const NAV_SECTIONS = {
+  home: {
+    label: '🏠 홈',
+    title: '홈 대시보드',
+    desc: '오늘의 학습 진도, 긴급 할 일, 주요 일정을 한눈에 확인하세요.',
+    items: [
+      ['home', '🏠 종합 대시보드'],
+      ['today', '📅 오늘 할 일'],
+      ['matrix', '🧭 긴급 매트릭스'],
+    ],
+  },
+  study: {
+    label: '📚 학습',
+    title: '학습 관리',
+    desc: '과목별 일일 공부 계획과 주간 부하율, 교재별 진도를 관리합니다.',
+    items: [
+      ['today', '📅 오늘 학습'],
+      ['week', '📊 주간 현황'],
+      ['books', '📖 교재·기록 분석'],
+    ],
+  },
+  schedule: {
+    label: '🗓️ 일정',
+    title: '일정 · 매트릭스 · 허브',
+    desc: '월간 계획표와 아이젠하워 우선순위, 구글 캘린더·문서를 연결합니다.',
+    items: [
+      ['all', '🗓️ 월간 캘린더'],
+      ['matrix', '🧭 아이젠하워 매트릭스'],
+      ['hub', '🔗 캘린더·문서 허브'],
+    ],
+  },
+  settings: {
+    label: '⚙️ 설정',
+    title: '환경설정 · 데이터',
+    desc: '교재별 부하 가중치, 이월·매트릭스 규칙, 클라우드 백업을 설정합니다.',
+    items: [
+      ['set', '⚖️ 학습·부하 규칙'],
+      ['set-matrix', '🎯 D-day·매트릭스 규칙'],
+      ['set-sync', '☁️ 연동·백업 관리'],
+    ],
+  },
+};
+const TAB_ORDER = [
+  'home',
+  'today',
+  'week',
+  'books',
+  'all',
+  'matrix',
+  'hub',
+  'set',
+  'set-matrix',
+  'set-sync',
+];
+const DEFAULT_VIEW_SECTION = {
+  home: 'home',
+  today: 'study',
+  week: 'study',
+  books: 'study',
+  all: 'schedule',
+  matrix: 'schedule',
+  hub: 'schedule',
+  set: 'settings',
+  'set-matrix': 'settings',
+  'set-sync': 'settings',
+};
 const reduceMotion = () =>
   typeof window !== 'undefined' &&
   Boolean(
@@ -145,7 +213,14 @@ let lastSyncKey = '';
 
 const state = {
   REAL: todayKst(),
-  view: 'today',
+  sec: 'home',
+  view: 'home',
+  lastSub: {
+    home: 'home',
+    study: 'today',
+    schedule: 'all',
+    settings: 'set',
+  },
   cur: todayKst(),
   calM: todayKst().slice(0, 7),
   ready: false,
@@ -344,61 +419,91 @@ function syncHead(ddays) {
   headEl.dataset.built = '1';
   headEl.dataset.today = state.REAL;
   headEl.dataset.ddkey = ddKey;
+  const ddPills = (ddays || [])
+    .slice(0, 2)
+    .map(
+      (x) =>
+        `<span class="head-dd-chip"><b>${esc(x.n)}</b> <em>${ddayLabel(
+          x.d,
+          state.REAL
+        )}</em></span>`
+    )
+    .join('');
   headEl.innerHTML = `
     <div class="head-top">
       <span class="today-pill">오늘 ${lab(state.REAL)}</span>
+      ${ddPills}
       ${themeSwitchHtml()}
-    </div>
-    <div class="ddrow">
-      ${ddays
-        .map(
-          (x) => `
-        <div class="ddc">
-          <span>${esc(x.n)}</span>
-          <b>${ddayLabel(x.d, state.REAL)}</b>
-          <em>${esc(String(x.d || '').replace(/-/g, '/'))}</em>
-        </div>
-      `
-        )
-        .join('')}
     </div>
   `;
 }
 
 function syncNav() {
-  const navEl = $('#nav');
-  if (!navEl) return;
-  const tabs = [
-    ['today', '📅 오늘'],
-    ['week', '📊 주간'],
-    ['all', '🗓️ 전체'],
-    ['matrix', '🧭 매트릭스'],
-    ['hub', '🔗 허브'],
-    ['set', '⚙️ 설정'],
-  ];
-  if (navEl.dataset.built !== '1') {
-    navEl.dataset.built = '1';
-    navEl.innerHTML = tabs
-      .map(
-        ([k, t]) =>
+  const secMeta = NAV_SECTIONS[state.sec] || NAV_SECTIONS.home;
+
+  const topNavEl = $('#top-nav');
+  if (topNavEl) {
+    if (topNavEl.dataset.built !== '1') {
+      topNavEl.dataset.built = '1';
+      topNavEl.innerHTML = SECTION_ORDER.map(
+        (secKey) =>
           `<button type="button" class="${
-            state.view === k ? 'on' : ''
-          }" data-v="${k}" aria-selected="${
-            state.view === k ? 'true' : 'false'
-          }">${t}</button>`
-      )
-      .join('');
-    registerPill(navEl, () => navEl.querySelector('button.on'));
-    return;
+            state.sec === secKey ? 'on' : ''
+          }" data-sec="${secKey}" aria-current="${
+            state.sec === secKey ? 'page' : 'false'
+          }">${NAV_SECTIONS[secKey].label}</button>`
+      ).join('');
+      registerPill(topNavEl, () => topNavEl.querySelector('button.on'));
+    } else {
+      let activeTop = null;
+      topNavEl.querySelectorAll('button[data-sec]').forEach((btn) => {
+        const on = btn.dataset.sec === state.sec;
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-current', on ? 'page' : 'false');
+        if (on) activeTop = btn;
+      });
+      if (activeTop) syncPill(topNavEl, activeTop);
+    }
   }
-  let activeBtn = null;
-  navEl.querySelectorAll('button[data-v]').forEach((btn) => {
-    const on = btn.dataset.v === state.view;
-    btn.classList.toggle('on', on);
-    btn.setAttribute('aria-selected', on ? 'true' : 'false');
-    if (on) activeBtn = btn;
-  });
-  if (activeBtn) syncPill(navEl, activeBtn);
+
+  const metaEl = $('#subnav-meta');
+  if (metaEl && metaEl.dataset.sec !== state.sec) {
+    metaEl.dataset.sec = state.sec;
+    metaEl.innerHTML = `
+      <span class="sec-crumb">${esc(secMeta.label)}</span>
+      <div class="sec-heading">
+        <strong>${esc(secMeta.title)}</strong>
+        <span>${esc(secMeta.desc)}</span>
+      </div>
+    `;
+  }
+
+  const navEl = $('#nav');
+  if (navEl) {
+    if (navEl.dataset.sec !== state.sec) {
+      navEl.dataset.sec = state.sec;
+      navEl.innerHTML = secMeta.items
+        .map(
+          ([k, t]) =>
+            `<button type="button" class="${
+              state.view === k ? 'on' : ''
+            }" data-v="${k}" aria-selected="${
+              state.view === k ? 'true' : 'false'
+            }">${t}</button>`
+        )
+        .join('');
+      registerPill(navEl, () => navEl.querySelector('button.on'));
+    } else {
+      let activeBtn = null;
+      navEl.querySelectorAll('button[data-v]').forEach((btn) => {
+        const on = btn.dataset.v === state.view;
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+        if (on) activeBtn = btn;
+      });
+      if (activeBtn) syncPill(navEl, activeBtn);
+    }
+  }
 }
 
 function syncBookModal() {
@@ -495,11 +600,19 @@ function render(opts = {}) {
     return;
   }
 
-  if (state.view === 'today') appEl.innerHTML = renderToday(state);
+  if (state.view === 'home') appEl.innerHTML = renderHome(state);
+  else if (state.view === 'today') appEl.innerHTML = renderToday(state);
   else if (state.view === 'week') appEl.innerHTML = renderWeek(state);
+  else if (state.view === 'books') appEl.innerHTML = renderBooksView(state);
   else if (state.view === 'all') appEl.innerHTML = renderAll(state);
   else if (state.view === 'matrix') appEl.innerHTML = renderMatrix(state);
   else if (state.view === 'hub') appEl.innerHTML = renderHub(state);
+  else if (state.view === 'set')
+    appEl.innerHTML = renderSettings({ ...state, settingsSection: 'study' });
+  else if (state.view === 'set-matrix')
+    appEl.innerHTML = renderSettings({ ...state, settingsSection: 'rules' });
+  else if (state.view === 'set-sync')
+    appEl.innerHTML = renderSettings({ ...state, settingsSection: 'sync' });
   else appEl.innerHTML = renderSettings(state);
 
   if (opts.motion) {
@@ -618,14 +731,40 @@ function handleClick(e) {
     return;
   }
 
-  const t = e.target.closest('[data-v],[data-act]');
+  const t = e.target.closest('[data-sec],[data-v],[data-act]');
   if (!t) return;
+
+  if (t.dataset.sec) {
+    const nextSec = t.dataset.sec;
+    const secCfg = NAV_SECTIONS[nextSec];
+    if (!secCfg) return;
+    const prevView = state.view;
+    let nextView;
+    if (t.classList.contains('brand-btn') || state.sec === nextSec) {
+      nextView = secCfg.items[0][0];
+    } else {
+      nextView = state.lastSub[nextSec] || secCfg.items[0][0];
+    }
+    state.sec = nextSec;
+    state.view = nextView;
+    state.lastSub[nextSec] = nextView;
+    const motion =
+      nextView !== prevView ? tabDirection(prevView, nextView) : 'soft';
+    closeBookModal();
+    render({ motion });
+    return;
+  }
 
   if (t.dataset.v) {
     const nextView = t.dataset.v;
-    const motion =
-      nextView !== state.view ? tabDirection(state.view, nextView) : '';
+    const prevView = state.view;
+    if (!t.closest('#nav')) {
+      state.sec = DEFAULT_VIEW_SECTION[nextView] || state.sec;
+    }
     state.view = nextView;
+    state.lastSub[state.sec] = nextView;
+    const motion =
+      nextView !== prevView ? tabDirection(prevView, nextView) : '';
     closeBookModal();
     render({ motion });
     return;
@@ -698,7 +837,11 @@ function handleClick(e) {
     const prevView = state.view;
     const prevCur = state.cur;
     state.cur = d;
-    if (t.dataset.v2) state.view = t.dataset.v2;
+    if (t.dataset.v2) {
+      state.view = t.dataset.v2;
+      state.sec = DEFAULT_VIEW_SECTION[state.view] || state.sec;
+      state.lastSub[state.sec] = state.view;
+    }
     if (t.dataset.closepop) closeBookModal();
     state.moving = null;
     const motion =
@@ -748,9 +891,16 @@ function handleClick(e) {
     state.askMsg = '';
     render();
   } else if (a === 'close') {
+    const prevView = state.view;
+    state.cur = state.REAL;
+    state.view = 'today';
+    state.sec = DEFAULT_VIEW_SECTION.today;
+    state.lastSub[state.sec] = 'today';
     state.closing = true;
     state.closedMsg = '';
-    render();
+    render({
+      motion: prevView !== 'today' ? tabDirection(prevView, 'today') : '',
+    });
   } else if (a === 'cno') {
     state.closing = false;
     render();

@@ -3,6 +3,7 @@ import {
   WD_KO,
   addDay,
   addMonth,
+  ddayLabel,
   diffDays,
   lab,
   monthInfo,
@@ -37,8 +38,8 @@ import {
   weightOf,
 } from '../core/units.js';
 import { carryRuleOf, getOverdueItems, planClose } from '../core/carry.js';
-import { esc } from '../core/html.js';
-import { resolveMatrixRules } from '../core/matrix.js';
+import { esc, safeUrl } from '../core/html.js';
+import { buildMatrixBoard, resolveMatrixRules } from '../core/matrix.js';
 
 const WARN_P = 80;
 const HIGH_P = 100;
@@ -287,6 +288,256 @@ function closeCardHtml(state) {
     </div>
   </div>`;
   return h;
+}
+
+const QUICK_APPS = [
+  { name: '캘린더', icon: '📅', url: 'https://calendar.google.com', cls: 'bk-cal' },
+  { name: '구글 킵', icon: '💡', url: 'https://keep.google.com', cls: 'bk-keep' },
+  { name: '독스', icon: '📝', url: 'https://docs.google.com/document/', cls: 'bk-docs' },
+  { name: '시트', icon: '📊', url: 'https://docs.google.com/spreadsheets/', cls: 'bk-sheet' },
+  { name: '드라이브', icon: '📁', url: 'https://drive.google.com', cls: 'bk-drive' },
+];
+
+export function renderHome(state) {
+  const { plans, cfg, REAL, matrix, hub } = state;
+  const todayItems = liveItems(plans[REAL]);
+  const totP = sumP(todayItems, cfg);
+  const doneP = sumP(todayItems, cfg, (i) => i.done);
+  const remainCnt = todayItems.filter((i) => !i.done).length;
+  const pct = totP ? Math.round((doneP / totP) * 100) : 0;
+  const ddays = cfg.ddays || DEF_DD;
+  const od = getOverdueItems(plans, REAL);
+
+  const { quads } = buildMatrixBoard({
+    plans,
+    cfg,
+    matrixState: matrix,
+    todayIso: REAL,
+  });
+  const q1Top = quads.q1.slice(0, 5);
+  const totalMatrix =
+    quads.q1.length + quads.q2.length + quads.q3.length + quads.q4.length;
+
+  const subjStats = ALL_SUBJ.map((s) => {
+    const list = todayItems.filter((i) => i.s === s);
+    if (!list.length) return null;
+    const tP = sumP(list, cfg);
+    const dP = sumP(list, cfg, (i) => i.done);
+    const doneCount = list.filter((i) => i.done).length;
+    return {
+      subj: s,
+      color: SC[s] ? SC[s][0] : '--acc',
+      totP: tP,
+      doneP: dP,
+      pct: tP ? Math.round((dP / tP) * 100) : doneCount === list.length ? 100 : 0,
+      doneCount,
+      totalCount: list.length,
+    };
+  }).filter(Boolean);
+
+  const topBookmarks = (hub && Array.isArray(hub.items) ? hub.items : [])
+    .slice()
+    .sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999))
+    .slice(0, 4);
+
+  return `
+    <div class="card home-hero">
+      <div class="home-hero-top">
+        <div class="home-hero-main">
+          <span class="hero-kicker">TODAY FOCUS · ${esc(lab(REAL))}</span>
+          <h2 class="hero-title">오늘 목표 <b>${pct}%</b> 달성 중</h2>
+          <div class="note">
+            완료 <b>${fmt(doneP)}P</b> / 계획 <b>${fmt(totP)}P</b> · 남은 할 일 <b>${remainCnt}건</b>${
+              od.length ? ` · <span style="color:var(--carry);font-weight:700">이월 대기 ${od.length}개</span>` : ''
+            }
+          </div>
+        </div>
+        <div class="home-hero-actions">
+          <button type="button" class="btn pri" data-act="goto" data-d="${esc(REAL)}" data-v2="today">📅 오늘 학습 시작</button>
+          <button type="button" class="btn" data-v="matrix">🧭 매트릭스 열기</button>
+          <button type="button" class="btn" data-act="close">🌙 오늘 마무리</button>
+        </div>
+      </div>
+      ${gaugeHtml(REAL, plans, cfg)}
+    </div>
+
+    <div class="ddrow home-ddays">
+      ${ddays
+        .map(
+          (x, idx) => `
+        <div class="ddc ddc-${idx % 4}">
+          <span>${esc(x.n)}</span>
+          <b>${ddayLabel(x.d, REAL)}</b>
+          <em>${esc(String(x.d || '').replace(/-/g, '/'))}</em>
+        </div>
+      `
+        )
+        .join('')}
+    </div>
+
+    <div class="home-grid">
+      <div class="card glass-tint-coral">
+        <div class="row wrap-row">
+          <b class="card-title-md">🔥 지금 바로 할 일 · Q1</b>
+          <span class="sp"></span>
+          <span class="tag ${quads.q1.length ? 'b' : ''}">${quads.q1.length}개</span>
+        </div>
+        <div class="note" style="margin-top:4px">오늘 할 일 중 긴급하고 중요한 핵심 항목이에요.</div>
+        <div class="home-list">
+          ${
+            q1Top.length
+              ? q1Top
+                  .map((item) => {
+                    const isPlanBook =
+                      item.source === 'plan' &&
+                      item.bookId &&
+                      item.bookId !== GENERAL_BOOK;
+                    return `
+                    <div class="it">
+                      <input type="checkbox" data-act="mxtog" data-src="${esc(
+                        item.source
+                      )}" data-d="${esc(item.planDate)}" data-id="${esc(
+                        item.id
+                      )}" aria-label="완료 체크">
+                      <div class="tx">
+                        <div class="it-main">
+                          ${
+                            isPlanBook
+                              ? `<button type="button" class="book-link" data-act="bookpop" data-b="${esc(
+                                  item.bookId
+                                )}">${esc(BNAME[item.bookId] || item.bookId)}</button> <span class="it-title-text">${esc(
+                                  item.rangeText || item.title
+                                )}</span>`
+                              : `<span class="cat-badge">${esc(
+                                  item.cat || '할일'
+                                )}</span> <span class="it-title-text">${esc(
+                                  item.title
+                                )}</span>`
+                          }
+                        </div>
+                        ${
+                          item.reasons.length
+                            ? `<div class="mx-tags" style="margin-top:4px">${item.reasons
+                                .slice(0, 2)
+                                .map((r) => `<span class="mini-pill reason">${esc(r)}</span>`)
+                                .join('')}</div>`
+                            : ''
+                        }
+                      </div>
+                      ${item.p ? `<span class="p mono">${fmt(item.p)}P</span>` : ''}
+                    </div>
+                  `;
+                  })
+                  .join('')
+              : '<div class="note" style="padding:14px 0">오늘 Q1(긴급·중요) 미완료 항목이 없어요. 🎉</div>'
+          }
+        </div>
+        <div class="row home-card-foot">
+          <span class="note">전체 매트릭스 ${totalMatrix}개 중 Q1 ${quads.q1.length}개</span>
+          <span class="sp"></span>
+          <button type="button" class="btn sm pri" data-v="matrix">매트릭스 전체 보기</button>
+        </div>
+      </div>
+
+      <div class="card glass-tint-indigo">
+        <div class="row wrap-row">
+          <b class="card-title-md">📚 오늘 과목별 진행 현황</b>
+          <span class="sp"></span>
+          ${
+            od.length
+              ? `<span class="bdg o">밀린 항목 ${od.length}개</span>`
+              : `<span class="tag">${todayItems.length}줄</span>`
+          }
+        </div>
+        <div class="note" style="margin-top:4px">오늘 배정된 과목별 완료율과 부하 점수입니다.</div>
+        <div class="home-list">
+          ${
+            subjStats.length
+              ? subjStats
+                  .map(
+                    (st) => `
+                  <div class="home-subj-row">
+                    <div class="row">
+                      <span class="subj-dot" style="background:var(${st.color})"></span>
+                      <b class="card-title-sm">${esc(st.subj)}</b>
+                      <span class="note">(${st.doneCount}/${st.totalCount})</span>
+                      <span class="sp"></span>
+                      <span class="mono note">${fmt(st.doneP)}/${fmt(st.totP)}P · ${st.pct}%</span>
+                    </div>
+                    <div class="bar" style="margin-top:5px"><i style="width:${st.pct}%;background:var(${st.color})"></i></div>
+                  </div>
+                `
+                  )
+                  .join('')
+              : '<div class="note" style="padding:14px 0">오늘 등록된 공부 계획이 아직 없어요.</div>'
+          }
+        </div>
+        <div class="row home-card-foot">
+          <span class="note">${
+            od.length ? `밀린 항목 ${od.length}개가 대기 중이에요.` : '밀린 항목 없이 깔끔해요.'
+          }</span>
+          <span class="sp"></span>
+          <button type="button" class="btn sm pri" data-act="goto" data-d="${esc(
+            REAL
+          )}" data-v2="today">오늘 학습 열기</button>
+        </div>
+      </div>
+
+      <div class="card glass-tint-teal">
+        <div class="row wrap-row">
+          <b class="card-title-md">🔗 빠른 워크스페이스 &amp; 즐겨찾기</b>
+          <span class="sp"></span>
+          <span class="note">새 탭</span>
+        </div>
+        <div class="hub-mini-apps">
+          ${QUICK_APPS.map(
+            (app) => `
+            <a class="hub-mini-tile ${app.cls}" href="${app.url}" target="_blank" rel="noopener noreferrer">
+              <span>${app.icon}</span>
+              <b>${app.name}</b>
+            </a>
+          `
+          ).join('')}
+        </div>
+        <div class="home-bm-list">
+          ${
+            topBookmarks.length
+              ? topBookmarks
+                  .map(
+                    (bm) => `
+                  <a class="home-bm-item" href="${esc(
+                    safeUrl(bm.url)
+                  )}" target="_blank" rel="noopener noreferrer">
+                    <span class="hub-bm-ico">${
+                      bm.kind === 'sheet'
+                        ? '📊'
+                        : bm.kind === 'docs'
+                          ? '📝'
+                          : bm.kind === 'drive'
+                            ? '📁'
+                            : bm.kind === 'keep'
+                              ? '💡'
+                              : bm.kind === 'cal'
+                                ? '📅'
+                                : '🔗'
+                    }</span>
+                    <span class="home-bm-title">${esc(bm.name)}</span>
+                    <span class="note">↗</span>
+                  </a>
+                `
+                  )
+                  .join('')
+              : '<div class="note" style="padding:10px 0">등록된 문서 즐겨찾기가 없어요.</div>'
+          }
+        </div>
+        <div class="row home-card-foot">
+          <span class="note">내 캘린더·문서 링크 모아보기</span>
+          <span class="sp"></span>
+          <button type="button" class="btn sm pri" data-v="hub">허브 열기</button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 export function renderToday(state) {
@@ -736,14 +987,163 @@ export function renderWeek(state) {
   return h;
 }
 
-export function renderAll(state) {
-  const { plans, cfg, logs, calM, selB, REAL } = state;
-  const { year: Y, month: M, pad, dates: monthDates } = monthInfo(calM);
+function bookChipList(plans) {
   const allBooks = Object.keys(STUDY_BOOKS);
   const hasGeneral = planDates(plans).some((d) =>
     (plans[d] || []).some((it) => !it.x && isGeneralItem(it))
   );
-  const chipBooks = hasGeneral ? [...allBooks, GENERAL_BOOK] : allBooks;
+  return hasGeneral ? [...allBooks, GENERAL_BOOK] : allBooks;
+}
+
+function bookChipsHtml(plans, selB) {
+  const chipBooks = bookChipList(plans);
+  return `
+    <div class="chips" style="margin:10px 0">
+      ${chipBooks
+        .map(
+          (b) =>
+            `<button type="button" class="chip ${
+              selB.has(b) ? 'on' : ''
+            }" data-act="selb" data-b="${esc(b)}">${esc(BNAME[b])}</button>`
+        )
+        .join('')}
+      ${
+        selB.size
+          ? '<button type="button" class="chip" data-act="selclr">전체 해제</button>'
+          : ''
+      }
+    </div>
+  `;
+}
+
+function bookSummaryOrDetailHtml(plans, cfg, selB) {
+  const r = remainByBook(plans, cfg);
+  if (selB.size) {
+    let out = '';
+    for (const b of selB) {
+      const prog = getBookProgress(plans, b, cfg);
+      out += `
+        <div class="card">
+          <div class="row wrap-row">
+            <button type="button" class="book-link" style="font:400 16px Jua" data-act="bookpop" data-b="${esc(
+              b
+            )}">${esc(prog.name)}</button>
+            <span class="sp"></span>
+            <span class="note">${
+              prog.rows.length
+                ? `${lab(prog.rows[0].planDate)} ~ ${lab(
+                    prog.rows[prog.rows.length - 1].planDate
+                  )}`
+                : '계획 없음'
+            }</span>
+          </div>
+          <div class="pg" style="grid-template-columns:1fr auto;margin:8px 0">
+            <div class="t"><i style="width:${prog.pct}%;background:var(--ok)"></i></div>
+            <em>${prog.doneN}/${prog.totalN}${esc(prog.unit)} · ${
+              prog.pct
+            }% · 남은 ${prog.remainP}P</em>
+          </div>
+          ${prog.rows
+            .map(
+              ({ planDate, item: x, p, doneDate }) => `
+              <div class="row" style="padding:4px 0;cursor:pointer;border-top:1px solid var(--div)" data-act="goto" data-d="${planDate}" data-v2="today">
+                <span style="width:86px;font-size:13px;color:var(--mute)">${lab(
+                  planDate
+                )}</span>
+                <span style="flex:1;${
+                  x.done ? 'text-decoration:line-through;color:var(--done)' : ''
+                }">${esc(x.t)}</span>
+                <span class="p mono">${x.n}${esc(prog.unit)} · ${fmt(p)}P ${
+                  x.done
+                    ? doneDate && doneDate !== planDate
+                      ? `✓ (${shortDate(doneDate)})`
+                      : '✓'
+                    : ''
+                }</span>
+              </div>
+            `
+            )
+            .join('')}
+        </div>
+      `;
+    }
+    return out;
+  }
+
+  const subjOrder = (b) => {
+    const s = STUDY_BOOKS[b] || '학교·할일';
+    const idx = ALL_SUBJ.indexOf(s);
+    return idx >= 0 ? idx : 99;
+  };
+  return `
+    <div class="card">
+      <div class="row">
+        <b class="card-title-sm">교재별 (이름을 누르면 진도 팝업, 필터 버튼으로 달력 보기)</b>
+      </div>
+      <table class="tbl">
+        <tr><th>교재</th><th class="r">완료/계획</th><th class="r">남은 P</th><th class="r">선택</th></tr>
+        ${Object.keys(r)
+          .sort((a, b) => subjOrder(a) - subjOrder(b))
+          .map((b) => {
+            const o = r[b];
+            return `
+              <tr>
+                <td>
+                  <button type="button" class="book-link" data-act="bookpop" data-b="${esc(
+                    b
+                  )}">${esc(BNAME[b] || b)}</button>
+                </td>
+                <td class="r mono">${fmt(o.dn)}/${fmt(o.n)}${esc(
+                  UNIT[b] || '개'
+                )}</td>
+                <td class="r mono">${fmt(o.p)}</td>
+                <td class="r">
+                  <button type="button" class="btn sm" data-act="selb" data-b="${esc(
+                    b
+                  )}">필터</button>
+                </td>
+              </tr>
+            `;
+          })
+          .join('')}
+      </table>
+    </div>
+  `;
+}
+
+function logsHistoryHtml(plans, cfg, logs, showEmpty = false) {
+  const L = Object.keys(logs || {}).sort();
+  if (!L.length) {
+    return showEmpty
+      ? '<div class="card"><b class="card-title-sm">기록 (보정용)</b><div class="note" style="margin-top:8px">아직 저장된 공부 시간 기록이 없어요. 오늘 학습 탭에서 기록을 남겨 보세요!</div></div>'
+      : '';
+  }
+  return `
+    <div class="card">
+      <b class="card-title-sm">기록 (보정용)</b>
+      <table class="tbl">
+        <tr><th>날짜</th><th class="r">시간</th><th class="r">완료P</th><th class="r">체감</th></tr>
+        ${L.slice(-10)
+          .reverse()
+          .map((d) => {
+            const g = logs[d] || {};
+            return `<tr><td>${lab(d)}</td><td class="r mono">${
+              g.hours ?? '-'
+            }</td><td class="r mono">${sumP(
+              plans[d],
+              cfg,
+              (i) => i.done
+            )}</td><td class="r">${esc(g.feel || '-')}</td></tr>`;
+          })
+          .join('')}
+      </table>
+    </div>
+  `;
+}
+
+export function renderAll(state) {
+  const { plans, cfg, logs, calM, selB, REAL } = state;
+  const { year: Y, month: M, pad, dates: monthDates } = monthInfo(calM);
 
   const calCard = `
     <div class="card">
@@ -752,21 +1152,7 @@ export function renderAll(state) {
         <b>${Y}년 ${M}월</b>
         <button type="button" class="btn sm" data-act="cm" data-n="1">▶</button>
       </div>
-      <div class="chips" style="margin:10px 0">
-        ${chipBooks
-          .map(
-            (b) =>
-              `<button type="button" class="chip ${
-                selB.has(b) ? 'on' : ''
-              }" data-act="selb" data-b="${esc(b)}">${esc(BNAME[b])}</button>`
-          )
-          .join('')}
-        ${
-          selB.size
-            ? '<button type="button" class="chip" data-act="selclr">전체 해제</button>'
-            : ''
-        }
-      </div>
+      ${bookChipsHtml(plans, selB)}
       <div class="cal">
         ${WD_KO.map((x) => `<div class="h">${x}</div>`).join('')}
         ${'<div></div>'.repeat(pad)}
@@ -825,134 +1211,77 @@ export function renderAll(state) {
     </div>
   `;
 
-  // Book summary / detail
-  const r = remainByBook(plans, cfg);
-  let sideCards = '';
-  if (selB.size) {
-    for (const b of selB) {
-      const prog = getBookProgress(plans, b, cfg);
-      sideCards += `
-        <div class="card">
-          <div class="row wrap-row">
-            <button type="button" class="book-link" style="font:400 16px Jua" data-act="bookpop" data-b="${esc(
-              b
-            )}">${esc(prog.name)}</button>
-            <span class="sp"></span>
-            <span class="note">${
-              prog.rows.length
-                ? `${lab(prog.rows[0].planDate)} ~ ${lab(
-                    prog.rows[prog.rows.length - 1].planDate
-                  )}`
-                : '계획 없음'
-            }</span>
-          </div>
-          <div class="pg" style="grid-template-columns:1fr auto;margin:8px 0">
-            <div class="t"><i style="width:${prog.pct}%;background:var(--ok)"></i></div>
-            <em>${prog.doneN}/${prog.totalN}${esc(prog.unit)} · ${
-              prog.pct
-            }% · 남은 ${prog.remainP}P</em>
-          </div>
-          ${prog.rows
-            .map(
-              ({ planDate, item: x, p, doneDate }) => `
-              <div class="row" style="padding:4px 0;cursor:pointer;border-top:1px solid var(--div)" data-act="goto" data-d="${planDate}" data-v2="today">
-                <span style="width:86px;font-size:13px;color:var(--mute)">${lab(
-                  planDate
-                )}</span>
-                <span style="flex:1;${
-                  x.done ? 'text-decoration:line-through;color:var(--done)' : ''
-                }">${esc(x.t)}</span>
-                <span class="p mono">${x.n}${esc(prog.unit)} · ${fmt(p)}P ${
-                  x.done
-                    ? doneDate && doneDate !== planDate
-                      ? `✓ (${shortDate(doneDate)})`
-                      : '✓'
-                    : ''
-                }</span>
-              </div>
-            `
-            )
-            .join('')}
-        </div>
-      `;
-    }
-  } else {
-    const subjOrder = (b) => {
-      const s = STUDY_BOOKS[b] || '학교·할일';
-      const idx = ALL_SUBJ.indexOf(s);
-      return idx >= 0 ? idx : 99;
-    };
-    sideCards += `
-      <div class="card">
-        <div class="row">
-          <b class="card-title-sm">교재별 (이름을 누르면 진도 팝업, 필터 버튼으로 달력 보기)</b>
-        </div>
-        <table class="tbl">
-          <tr><th>교재</th><th class="r">완료/계획</th><th class="r">남은 P</th><th class="r">달력</th></tr>
-          ${Object.keys(r)
-            .sort((a, b) => subjOrder(a) - subjOrder(b))
-            .map((b) => {
-              const o = r[b];
-              return `
-                <tr>
-                  <td>
-                    <button type="button" class="book-link" data-act="bookpop" data-b="${esc(
-                      b
-                    )}">${esc(BNAME[b] || b)}</button>
-                  </td>
-                  <td class="r mono">${fmt(o.dn)}/${fmt(o.n)}${esc(
-                    UNIT[b] || '개'
-                  )}</td>
-                  <td class="r mono">${fmt(o.p)}</td>
-                  <td class="r">
-                    <button type="button" class="btn sm" data-act="selb" data-b="${esc(
-                      b
-                    )}">필터</button>
-                  </td>
-                </tr>
-              `;
-            })
-            .join('')}
-        </table>
-      </div>
-    `;
-  }
-
-  const L = Object.keys(logs || {}).sort();
-  if (L.length) {
-    sideCards += `
-      <div class="card">
-        <b class="card-title-sm">기록 (보정용)</b>
-        <table class="tbl">
-          <tr><th>날짜</th><th class="r">시간</th><th class="r">완료P</th><th class="r">체감</th></tr>
-          ${L.slice(-10)
-            .reverse()
-            .map((d) => {
-              const g = logs[d] || {};
-              return `<tr><td>${lab(d)}</td><td class="r mono">${
-                g.hours ?? '-'
-              }</td><td class="r mono">${sumP(
-                plans[d],
-                cfg,
-                (i) => i.done
-              )}</td><td class="r">${esc(g.feel || '-')}</td></tr>`;
-            })
-            .join('')}
-        </table>
-      </div>
-    `;
-  }
-
+  const sideCards = `${bookSummaryOrDetailHtml(plans, cfg, selB)}${logsHistoryHtml(
+    plans,
+    cfg,
+    logs
+  )}`;
   return `<div class="all-layout"><div class="all-main">${calCard}</div><div class="all-side">${sideCards}</div></div>`;
+}
+
+export function renderBooksView(state) {
+  const { plans, cfg, logs, selB } = state;
+  const allLive = planDates(plans).flatMap((d) => liveItems(plans[d]));
+  const totalP = sumP(allLive, cfg);
+  const doneP = sumP(allLive, cfg, (i) => i.done);
+  const totalPct = totalP ? Math.round((doneP / totalP) * 100) : 0;
+
+  const filterCard = `
+    <div class="card">
+      <div class="row wrap-row">
+        <b class="card-title-md">📖 교재별 진도 필터</b>
+        <span class="sp"></span>
+        <span class="note">교재를 고르면 날짜별 세부 진도를 모아 볼 수 있어요.</span>
+      </div>
+      ${bookChipsHtml(plans, selB)}
+    </div>
+  `;
+
+  const mainCol = `${filterCard}${bookSummaryOrDetailHtml(plans, cfg, selB)}`;
+
+  const subjSummaryCard = `
+    <div class="card glass-tint-indigo">
+      <div class="row wrap-row">
+        <b class="card-title-md">📈 전체 누적 진행 현황</b>
+        <span class="sp"></span>
+        <span class="mono note">${fmt(doneP)}P / ${fmt(totalP)}P · ${totalPct}%</span>
+      </div>
+      <div class="gauge"><i style="width:${totalPct}%"></i></div>
+      ${Object.keys(SC)
+        .map((k) => {
+          const L = allLive.filter((x) => x.s === k);
+          if (!L.length) return '';
+          const t = sumP(L, cfg);
+          const dn = sumP(L, cfg, (x) => x.done);
+          const p = t ? Math.round((dn / t) * 100) : 0;
+          return `
+            <div class="pg">
+              <span style="color:var(${SC[k][0]})">${k}</span>
+              <div class="t"><i style="width:${p}%;background:var(${SC[k][0]})"></i></div>
+              <em>${dn}P/${t}P · ${p}%</em>
+            </div>
+          `;
+        })
+        .join('')}
+    </div>
+  `;
+
+  const sideCol = `${subjSummaryCard}${logsHistoryHtml(plans, cfg, logs, true)}`;
+  return `<div class="all-layout"><div class="all-main">${mainCol}</div><div class="all-side">${sideCol}</div></div>`;
 }
 
 export function renderSettings(state) {
   const { cfg } = state;
+  const sec = state.settingsSection || 'all';
+  const showStudy = sec === 'all' || sec === 'study';
+  const showRules = sec === 'all' || sec === 'rules';
+  const showSync = sec === 'all' || sec === 'sync';
   const rules = resolveMatrixRules(cfg);
   const examSet = new Set(rules.examBooks);
 
-  let h = `
-    <div class="settings-grid">
+  let cards = '';
+  if (showStudy) {
+    cards += `
     <div class="card">
       <b class="card-title-sm">부하 점수 (단위당 P) 및 밀림 규칙</b>
       <div class="note">체감과 시간 기록을 보면서 고치면 전체 계획 부하가 같이 바뀌어요.</div>
@@ -1015,7 +1344,11 @@ export function renderSettings(state) {
         </tr>
       </table>
     </div>
+    `;
+  }
 
+  if (showRules) {
+    cards += `
     <div class="card">
       <div class="row">
         <b class="card-title-sm">D-day</b>
@@ -1038,7 +1371,11 @@ export function renderSettings(state) {
         )
         .join('')}
     </div>
+    `;
+  }
 
+  if (showStudy) {
+    cards += `
     <div class="card">
       <b class="card-title-sm">하루 기준 부하</b>
       <div class="row" style="margin-top:8px">
@@ -1053,7 +1390,11 @@ export function renderSettings(state) {
       </div>
       <div class="note" style="margin-top:6px">100P 초과는 과부하로 표시돼요.</div>
     </div>
+    `;
+  }
 
+  if (showRules) {
+    cards += `
     <div class="card">
       <b class="card-title-sm">아이젠하워 매트릭스 자동 분류 규칙</b>
       <div class="note" style="margin-bottom:8px">오늘 할 일(오늘 배정·이월된 계획 및 할 일)에 한해서만 4분면으로 분류해요. 수동으로 옮긴 항목은 자동 규칙이 덮어쓰지 않아요.</div>
@@ -1090,7 +1431,11 @@ export function renderSettings(state) {
         </div>
       </div>
     </div>
+    `;
+  }
 
+  if (showSync) {
+    cards += `
     <div class="card">
       <b class="card-title-sm">구글 캘린더 임베드 설정</b>
       <div class="note" style="margin:6px 0">
@@ -1103,7 +1448,11 @@ export function renderSettings(state) {
         <button type="button" class="btn sm pri" data-act="savecal" data-src="set-cal-url">저장</button>
       </div>
     </div>
+    `;
+  }
 
+  if (showStudy) {
+    cards += `
     <div class="card">
       <b class="card-title-sm">밀림 규칙 안내</b>
       <div class="note">
@@ -1112,7 +1461,11 @@ export function renderSettings(state) {
         '물어보기'는 밀린 목록에 떠요.
       </div>
     </div>
+    `;
+  }
 
+  if (showSync) {
+    cards += `
     <div class="card">
       <b class="card-title-sm">접속 토큰 및 데이터 백업</b>
       <div class="menu" style="margin-top:10px">
@@ -1126,10 +1479,10 @@ export function renderSettings(state) {
       </div>
       <div class="note" style="margin-top:6px">토큰은 이 브라우저의 localStorage에만 저장되며 코드에 포함되지 않아요.</div>
     </div>
-    </div>
-  `;
+    `;
+  }
 
-  return h;
+  return `<div class="settings-grid">${cards}</div>`;
 }
 
 export function renderBookModal(state) {
