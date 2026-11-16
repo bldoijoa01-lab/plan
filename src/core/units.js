@@ -109,6 +109,10 @@ export const PB = new Set([
   '쎈',
   '원솔',
   '고쟁이',
+  '기하강의',
+  '알고리즘',
+  '실전모의',
+  '모의오답',
   '역학',
   '세포',
   '물질',
@@ -208,13 +212,14 @@ export function parseUnits(it) {
   if (!it || typeof it.t !== 'string') return null;
   const out = [];
   for (const seg of it.t.split(/,\s*/)) {
-    const m = /^(.*?)(\d+)(?:~(\d+))?$/.exec(seg.trim());
+    const m = /^(.*?)(\d+)(?:~(\d+))?([^\d~,\s]*)$/.exec(seg.trim());
     if (!m) return null;
     const a = Number(m[2]);
     const b = m[3] ? Number(m[3]) : a;
+    const s = m[4] || '';
     if (b < a || b - a > 5000) return null;
     for (let n = a; n <= b; n++) {
-      out.push({ p: m[1], n });
+      out.push(s ? { p: m[1], n, s } : { p: m[1], n });
     }
   }
   return out.length === it.n ? out : null;
@@ -222,21 +227,22 @@ export function parseUnits(it) {
 
 /**
  * 단위 배열을 연속 구간 문자열로 압축합니다.
- * @param {Array<{ p: string, n: number }>} units
+ * @param {Array<{ p: string, n: number, s?: string }>} units
  * @returns {string}
  */
 export function unitsText(units) {
   const g = [];
   units.forEach((x) => {
     const l = g[g.length - 1];
-    if (l && l.p === x.p && l.b + 1 === x.n) {
+    const xs = x.s || '';
+    if (l && l.p === x.p && l.s === xs && l.b + 1 === x.n) {
       l.b = x.n;
     } else {
-      g.push({ p: x.p, a: x.n, b: x.n });
+      g.push({ p: x.p, s: xs, a: x.n, b: x.n });
     }
   });
   return g
-    .map((r) => (r.a === r.b ? r.p + r.a : `${r.p}${r.a}~${r.b}`))
+    .map((r) => (r.a === r.b ? `${r.p}${r.a}${r.s}` : `${r.p}${r.a}~${r.b}${r.s}`))
     .join(', ');
 }
 
@@ -258,7 +264,7 @@ export function splitRangeUpTo(it, input, doneDate) {
     return { ok: false, error: '번호를 적어 주세요.' };
   }
   let idx = u
-    .map((x, i) => (NK(x.p + x.n) === NK(v) ? i : -1))
+    .map((x, i) => (NK(x.p + x.n + (x.s || '')) === NK(v) ? i : -1))
     .filter((i) => i >= 0);
   if (!idx.length && /^\d+$/.test(v)) {
     idx = u.map((x, i) => (x.n === Number(v) ? i : -1)).filter((i) => i >= 0);
@@ -385,8 +391,9 @@ export function auditBookRanges(plans) {
       if (!byBook.has(it.b)) byBook.set(it.b, new Map());
       const prefixMap = byBook.get(it.b);
       for (const u of units) {
-        if (!prefixMap.has(u.p)) prefixMap.set(u.p, new Map());
-        const numMap = prefixMap.get(u.p);
+        const key = `${u.p}\0${u.s || ''}`;
+        if (!prefixMap.has(key)) prefixMap.set(key, new Map());
+        const numMap = prefixMap.get(key);
         if (!numMap.has(u.n)) numMap.set(u.n, []);
         numMap.get(u.n).push({ date: d, id: it.id, done: Boolean(it.done) });
       }
@@ -402,19 +409,20 @@ export function auditBookRanges(plans) {
     const dupDatesSet = new Set();
     const gapUnits = [];
 
-    const prefixes = [...prefixMap.keys()].sort((a, b) =>
+    const keys = [...prefixMap.keys()].sort((a, b) =>
       String(a).localeCompare(String(b), 'ko', { numeric: true })
     );
 
-    for (const p of prefixes) {
-      const numMap = prefixMap.get(p);
+    for (const key of keys) {
+      const [p, s] = key.split('\0');
+      const numMap = prefixMap.get(key);
       const nums = [...numMap.keys()].sort((a, b) => a - b);
       if (!nums.length) continue;
 
       for (const n of nums) {
         const occ = numMap.get(n);
         if (occ.length > 1) {
-          dupUnits.push({ p, n });
+          dupUnits.push(s ? { p, n, s } : { p, n });
           for (const o of occ) dupDatesSet.add(o.date);
         }
       }
@@ -423,7 +431,7 @@ export function auditBookRanges(plans) {
       const maxN = nums[nums.length - 1];
       for (let n = minN; n <= maxN; n++) {
         if (!numMap.has(n)) {
-          gapUnits.push({ p, n });
+          gapUnits.push(s ? { p, n, s } : { p, n });
         }
       }
     }

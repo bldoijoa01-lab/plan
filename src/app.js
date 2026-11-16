@@ -3,7 +3,7 @@ import {
   addMonth,
   lab,
   todayKst,
-} from './core/date.js?v=20261116-01';
+} from './core/date.js?v=20261116-02';
 import {
   BNAME,
   BOOKS,
@@ -16,24 +16,24 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261116-01';
+} from './core/units.js?v=20261116-02';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
   movePlanSlice,
-} from './core/carry.js?v=20261116-01';
+} from './core/carry.js?v=20261116-02';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261116-01';
+} from './core/matrix.js?v=20261116-02';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261116-01';
-import { esc } from './core/html.js?v=20261116-01';
+} from './core/hub.js?v=20261116-02';
+import { esc } from './core/html.js?v=20261116-02';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -43,13 +43,13 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261116-01';
+} from './services/store.js?v=20261116-02';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261116-01';
+} from './services/gcal.js?v=20261116-02';
 import {
   renderAll,
   renderBookModal,
@@ -60,9 +60,9 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261116-01';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261116-01';
-import { renderMatrix } from './views/matrix.js?v=20261116-01';
+} from './views/schedule.js?v=20261116-02';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261116-02';
+import { renderMatrix } from './views/matrix.js?v=20261116-02';
 
 const $ = (s) => document.querySelector(s);
 

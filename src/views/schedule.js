@@ -82,7 +82,8 @@ function askFormHtml(dateIso, it, state) {
   const { asking, askMsg } = state;
   if (!asking || asking.d !== dateIso || asking.id !== it.id) return '';
   const u = parseUnits(it);
-  const ex = u ? u[Math.min(1, u.length - 1)].p + u[Math.min(1, u.length - 1)].n : '443';
+  const sample = u ? u[Math.min(1, u.length - 1)] : null;
+  const ex = sample ? `${sample.p}${sample.n}${sample.s || ''}` : '443';
   return `
     <div class="ask-box">
       <div class="menu">
@@ -2136,7 +2137,7 @@ export function renderMoveCalModal(state) {
                       .map(
                         (u, idx) =>
                           `<option value="${idx}" ${idx === sIdx ? 'selected' : ''}>${esc(
-                            u.p + u.n
+                            u.p + u.n + (u.s || '')
                           )}</option>`
                       )
                       .join('')}
@@ -2148,7 +2149,7 @@ export function renderMoveCalModal(state) {
                         idx < sIdx
                           ? ''
                           : `<option value="${idx}" ${idx === eIdx ? 'selected' : ''}>${esc(
-                              u.p + u.n
+                              u.p + u.n + (u.s || '')
                             )}</option>`
                       )
                       .join('')}

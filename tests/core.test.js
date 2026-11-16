@@ -23,6 +23,7 @@ import {
   splitRangeUpTo,
   getBookProgress,
   auditBookRanges,
+  PB,
 } from '../src/core/units.js';
 import {
   applyAutoCarry,
@@ -982,4 +983,29 @@ test('auditBookRanges detects duplicates/gaps for 원솔 & other books and stays
   assert.equal(auditBookRanges(closed.plans).hasIssues, false);
   // 11/22(일요일)도 이번 주 pool에 포함되어 wEnd 누락이 없는지 확인
   assert.ok(closed.summary.days.includes('2026-11-22'));
+});
+
+test('lecture books (알고리즘, 기하강의) support partial completion and unit range parsing', () => {
+  assert.equal(PB.has('알고리즘'), true);
+  assert.equal(PB.has('기하강의'), true);
+
+  const algo = { id: 'alg1', s: '영어', b: '알고리즘', t: '13~14강', n: 2, done: false };
+  const units = parseUnits(algo);
+  assert.deepEqual(units, [
+    { p: '', n: 13, s: '강' },
+    { p: '', n: 14, s: '강' },
+  ]);
+
+  const splitByText = splitRangeUpTo(algo, '13강', '2026-11-16');
+  assert.equal(splitByText.ok, true);
+  assert.equal(splitByText.items[0].t, '13강');
+  assert.equal(splitByText.items[0].done, true);
+  assert.equal(splitByText.items[1].t, '14강');
+  assert.equal(splitByText.items[1].done, false);
+
+  const giha = { id: 'gh1', s: '수학', b: '기하강의', t: '10~12강', n: 3, done: false };
+  const splitByNum = splitRangeUpTo(giha, '11', '2026-11-16');
+  assert.equal(splitByNum.ok, true);
+  assert.equal(splitByNum.items[0].t, '10~11강');
+  assert.equal(splitByNum.items[1].t, '12강');
 });
