@@ -566,6 +566,13 @@ export function renderHome(state) {
           <b class="card-title-md">⏳ 밀린 항목 &amp; 이월 관리</b>
           <span class="sp"></span>
           ${
+            od.some((x) => x.date === addDay(REAL, -1))
+              ? `<button type="button" class="btn sm" data-act="goto" data-d="${esc(
+                  addDay(REAL, -1)
+                )}" data-v2="today">어제 체크하기</button>`
+              : ''
+          }
+          ${
             od.length
               ? `<span class="bdg o">${od.length}개 대기</span>`
               : '<span class="tag">이월 없음</span>'
@@ -575,7 +582,7 @@ export function renderHome(state) {
           od.length
             ? `이전 날짜 미완료 총 ${fmt(
                 od.reduce((a, { item }) => a + itemP(item, cfg), 0)
-              )}P를 오늘로 가져올 수 있어요.`
+              )}P — 바로 완료 체크하거나 오늘로 가져올 수 있어요.`
             : '지난 날짜에서 넘어와 대기 중인 항목이 없어요.'
         }</div>
         <div class="home-list">
@@ -586,9 +593,15 @@ export function renderHome(state) {
                     const rule = carryRuleOf(i, cfg);
                     return `
                     <div class="it">
+                      <input type="checkbox" class="ck" data-act="tog" data-d="${esc(
+                        odDate
+                      )}" data-id="${esc(i.id)}" aria-label="${esc(
+                      (BNAME[i.b] || i.b || '') + ' ' + (i.t || '')
+                    )} 완료">
                       <div class="tx">
                         <div class="it-main">${itemTitleHtml(i)}</div>
                         <div class="note">원래 ${lab(odDate)} · ${MODE_LABEL[rule] || '물어보기'}</div>
+                        ${askFormHtml(odDate, i, state)}
                       </div>
                       <span class="p mono">${fmt(itemP(i, cfg))}P</span>
                       <button type="button" class="btn sm" data-act="pull" data-d="${esc(
@@ -719,11 +732,20 @@ export function renderToday(state) {
   const od = getOverdueItems(plans, REAL);
   if (od.length && cur >= REAL) {
     const tp = fmt(od.reduce((a, { item }) => a + itemP(item, cfg), 0));
+    const yesterdayIso = addDay(REAL, -1);
+    const hasYesterday = od.some((x) => x.date === yesterdayIso);
     mainCol += `
       <div class="card glass-warn">
         <div class="row wrap-row">
           <b>밀린 것 ${od.length}개 · ${tp}P</b>
           <span class="sp"></span>
+          ${
+            hasYesterday
+              ? `<button type="button" class="btn sm" data-act="goto" data-d="${esc(
+                  yesterdayIso
+                )}">어제 날짜로</button>`
+              : ''
+          }
           <button type="button" class="btn sm pri" data-act="pullall">전부 ${lab(
             cur
           )}로</button>
@@ -739,9 +761,15 @@ export function renderToday(state) {
             : '규칙: 물어보기';
       mainCol += `
         <div class="it">
+          <input type="checkbox" class="ck" data-act="tog" data-d="${esc(
+            odDate
+          )}" data-id="${esc(i.id)}" aria-label="${esc(
+        (BNAME[i.b] || i.b || '') + ' ' + (i.t || '')
+      )} 완료">
           <div class="tx">
             <div>${itemTitleHtml(i)}</div>
             <div class="note">원래 ${lab(odDate)} · ${ruleText}</div>
+            ${askFormHtml(odDate, i, state)}
           </div>
           <span class="p mono">${fmt(itemP(i, cfg))}P</span>
           <button type="button" class="btn sm" data-act="pull" data-d="${esc(

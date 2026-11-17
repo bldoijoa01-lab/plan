@@ -1009,3 +1009,35 @@ test('lecture books (알고리즘, 기하강의) support partial completion and 
   assert.equal(splitByNum.items[0].t, '10~11강');
   assert.equal(splitByNum.items[1].t, '12강');
 });
+
+test('renderHome and renderToday allow checking yesterday overdue items directly and jumping to yesterday', () => {
+  const cfg = defaultConfig();
+  const state = {
+    REAL: '2026-11-18',
+    cur: '2026-11-18',
+    cfg,
+    logs: {},
+    plans: {
+      '2026-11-17': [
+        { id: 'y1', s: '수학', b: '원솔', t: 'T06·2~3', n: 2, done: false },
+      ],
+      '2026-11-18': [
+        { id: 't1', s: '수학', b: '쎈', t: '#1~5', n: 5, done: false },
+      ],
+    },
+    matrix: { tasks: [], overrides: {} },
+    gcal: { connected: false, events: [] },
+    asking: { d: '2026-11-17', id: 'y1' },
+    askMsg: '',
+  };
+
+  const homeHtml = renderHome(state);
+  assert.match(homeHtml, /data-act="tog" data-d="2026-11-17" data-id="y1"/);
+  assert.match(homeHtml, /어제 체크하기/);
+  assert.match(homeHtml, /data-act="askok"/);
+
+  const todayHtml = renderToday(state);
+  assert.match(todayHtml, /data-act="tog" data-d="2026-11-17" data-id="y1"/);
+  assert.match(todayHtml, /어제 날짜로/);
+  assert.match(todayHtml, /data-act="askok"/);
+});

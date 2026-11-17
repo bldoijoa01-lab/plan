@@ -3,7 +3,7 @@ import {
   addMonth,
   lab,
   todayKst,
-} from './core/date.js?v=20261116-02';
+} from './core/date.js?v=20261118-01';
 import {
   BNAME,
   BOOKS,
@@ -16,24 +16,24 @@ import {
   parseUnits,
   planDates,
   splitRangeUpTo,
-} from './core/units.js?v=20261116-02';
+} from './core/units.js?v=20261118-01';
 import {
   applyAutoCarry,
   applyClosePlan,
   movePlanItem,
   movePlanSlice,
-} from './core/carry.js?v=20261116-02';
+} from './core/carry.js?v=20261118-01';
 import {
   applyMatrixUndo,
   moveMatrixItemManual,
   resetMatrixItemToAuto,
   resolveMatrixRules,
-} from './core/matrix.js?v=20261116-02';
+} from './core/matrix.js?v=20261118-01';
 import {
   normalizeHubState,
   toggleHubStar,
-} from './core/hub.js?v=20261116-02';
-import { esc } from './core/html.js?v=20261116-02';
+} from './core/hub.js?v=20261118-01';
+import { esc } from './core/html.js?v=20261118-01';
 import {
   buildCalendarEmbedUrl,
   createStore,
@@ -43,13 +43,13 @@ import {
   getToken,
   mergeConfig,
   setToken,
-} from './services/store.js?v=20261116-02';
+} from './services/store.js?v=20261118-01';
 import {
   connectGcal,
   disconnectGcal,
   fetchGcalMonth,
   isGcalConnected,
-} from './services/gcal.js?v=20261116-02';
+} from './services/gcal.js?v=20261118-01';
 import {
   renderAll,
   renderBookModal,
@@ -60,9 +60,9 @@ import {
   renderSettings,
   renderToday,
   renderWeek,
-} from './views/schedule.js?v=20261116-02';
-import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261116-02';
-import { renderMatrix } from './views/matrix.js?v=20261116-02';
+} from './views/schedule.js?v=20261118-01';
+import { detectBookmarkKind, renderHub } from './views/hub.js?v=20261118-01';
+import { renderMatrix } from './views/matrix.js?v=20261118-01';
 
 const $ = (s) => document.querySelector(s);
 
@@ -820,6 +820,10 @@ function findItem(dateIso, id) {
   return (state.plans[dateIso] || []).find((i) => i.id === id);
 }
 
+function effectiveDoneDate(planDate) {
+  return planDate && planDate < state.REAL ? planDate : state.REAL;
+}
+
 function updatePlanDate(dateIso, updater) {
   const clonedList = CL(state.plans[dateIso] || []);
   const nextList = updater(clonedList);
@@ -1209,14 +1213,14 @@ function handleClick(e) {
     render({ motion });
   } else if (a === 'askok') {
     const v = ($('#ak') || {}).value || '';
-    const targetItem = findItem(state.asking.d, state.asking.id);
-    const res = splitRangeUpTo(targetItem, v, state.REAL);
+    const dd = state.asking.d;
+    const targetItem = findItem(dd, state.asking.id);
+    const res = splitRangeUpTo(targetItem, v, effectiveDoneDate(dd));
     if (!res.ok) {
       state.askMsg = res.error;
       render();
       return;
     }
-    const dd = state.asking.d;
     const targetId = state.asking.id;
     updatePlanDate(dd, (list) => {
       const idx = list.findIndex((x) => x.id === targetId);
@@ -1230,10 +1234,11 @@ function handleClick(e) {
   } else if (a === 'askall') {
     const dd = state.asking.d;
     const targetId = state.asking.id;
+    const doneAt = effectiveDoneDate(dd);
     updatePlanDate(dd, (list) =>
       list.map((x) =>
         x.id === targetId
-          ? { ...x, done: true, done_date: state.REAL, d: state.REAL }
+          ? { ...x, done: true, done_date: doneAt, d: doneAt }
           : x
       )
     );
@@ -1780,8 +1785,9 @@ function handleChange(e) {
         if (x.id !== id) return x;
         const copy = { ...x, done: t.checked };
         if (t.checked) {
-          copy.done_date = state.REAL;
-          copy.d = state.REAL;
+          const doneAt = effectiveDoneDate(d);
+          copy.done_date = doneAt;
+          copy.d = doneAt;
         } else {
           delete copy.done_date;
           delete copy.d;
@@ -1800,8 +1806,9 @@ function handleChange(e) {
           if (x.id !== id) return x;
           const copy = { ...x, done: t.checked };
           if (t.checked) {
-            copy.done_date = state.REAL;
-            copy.d = state.REAL;
+            const doneAt = effectiveDoneDate(d);
+            copy.done_date = doneAt;
+            copy.d = doneAt;
           } else {
             delete copy.done_date;
             delete copy.d;
